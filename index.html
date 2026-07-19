@@ -45,9 +45,9 @@
   <div id="wrap"><canvas id="game" width="512" height="480"></canvas></div>
   <div id="hint">
     <kbd>← ↑ → ↓</kbd>/<kbd>WASD</kbd> bewegen • <kbd>Leer</kbd>/<kbd>J</kbd> Schwert / A •
-    <kbd>Enter</kbd> reden/bestätigen / B • <kbd>M</kbd> Musik an/aus<br>
+    <kbd>Enter</kbd> reden/bestätigen / B • <kbd>P</kbd> Pokédex • <kbd>M</kbd> Musik<br>
     Finde die <b style="color:#ffcc33">3 Triforce-Splitter</b>, rüste dich im
-    <b style="color:#8be37a">Shop</b>, heil dich an der <b style="color:#5fe08a">Statue</b> und besiege den Boss!
+    <b style="color:#8be37a">Shop</b>, fang Kreaturen mit <b>Attacken & Typen</b> und stell dich dem <b style="color:#7b5cff">Boss</b> (der Golem in den Ruinen ist optional)!
   </div>
   <div id="touch">
     <div class="pad">
@@ -81,11 +81,20 @@ const SOLID = new Set([T.WALL, T.WATER, T.BRICK, T.SHOP, T.GATE, T.SIGN, T.TREE,
 
 /* ---- Kreaturen ---- */
 const SPECIES = [
-  { name:"Glutwelpe",  color:"#ff7a3c", emoji:"🔥", type:"fire",  hp:22, atk:6 },
-  { name:"Aquamolch",  color:"#3ca0ff", emoji:"💧", type:"water", hp:26, atk:5 },
-  { name:"Blattbold",  color:"#5fd06b", emoji:"🌿", type:"grass", hp:24, atk:5 },
-  { name:"Steinknorz", color:"#b08a5a", emoji:"🪨", type:"rock",  hp:30, atk:4 },
-  { name:"Blitzfluse", color:"#ffd23c", emoji:"⚡", type:"elec",  hp:20, atk:7 },
+  { name:"Glutwelpe",  color:"#ff7a3c", emoji:"🔥", type:"fire",  hp:22, atk:6, rare:false,
+    moves:[{name:"Kratzer",power:6,type:"normal"},{name:"Glut",power:9,type:"fire",effect:"burn",chance:0.3}] },
+  { name:"Aquamolch",  color:"#3ca0ff", emoji:"💧", type:"water", hp:26, atk:5, rare:false,
+    moves:[{name:"Aquaknarre",power:9,type:"water"},{name:"Strudel",power:6,type:"water",effect:"sleep",chance:0.35}] },
+  { name:"Blattbold",  color:"#5fd06b", emoji:"🌿", type:"grass", hp:24, atk:5, rare:false,
+    moves:[{name:"Rankenhieb",power:9,type:"grass"},{name:"Schlafspore",power:0,type:"grass",effect:"sleep",chance:0.7}] },
+  { name:"Steinknorz", color:"#b08a5a", emoji:"🪨", type:"rock",  hp:30, atk:4, rare:false,
+    moves:[{name:"Steinwurf",power:8,type:"rock"},{name:"Panzerstoß",power:11,type:"rock"}] },
+  { name:"Blitzfluse", color:"#ffd23c", emoji:"⚡", type:"elec",  hp:20, atk:7, rare:false,
+    moves:[{name:"Funke",power:9,type:"elec"},{name:"Donnerschlag",power:12,type:"elec",effect:"sleep",chance:0.2}] },
+  { name:"Frostgeist", color:"#9be0ff", emoji:"❄️", type:"water", hp:34, atk:8, rare:true,
+    moves:[{name:"Eissturm",power:13,type:"water"},{name:"Frostbiss",power:9,type:"water",effect:"sleep",chance:0.4}] },
+  { name:"Inferndrache",color:"#ff5a2c", emoji:"🐉", type:"fire", hp:36, atk:9, rare:true,
+    moves:[{name:"Drachenzorn",power:13,type:"fire"},{name:"Feuersturm",power:10,type:"fire",effect:"burn",chance:0.5}] },
 ];
 const STRONG = { fire:"grass", grass:"water", water:"fire" }; // Schere-Stein-Papier
 function effectiveness(atkType, defType){
@@ -97,17 +106,21 @@ function makeCreature(specIdx, level){
   const s = SPECIES[specIdx];
   const lv = level || (1 + (Math.random()*4|0));
   const maxHp = s.hp + lv*3;
-  return { spec:specIdx, name:s.name, color:s.color, emoji:s.emoji, type:s.type,
-           level:lv, maxHp, hp:maxHp, atk:s.atk + lv, xp:0 };
+  return { spec:specIdx, name:s.name, color:s.color, emoji:s.emoji, type:s.type, moves:s.moves,
+           level:lv, maxHp, hp:maxHp, atk:s.atk + lv, xp:0, status:null, statusTurns:0 };
 }
+/* Pokédex-Tracking */
+function markSeen(sp){ if (sp>=0 && sp<SPECIES.length && !player.seen.includes(sp)) player.seen.push(sp); }
+function markCaught(sp){ markSeen(sp); if (sp>=0 && sp<SPECIES.length && !player.caught.includes(sp)) player.caught.push(sp); }
 
 /* ---- Spieler ---- */
 const player = {
   room:"village", px:2, py:7, x:2*TILE+3, y:7*TILE+3, w:TILE-6, h:TILE-6,
   moving:false, mx:0, my:0, dir:"down", speed:4,
   maxHp:3, hp:3, coins:0, balls:3, potions:1, shards:0,
-  attack:0, invuln:0, party:[], walkFrame:0,
+  attack:0, invuln:0, party:[], walkFrame:0, seen:[], caught:[],
 };
+let gtick=0, fadeT=0, pEdge=false;
 
 /* =========================================================================
    WELT — mehrere Räume, programmatisch gebaut (weniger Tippfehler)
@@ -137,7 +150,12 @@ function buildAllRooms(){
     set(t,3,3,T.SHOP); set(t,5,5,T.SIGN); set(t,7,1,T.GATE); set(t,12,5,T.HEAL);
     set(t,10,3,T.COIN); set(t,11,9,T.COIN); set(t,4,10,T.COIN);
     set(t,2,2,T.TREE); set(t,13,2,T.TREE); set(t,13,11,T.TREE);
-    rooms.village = { tiles:t, exits, enemies:[] };
+    rooms.village = { tiles:t, exits, enemies:[], npcs:[
+      { c:10, r:7, color:"#7b5cff", name:"Professor", action:"dex",
+        lines:["🔬 »Ich erforsche die Kreaturen!","Sprich mich an oder drück P,","um deinen Pokédex zu öffnen.«"] },
+      { c:6, r:9, color:"#e0b0ff", name:"Älteste",
+        lines:["👵 »Der Schattenkönig stahl das Licht.","Nur wer die 3 Splitter vereint,","kann sein Tor öffnen und ihn bezwingen.«"] },
+    ] };
   }
   /* --- Graswiese: hohes Gras (Kämpfe) + Splitter 1 --- */
   {
@@ -164,9 +182,9 @@ function buildAllRooms(){
       { x:10*TILE, y:11*TILE, dir:-1, hp:2, maxHp:2, alive:true, cool:0, flash:0 },
     ] };
   }
-  /* --- Höhle: Wasser, Gegner, Splitter 3 --- */
+  /* --- Höhle: Wasser, Gegner, Splitter 3 (Ost → Ruinen) --- */
   {
-    const exits = { north:"grass", west:"forest" };
+    const exits = { north:"grass", west:"forest", east:"ruins" };
     const t = blankRoom(T.FLOOR); carve(t, exits);
     for (let r=5;r<=8;r++) for (let c=6;c<=9;c++) set(t,c,r,T.WATER);
     set(t,13,2,T.SHARD);
@@ -174,6 +192,16 @@ function buildAllRooms(){
     rooms.cave = { tiles:t, exits, enemies:[
       { x:4*TILE, y:3*TILE, dir:1, hp:3, maxHp:3, alive:true, cool:0, flash:0 },
       { x:11*TILE, y:9*TILE, dir:-1, hp:3, maxHp:3, alive:true, cool:0, flash:0 },
+    ] };
+  }
+  /* --- Ruinen: Golem-Miniboss + Schatz (optional) --- */
+  {
+    const exits = { west:"cave" };
+    const t = blankRoom(T.FLOOR); carve(t, exits);
+    [[3,3],[12,3],[3,11],[12,11]].forEach(p=>set(t,p[0],p[1],T.WALL));   // Säulen
+    set(t,2,12,T.COIN); set(t,13,12,T.COIN);
+    rooms.ruins = { tiles:t, exits, enemies:[], cleared:false, npcs:[
+      { c:8, r:5, color:"#8a7a5a", name:"Golem", action:"golem", lines:[] },
     ] };
   }
   /* --- Boss-Arena --- */
@@ -189,7 +217,8 @@ function tileAt(c,r){
   if (r<0||r>=ROWS||c<0||c>=COLS) return T.WALL;
   return getRoom().tiles[r][c];
 }
-function isSolid(c,r){ return SOLID.has(tileAt(c,r)); }
+function npcAt(c,r){ const ns=getRoom().npcs; return ns ? (ns.find(n=>n.c===c&&n.r===r)||null) : null; }
+function isSolid(c,r){ return SOLID.has(tileAt(c,r)) || !!npcAt(c,r); }
 
 /* =========================================================================
    ZUSTAND / DIALOGE
@@ -212,6 +241,7 @@ function press(k){
   if (!keys[k]){
     if (k==="enter"||k==="b") enterEdge=true;
     if (k===" "||k==="j"||k==="a") attackEdge=true;
+    if (k==="p") pEdge=true;
   }
   if (k==="m") musicOn=!musicOn;
   keys[k]=true;
@@ -319,6 +349,7 @@ function tryStartMove(dx,dy,dir){
   player.moving=true; player.mx=dx; player.my=dy;
 }
 function doTransition(roomKey, dir){
+  fadeT=14;
   player.room=roomKey; player.moving=false;
   if (dir==="right"){ player.px=0;      player.py=7; }
   if (dir==="left"){  player.px=COLS-1; player.py=7; }
@@ -328,8 +359,19 @@ function doTransition(roomKey, dir){
   saveGame();
 }
 
+function handleNpc(n){
+  if (n.action==="dex"){ openDex(); return; }
+  if (n.action==="golem"){
+    if (getRoom().cleared) showMessage(["🗿 Der Golem ruht nun friedlich.","»Dein Schatz war verdient, Held.«"]);
+    else startMiniBoss();
+    return;
+  }
+  showMessage(n.lines);
+}
 function interact(){                            // Enter/B im Overworld
-  const f=facingTile(); const t=tileAt(f.c,f.r);
+  const f=facingTile(); const npc=npcAt(f.c,f.r);
+  if (npc){ handleNpc(npc); return; }
+  const t=tileAt(f.c,f.r);
   if (t===T.SHOP) openShop();
   else if (t===T.HEAL){
     player.party.forEach(c=>{ c.hp=c.maxHp; }); player.hp=player.maxHp;
@@ -353,6 +395,7 @@ function updateOverworld(){
   if (attackEdge && player.attack<=0){ player.attack=14; sfx.sword(); }
   if (player.attack>0){ player.attack--; resolveSword(); }
   if (enterEdge) interact();
+  if (pEdge) openDex();
 
   if (!player.moving){
     if (keys["arrowleft"]||keys["a"])       tryStartMove(-1,0,"left");
@@ -386,7 +429,7 @@ function onEnterTile(c,r){
     showMessage(["Du öffnest eine Truhe!","❤ Max-Herzen +1 (voll geheilt)","¢ +5 Münzen"]); }
   else if (t===T.TALL){ if (Math.random()<0.28) startBattle(); }
 }
-function baseFloor(){ return player.room==="cave"||player.room==="boss" ? T.FLOOR : T.GRASS; }
+function baseFloor(){ return (player.room==="cave"||player.room==="boss"||player.room==="ruins") ? T.FLOOR : T.GRASS; }
 
 /* Schwert */
 function swordHitBox(){
@@ -445,19 +488,32 @@ function damagePlayer(n){
 ========================================================================= */
 function firstHealthy(){ return player.party.find(c=>c.hp>0) || player.party[0]; }
 function startBattle(){
-  const wild=makeCreature(Math.random()*SPECIES.length|0);
+  let idx = Math.random()*5|0;                              // gewöhnlich 0-4
+  if (Math.random()<0.12) idx = 5 + (Math.random()*2|0);   // selten 5-6
+  const wild=makeCreature(idx); markSeen(idx);
   battle={ wild, mine:firstHealthy(),
-    log:[`Ein wildes ${wild.name} (Lv.${wild.level}) erscheint!`],
-    turn:"player", menu:0, anim:0, over:false, _mv:0, isBoss:false };
+    log:[`Ein wildes ${wild.name} (Lv.${wild.level})`+(SPECIES[idx].rare?" ✨SELTEN✨":"")+" erscheint!"],
+    turn:"player", menu:0, anim:0, over:false, _mv:0, isBoss:false, sub:null };
   state="battle";
 }
 function enterBoss(){
+  fadeT=14;
   player.room="boss"; player.px=7; player.py=12; player.x=7*TILE+3; player.y=12*TILE+3;
-  const boss={ spec:3, name:"Schattenkönig", color:"#7b2ff7", emoji:"👑", type:"rock",
-               level:9, maxHp:90, hp:90, atk:11, xp:0 };
+  const boss={ spec:-1, name:"Schattenkönig", color:"#7b2ff7", emoji:"👑", type:"rock",
+    level:12, maxHp:110, hp:110, atk:12, xp:0, status:null, statusTurns:0,
+    moves:[{name:"Schattenklaue",power:12,type:"rock"},{name:"Fluch",power:8,type:"rock",effect:"poison",chance:0.5}] };
   battle={ wild:boss, mine:firstHealthy(),
     log:["👑 Der Schattenkönig erhebt sich!","Er lässt sich NICHT fangen — besiege ihn!"],
-    turn:"player", menu:0, anim:0, over:false, _mv:0, isBoss:true };
+    turn:"player", menu:0, anim:0, over:false, _mv:0, isBoss:true, bossKind:"final", sub:null };
+  state="battle";
+}
+function startMiniBoss(){
+  const golem={ spec:-1, name:"Golem-Wächter", color:"#8a7a5a", emoji:"🗿", type:"rock",
+    level:8, maxHp:78, hp:78, atk:9, xp:0, status:null, statusTurns:0,
+    moves:[{name:"Felsfaust",power:11,type:"rock"},{name:"Steinregen",power:8,type:"rock",effect:"sleep",chance:0.3}] };
+  battle={ wild:golem, mine:firstHealthy(),
+    log:["🗿 Der Golem-Wächter erwacht!","Besiege ihn für seinen Schatz!"],
+    turn:"player", menu:0, anim:0, over:false, _mv:0, isBoss:true, bossKind:"mini", sub:null };
   state="battle";
 }
 function blog(s){ battle.log.push(s); if (battle.log.length>3) battle.log.shift(); }
@@ -470,36 +526,84 @@ function gainXp(c, amount){
   }
 }
 
+/* Führt einen Angriff aus: Gift/Brand-Tick, Schlaf, Schaden, Statuschance */
+function doAttack(atk, def, mv){
+  if (atk.status==="poison"||atk.status==="burn"){
+    const d=atk.status==="poison"?3:2; atk.hp=Math.max(0,atk.hp-d);
+    blog(`${atk.name} nimmt ${d} ${atk.status==="poison"?"Gift":"Brand"}-Schaden.`);
+    if (atk.hp<=0) return {attackerFainted:true};
+  }
+  if (atk.status==="sleep"){
+    if (atk.statusTurns>0){ atk.statusTurns--; blog(`${atk.name} schläft tief...`);
+      if (atk.statusTurns<=0) atk.status=null; return {slept:true}; }
+    atk.status=null;
+  }
+  const eff=effectiveness(mv.type==="normal"?atk.type:mv.type, def.type);
+  let dmg=0;
+  if (mv.power>0){ dmg=Math.max(1, Math.round((mv.power + Math.round(atk.atk*0.5) + (Math.random()*3|0))*eff));
+    def.hp=Math.max(0,def.hp-dmg); sfx.hit(); }
+  blog(`${atk.name}: ${mv.name}`+(mv.power>0?` — ${dmg} Schaden`:"")
+       +(eff>1?" (sehr effektiv!)":(eff<1&&mv.power>0?" (kaum Wirkung)":"")));
+  if (mv.effect && !def.status && def.hp>0 && Math.random()<(mv.chance||0)){
+    def.status=mv.effect; def.statusTurns = mv.effect==="sleep" ? (2+(Math.random()*2|0)) : 0;
+    blog(`${def.name} ist jetzt ${ {poison:"vergiftet",burn:"verbrannt",sleep:"eingeschläfert"}[mv.effect] }!`);
+  }
+  return {dmg};
+}
+function afterMineFaint(){
+  const b=battle;
+  const next=player.party.find(c=>c.hp>0 && c!==b.mine);
+  if (next){ b.mine=next; blog(`${next.name}, du bist dran!`); b.turn="player"; }
+  else endBattle(["Dein Team ist erschöpft!","Du fliehst und verlierst ein Herz."], 0, ()=>damagePlayer(1));
+}
+function winWild(){
+  const b=battle;
+  if (b.isBoss){
+    if (b.bossKind==="final"){ endBattle(["👑 Der Schattenkönig ist besiegt!","Das Licht kehrt ins Land zurück!"],0,()=>{ state="victory"; sfx.win(); }); return; }
+    rooms.ruins.cleared=true;
+    player.maxHp++; player.hp=player.maxHp; player.coins+=30; player.balls+=3;
+    const gift=makeCreature(5,8); gift.status=null; player.party.push(gift); markCaught(5);
+    endBattle(["🗿 Golem-Wächter besiegt! Schatz erhalten:","❤ +1 Herz • ¢ +30 • 3 Fangbälle",`${gift.name} ❄️ tritt deinem Team bei!`], 0);
+    return;
+  }
+  gainXp(b.mine, b.wild.level*6+8);
+  endBattle([`Das wilde ${b.wild.name} wurde besiegt!`, `${b.mine.name} erhält EP. +3¢`], 3);
+}
+function moveAction(){
+  const b=battle, moves=b.mine.moves;
+  if (b.moveSel===moves.length){ b.sub=null; sfx.select(); return; }   // Zurück
+  const mv=moves[b.moveSel]; b.sub=null;
+  const res=doAttack(b.mine, b.wild, mv);
+  if (res.attackerFainted){ afterMineFaint(); return; }
+  if (b.wild.hp<=0){ winWild(); return; }
+  b.turn="enemy"; b.anim=22;
+}
 function playerAction(){
   const b=battle; if (b.turn!=="player"||b.over) return;
-  if (b.menu===0){                              // KÄMPFEN
-    const eff=effectiveness(b.mine.type, b.wild.type);
-    const dmg=Math.max(1, Math.round((b.mine.atk + (Math.random()*4|0))*eff));
-    b.wild.hp=Math.max(0,b.wild.hp-dmg); sfx.hit();
-    blog(`${b.mine.name}: ${dmg} Schaden`+(eff>1?" — sehr effektiv!":eff<1?" — kaum Wirkung":""));
-    if (b.wild.hp<=0){
-      if (b.isBoss){ endBattle(["Der Schattenkönig ist besiegt!"], 0, ()=>{ state="victory"; sfx.win(); }); return; }
-      gainXp(b.mine, b.wild.level*6+8);
-      endBattle([`Das wilde ${b.wild.name} wurde besiegt!`, `${b.mine.name} erhält EP. +3¢`], 3); return;
-    }
-    b.turn="enemy"; b.anim=22;
-  } else if (b.menu===1){                        // FANGEN
-    if (b.isBoss){ blog("Der Boss lässt sich nicht fangen!"); b.turn="enemy"; b.anim=22; return; }
+  if (b.menu===0){ b.sub="moves"; b.moveSel=0; sfx.select(); }   // → Attacken-Menü
+  else if (b.menu===1){                          // FANGEN
+    if (b.isBoss){ blog("So etwas lässt sich nicht fangen!"); b.turn="enemy"; b.anim=22; return; }
     if (player.balls<=0){ blog("Keine Fangbälle! Kauf welche im Shop."); return; }
     player.balls--;
-    const rate=0.30 + (1-b.wild.hp/b.wild.maxHp)*0.6;
-    if (Math.random()<rate){ player.party.push({...b.wild}); sfx.catch();
-      endBattle([`${b.wild.name} wurde gefangen! 🎉`, "Es tritt deinem Team bei."], 0); }
+    const spec=SPECIES[b.wild.spec];
+    const rate=0.30 + (1-b.wild.hp/b.wild.maxHp)*0.6 + (spec&&spec.rare?-0.18:0);
+    if (Math.random()<rate){ player.party.push({...b.wild, status:null, statusTurns:0});
+      markCaught(b.wild.spec); sfx.catch();
+      const done=player.caught.length>=SPECIES.length;
+      endBattle([`${b.wild.name} wurde gefangen! 🎉`].concat(done?["★ Du hast ALLE Arten gefangen! ★"]:["Es tritt deinem Team bei."]), 0); }
     else { blog(`Mist! ${b.wild.name} bricht aus...`); b.turn="enemy"; b.anim=22; }
-  } else if (b.menu===2){                        // TRANK
+  }
+  else if (b.menu===2){                          // TRANK
     if (player.potions<=0){ blog("Keine Tränke vorhanden."); return; }
     player.potions--; const heal=Math.min(b.mine.maxHp-b.mine.hp,20); b.mine.hp+=heal;
     sfx.coin(); blog(`${b.mine.name} wird um ${heal} geheilt.`); b.turn="enemy"; b.anim=22;
-  } else if (b.menu===3){                         // WECHSELN
+  }
+  else if (b.menu===3){                          // WECHSELN
     if (player.party.length<=1){ blog("Du hast keine weitere Kreatur."); return; }
     b.sub="team"; b.teamSel=0; sfx.select();
-  } else if (b.menu===4){                         // FLIEHEN
-    if (b.isBoss){ blog("Vor dem Boss gibt es kein Entkommen!"); b.turn="enemy"; b.anim=22; return; }
+  }
+  else if (b.menu===4){                          // FLIEHEN
+    if (b.isBoss){ blog("Vor diesem Gegner gibt es kein Entkommen!"); b.turn="enemy"; b.anim=22; return; }
     if (Math.random()<0.7) endBattle(["Du bist entkommen."], 0);
     else { blog("Flucht misslungen!"); b.turn="enemy"; b.anim=22; }
   }
@@ -514,16 +618,12 @@ function teamSwitchAction(){
   b.turn="enemy"; b.anim=22;                                  // Wechsel kostet den Zug
 }
 function enemyTurn(){
-  const b=battle;
-  const eff=effectiveness(b.wild.type, b.mine.type);
-  const dmg=Math.max(1, Math.round((b.wild.atk + (Math.random()*3|0))*eff));
-  b.mine.hp=Math.max(0,b.mine.hp-dmg); sfx.hurt(); shake(6,3);
-  blog(`${b.wild.name}: ${dmg} Schaden`+(eff>1?" — sehr effektiv!":""));
-  if (b.mine.hp<=0){
-    const next=player.party.find(c=>c.hp>0 && c!==b.mine);
-    if (next){ b.mine=next; blog(`${next.name}, du bist dran!`); b.turn="player"; }
-    else endBattle(["Dein Team ist erschöpft!","Du fliehst und verlierst ein Herz."], 0, ()=>damagePlayer(1));
-  } else b.turn="player";
+  const b=battle; shake(6,3);
+  const mv=b.wild.moves[Math.random()*b.wild.moves.length|0];
+  const res=doAttack(b.wild, b.mine, mv);
+  if (res.attackerFainted){ winWild(); return; }   // Gegner starb an Gift/Brand
+  if (b.mine.hp<=0){ afterMineFaint(); return; }
+  b.turn="player";
 }
 function endBattle(lines, coins, after){
   battle.over=true; player.coins+=(coins||0);
@@ -545,6 +645,14 @@ function updateBattle(){
       else if (keys["arrowdown"]||keys["s"]){ if(!b._mv){ b.teamSel=(b.teamSel+1)%n; b._mv=1; sfx.select(); } }
       else b._mv=0;
       if (enterEdge||attackEdge) teamSwitchAction();
+      return;
+    }
+    if (b.sub==="moves"){
+      const n=b.mine.moves.length+1;   // +Zurück
+      if (keys["arrowup"]||keys["w"]){ if(!b._mv){ b.moveSel=(b.moveSel+n-1)%n; b._mv=1; sfx.select(); } }
+      else if (keys["arrowdown"]||keys["s"]){ if(!b._mv){ b.moveSel=(b.moveSel+1)%n; b._mv=1; sfx.select(); } }
+      else b._mv=0;
+      if (enterEdge||attackEdge) moveAction();
       return;
     }
     if (keys["arrowup"]||keys["w"]){ if(!b._mv){ b.menu=(b.menu+4)%5; b._mv=1; sfx.select(); } }
@@ -581,11 +689,11 @@ function updateShop(){
 ========================================================================= */
 function saveGame(){
   try{
-    const rs={}; for (const k in rooms) rs[k]={ tiles:rooms[k].tiles, enemies:rooms[k].enemies };
-    const data={ v:2, room:player.room,
+    const rs={}; for (const k in rooms) rs[k]={ tiles:rooms[k].tiles, enemies:rooms[k].enemies, cleared:rooms[k].cleared };
+    const data={ v:3, room:player.room,
       p:{ px:player.px,py:player.py,dir:player.dir, maxHp:player.maxHp,hp:player.hp,
           coins:player.coins,balls:player.balls,potions:player.potions,shards:player.shards,
-          party:player.party },
+          party:player.party, seen:player.seen, caught:player.caught },
       rooms:rs };
     localStorage.setItem("triforce-save", JSON.stringify(data));
     hasSave=true;
@@ -596,8 +704,13 @@ function loadGame(){
     const raw=localStorage.getItem("triforce-save"); if(!raw) return false;
     const d=JSON.parse(raw); if(!d||!d.rooms) return false;
     buildAllRooms();
-    for (const k in d.rooms){ if (rooms[k]){ rooms[k].tiles=d.rooms[k].tiles; rooms[k].enemies=d.rooms[k].enemies; } }
+    for (const k in d.rooms){ if (rooms[k]){ rooms[k].tiles=d.rooms[k].tiles; rooms[k].enemies=d.rooms[k].enemies;
+      if (d.rooms[k].cleared!==undefined) rooms[k].cleared=d.rooms[k].cleared; } }
     Object.assign(player, d.p);
+    // Abwärtskompatibilität: fehlende Felder auffüllen
+    (player.party||[]).forEach(c=>{ if(!c.moves && SPECIES[c.spec]) c.moves=SPECIES[c.spec].moves;
+      if(c.status===undefined) c.status=null; if(c.statusTurns===undefined) c.statusTurns=0; });
+    if(!player.seen) player.seen=[]; if(!player.caught) player.caught=[];
     player.room=d.room; player.moving=false; player.mx=0; player.my=0;
     player.attack=0; player.invuln=0; player.walkFrame=0;
     player.x=player.px*TILE+3; player.y=player.py*TILE+3;
@@ -685,13 +798,27 @@ function drawPlayer(){
 }
 function drawEnemy(en){
   if (!en.alive) return;
-  const x=en.x,y=en.y;
+  const x=en.x, y=en.y + Math.round(Math.sin(gtick*0.12 + en.x)*2);   // Wackel-Animation
   ctx.fillStyle=en.flash>0?"#fff":"#c0392b"; ctx.fillRect(x+4,y+6,TILE-8,TILE-10);
   ctx.fillStyle=en.flash>0?"#fff":"#e74c3c"; ctx.fillRect(x+6,y+4,TILE-12,6);
   ctx.fillStyle="#fff"; ctx.fillRect(x+9,y+12,4,4); ctx.fillRect(x+TILE-13,y+12,4,4);
   ctx.fillStyle="#000"; ctx.fillRect(x+10,y+13,2,2); ctx.fillRect(x+TILE-12,y+13,2,2);
   if (en.maxHp>1){ ctx.fillStyle="#000"; ctx.fillRect(x+4,y-2,TILE-8,3);
     ctx.fillStyle="#2ecc40"; ctx.fillRect(x+4,y-2,(TILE-8)*en.hp/en.maxHp,3); }
+}
+function drawNpc(n){
+  const bob=Math.round(Math.sin(gtick*0.08+n.c)*1.5);
+  const x=n.c*TILE, y=n.r*TILE+bob;
+  if (n.action==="golem"){
+    ctx.fillStyle=getRoom().cleared?"#6a6a72":n.color; ctx.fillRect(x+5,y+5,22,25);
+    ctx.fillStyle="#6f6047"; ctx.fillRect(x+8,y+12,16,3); ctx.fillRect(x+8,y+22,16,3);
+    ctx.fillStyle=getRoom().cleared?"#556":"#ffcf3c"; ctx.fillRect(x+10,y+14,4,4); ctx.fillRect(x+18,y+14,4,4);
+    return;
+  }
+  ctx.fillStyle=n.color; ctx.fillRect(x+8,y+10,16,18);          // Körper
+  ctx.fillStyle="#ffd9a0"; ctx.fillRect(x+10,y+4,12,9);         // Kopf
+  ctx.fillStyle="#123"; ctx.fillRect(x+13,y+7,2,2); ctx.fillRect(x+19,y+7,2,2);
+  ctx.fillStyle="#ffe066"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText("!",x+16,y+2);
 }
 function drawHUD(){
   for (let i=0;i<player.maxHp;i++){ const hx=8+i*20, hy=6;
@@ -705,12 +832,41 @@ function drawHUD(){
   ctx.textAlign="left"; ctx.fillStyle="#cdd6ff"; ctx.font="11px sans-serif";
   ctx.fillText(roomName(), 8, cv.height-8);
 }
-function roomName(){ return {village:"Dorf",grass:"Graswiese",forest:"Wald",cave:"Höhle",boss:"Boss-Arena"}[player.room]||""; }
+function roomName(){ return {village:"Dorf",grass:"Graswiese",forest:"Wald",cave:"Höhle",ruins:"Ruinen",boss:"Boss-Arena"}[player.room]||""; }
+function openDex(){ state="pokedex"; sfx.select(); }
+function drawDex(){
+  drawOverworld();
+  ctx.fillStyle="rgba(0,0,0,.72)"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#ffe066"; ctx.font="bold 20px sans-serif"; ctx.textAlign="center";
+  ctx.fillText("📖 POKÉDEX",cv.width/2,40);
+  ctx.fillStyle="#cdd6ff"; ctx.font="13px sans-serif";
+  ctx.fillText("Gefangen: "+player.caught.length+" / "+SPECIES.length+"   •   Gesehen: "+player.seen.length,cv.width/2,62);
+  SPECIES.forEach((s,i)=>{
+    const col=i%2, row=(i/2|0);
+    const x=40+col*236, y=86+row*74, seen=player.seen.includes(i), caught=player.caught.includes(i);
+    ctx.fillStyle="#161c33"; ctx.fillRect(x,y,216,64);
+    ctx.strokeStyle=caught?"#5fe08a":(seen?"#ffcc33":"#333c66"); ctx.lineWidth=2; ctx.strokeRect(x,y,216,64);
+    // Icon
+    ctx.fillStyle=seen?s.color:"#2a3150"; ctx.beginPath(); ctx.arc(x+30,y+32,20,0,Math.PI*2); ctx.fill();
+    if (seen){ ctx.font="16px serif"; ctx.textAlign="center"; ctx.fillText(s.emoji,x+30,y+20); }
+    ctx.textAlign="left"; ctx.font="bold 13px sans-serif";
+    ctx.fillStyle=seen?"#e8ecff":"#5b6690";
+    ctx.fillText(seen?(s.rare?"✨ "+s.name:s.name):"??? ",x+58,y+24);
+    ctx.font="11px sans-serif"; ctx.fillStyle="#9aa6d6";
+    if (caught) ctx.fillText("✔ gefangen · "+typeLabel(s.type),x+58,y+44);
+    else if (seen) ctx.fillText("gesehen · "+typeLabel(s.type),x+58,y+44);
+    else ctx.fillText("unbekannt",x+58,y+44);
+  });
+  ctx.fillStyle="#9aa6d6"; ctx.font="12px sans-serif"; ctx.textAlign="center";
+  ctx.fillText("[ Enter / A / P ] schließen",cv.width/2,cv.height-14);
+}
+function typeLabel(t){ return {fire:"🔥Feuer",water:"💧Wasser",grass:"🌿Pflanze",rock:"🪨Fels",elec:"⚡Elektro"}[t]||t; }
 
 function drawOverworld(){
   const room=getRoom();
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) drawTile(room.tiles[r][c], c*TILE, r*TILE);
   room.enemies.forEach(drawEnemy);
+  (room.npcs||[]).forEach(drawNpc);
   drawPlayer();
   particles.forEach(p=>{ ctx.globalAlpha=Math.max(0,p.life/28); ctx.fillStyle=p.color; ctx.fillRect(p.x-2,p.y-2,4,4); ctx.globalAlpha=1; });
   floaters.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life/55); ctx.fillStyle=f.color;
@@ -739,7 +895,11 @@ function drawBattle(){
     ctx.fillStyle="#222"; ctx.font="bold 13px sans-serif"; ctx.textAlign="left"; ctx.fillText(c.name,x+8,y+16);
     ctx.font="11px sans-serif"; ctx.fillText("Lv."+c.level,x+142,y+16);
     bar(x+8,y+26,152,c.hp,c.maxHp,c.hp>c.maxHp*0.3?"#2ecc40":"#ff9f1a");
-    ctx.fillStyle="#444"; ctx.font="9px sans-serif"; ctx.fillText(Math.ceil(c.hp)+"/"+c.maxHp,x+118,y+44); }
+    ctx.fillStyle="#444"; ctx.font="9px sans-serif"; ctx.fillText(Math.ceil(c.hp)+"/"+c.maxHp,x+118,y+44);
+    if (c.status){ const sc={poison:"#a05bd6",burn:"#e07b3c",sleep:"#5b8fd6"}[c.status];
+      const sl={poison:"GIFT",burn:"BRAND",sleep:"SCHLAF"}[c.status];
+      ctx.fillStyle=sc; ctx.fillRect(x+8,y+35,40,10);
+      ctx.fillStyle="#fff"; ctx.font="bold 8px sans-serif"; ctx.textAlign="left"; ctx.fillText(sl,x+11,y+43); } }
   info(b.wild,30,40); info(b.mine,cv.width-212,206);
   ctx.fillStyle="#1b2233"; ctx.fillRect(8,360,cv.width-16,112);
   ctx.strokeStyle="#fff"; ctx.lineWidth=3; ctx.strokeRect(8,360,cv.width-16,112);
@@ -752,6 +912,12 @@ function drawBattle(){
         ctx.fillStyle=i===b.teamSel?"#ffcc33":(cr&&cr.hp<=0?"#7a6a6a":"#9aa6d6");
         ctx.font=i===b.teamSel?"bold 12px sans-serif":"12px sans-serif";
         ctx.fillText((i===b.teamSel?"▶ ":"  ")+it, 300, y); });
+    } else if (b.sub==="moves"){
+      const list=b.mine.moves.map(m=>`${m.name} ${m.power>0?"["+m.type+"]":"[Status]"}`); list.push("Zurück");
+      list.forEach((it,i)=>{ const y=376+i*17;
+        ctx.fillStyle=i===b.moveSel?"#ffcc33":"#9aa6d6";
+        ctx.font=i===b.moveSel?"bold 12px sans-serif":"12px sans-serif";
+        ctx.fillText((i===b.moveSel?"▶ ":"  ")+it, 300, y); });
     } else {
       const items=["⚔ KÄMPFEN",`🎯 FANGEN (${player.balls})`,`🧪 TRANK (${player.potions})`,"🔄 WECHSELN","🏃 FLIEHEN"];
       items.forEach((it,i)=>{ const y=374+i*20; ctx.fillStyle=i===b.menu?"#ffcc33":"#9aa6d6";
@@ -788,14 +954,30 @@ function drawShop(){
   ctx.fillText("↑↓ wählen • Enter/A kaufen",cv.width/2,by+bh-12);
 }
 function drawTitle(){
-  ctx.fillStyle="#0b1020"; ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.fillStyle="#ffe066"; ctx.font="bold 34px sans-serif"; ctx.textAlign="center"; ctx.fillText("◆ TRIFORCE QUEST ◆",cv.width/2,140);
-  ctx.fillStyle="#9aa6d6"; ctx.font="14px sans-serif"; ctx.fillText("Mario × Zelda × Pokémon",cv.width/2,168);
+  const grd=ctx.createLinearGradient(0,0,0,cv.height); grd.addColorStop(0,"#070a16"); grd.addColorStop(1,"#1a2247");
+  ctx.fillStyle=grd; ctx.fillRect(0,0,cv.width,cv.height);
+  for(let i=0;i<44;i++){ const sx=(i*97)%cv.width, sy=(i*53)%210;
+    ctx.globalAlpha=0.25+0.5*Math.abs(Math.sin(gtick*0.03+i)); ctx.fillStyle="#fff"; ctx.fillRect(sx,sy,2,2); }
+  ctx.globalAlpha=1;
+  // Triforce (glühend)
+  const cxp=cv.width/2, ty=76, sz=24, glow=0.55+0.45*Math.abs(Math.sin(gtick*0.05));
+  ctx.fillStyle="rgba(255,224,102,"+glow+")";
+  const tri=(x,y)=>{ ctx.beginPath(); ctx.moveTo(x,y-sz); ctx.lineTo(x-sz,y+sz); ctx.lineTo(x+sz,y+sz); ctx.closePath(); ctx.fill(); };
+  tri(cxp,ty-sz+4); tri(cxp-sz-2,ty+sz+4); tri(cxp+sz+2,ty+sz+4);
+  // Titel mit Schatten
+  ctx.textAlign="center"; ctx.font="bold 34px sans-serif";
+  ctx.fillStyle="#000"; ctx.fillText("TRIFORCE QUEST",cv.width/2+2,184);
+  ctx.fillStyle="#ffe066"; ctx.fillText("TRIFORCE QUEST",cv.width/2,182);
+  ctx.fillStyle="#9aa6d6"; ctx.font="14px sans-serif"; ctx.fillText("Mario × Zelda × Pokémon",cv.width/2,208);
+  // hüpfende Kreaturen
+  [0,2,1,4].forEach((sp,i)=>{ const x=150+i*72, y=252+Math.sin(gtick*0.1+i)*6, s=SPECIES[sp];
+    ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(x,y,16,0,Math.PI*2); ctx.fill();
+    ctx.font="14px serif"; ctx.textAlign="center"; ctx.fillText(s.emoji,x,y-18); });
   const opts=hasSave?["Weiter","Neues Spiel"]:["Neues Spiel"];
-  opts.forEach((o,i)=>{ const y=250+i*40; ctx.fillStyle=i===titleSel?"#ffcc33":"#cdd6ff";
-    ctx.font=i===titleSel?"bold 20px sans-serif":"18px sans-serif";
+  opts.forEach((o,i)=>{ const y=332+i*40; ctx.fillStyle=i===titleSel?"#ffcc33":"#cdd6ff";
+    ctx.font=i===titleSel?"bold 22px sans-serif":"18px sans-serif"; ctx.textAlign="center";
     ctx.fillText((i===titleSel?"▶ ":"")+o,cv.width/2,y); });
-  ctx.fillStyle="#6b76a8"; ctx.font="12px sans-serif"; ctx.fillText("↑↓ wählen • Enter/A starten",cv.width/2,cv.height-30);
+  ctx.fillStyle="#6b76a8"; ctx.font="12px sans-serif"; ctx.fillText("↑↓ wählen • Enter/A starten",cv.width/2,cv.height-22);
 }
 function drawGameOver(){
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
@@ -809,8 +991,9 @@ function drawVictory(){
   ctx.fillStyle="#ffe066"; ctx.font="bold 36px sans-serif"; ctx.textAlign="center"; ctx.fillText("★ SIEG! ★",cv.width/2,150);
   ctx.fillStyle="#fff"; ctx.font="15px sans-serif";
   ctx.fillText("Der Schattenkönig ist besiegt!",cv.width/2,200);
-  ctx.fillText("Team: "+player.party.length+" Kreaturen  •  "+player.coins+"¢",cv.width/2,230);
-  ctx.fillStyle="#9aa6d6"; ctx.font="13px sans-serif"; ctx.fillText("[ Enter / A ] Titelbildschirm",cv.width/2,290);
+  ctx.fillText("Team: "+player.party.length+"  •  "+player.coins+"¢  •  Pokédex "+player.caught.length+"/"+SPECIES.length,cv.width/2,230);
+  if (player.caught.length>=SPECIES.length){ ctx.fillStyle="#ffe066"; ctx.font="bold 15px sans-serif"; ctx.fillText("★ Alle Kreaturen gefangen — Meister! ★",cv.width/2,258); }
+  ctx.fillStyle="#9aa6d6"; ctx.font="13px sans-serif"; ctx.fillText("[ Enter / A ] Titelbildschirm",cv.width/2,300);
 }
 
 /* =========================================================================
@@ -821,7 +1004,7 @@ function newGame(){
   buildAllRooms();
   Object.assign(player,{ room:"village", px:2, py:7, x:2*TILE+3, y:7*TILE+3,
     moving:false, mx:0, my:0, dir:"down", maxHp:3, hp:3, coins:0, balls:3, potions:1,
-    shards:0, attack:0, invuln:0, party:[], walkFrame:0 });
+    shards:0, attack:0, invuln:0, party:[], walkFrame:0, seen:[], caught:[] });
   particles=[]; floaters=[]; battle=null; message=null; shop=null;
   starterSel=0; state="starter";                 // erst Begleiter wählen (Pokémon-Style)
 }
@@ -848,6 +1031,7 @@ function drawStarter(){
 }
 
 function update(){
+  gtick++; if (fadeT>0) fadeT--;
   floaters.forEach(f=>{ f.life--; f.y-=0.4; }); floaters=floaters.filter(f=>f.life>0);
   particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.life--; }); particles=particles.filter(p=>p.life>0);
   if (shakeT>0) shakeT--;
@@ -867,18 +1051,21 @@ function update(){
     else if (keys["arrowright"]){ if(!starterMv){ starterSel=(starterSel+1)%3; starterMv=1; sfx.select(); } }
     else starterMv=0;
     if (enterEdge||attackEdge){ player.party=[makeCreature(STARTERS[starterSel],5)];
-      sfx.levelup(); state="overworld"; saveGame(); }
+      markCaught(STARTERS[starterSel]); sfx.levelup(); saveGame();
+      showMessage(["Deine Reise beginnt im Dorf.","Sprich mit Leuten (Enter/B), kämpfe im Gras,","finde die 3 Splitter und öffne das Tor zum Boss.","Tipp: P = Pokédex • M = Musik • Ruinen im Osten!"],
+        ()=>{ state="overworld"; }); }
   }
   else if (state==="overworld") updateOverworld();
   else if (state==="battle") updateBattle();
   else if (state==="shop") updateShop();
+  else if (state==="pokedex"){ if (enterEdge||attackEdge||pEdge){ state="overworld"; sfx.select(); } }
   else if (state==="message"){ if (enterEdge||attackEdge){ const a=message.after; message=null;
     state=(battle&&!battle.over)?"battle":( state==="message"?"overworld":state );
     if (a) a(); } }
   else if (state==="gameover"){ if (enterEdge||attackEdge){ titleSel=0; hasSave=!!localStorage.getItem("triforce-save"); state="title"; } }
   else if (state==="victory"){ if (enterEdge||attackEdge){ localStorage.removeItem("triforce-save"); hasSave=false; titleSel=0; state="title"; } }
 
-  enterEdge=false; attackEdge=false;
+  enterEdge=false; attackEdge=false; pEdge=false;
 }
 let titleMv=0, starterSel=0, starterMv=0;
 
@@ -893,7 +1080,9 @@ function render(){
   else if (state==="message") drawMessage();
   else if (state==="gameover") drawGameOver();
   else if (state==="victory") drawVictory();
+  else if (state==="pokedex") drawDex();
   else drawOverworld();
+  if (fadeT>0){ ctx.fillStyle="rgba(0,0,0,"+(fadeT/14)+")"; ctx.fillRect(-8,-8,cv.width+16,cv.height+16); }
   ctx.restore();
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
