@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Triforce Quest — Mario × Zelda × Pokémon</title>
+<style>
+  :root { --bg:#0b1020; --panel:#161c33; --ink:#e8ecff; --accent:#ffcc33; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: radial-gradient(1200px 800px at 50% -10%, #1a2247, #070a16);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 16px;
+  }
+  h1 { margin: 0; font-size: 20px; letter-spacing: 1px; }
+  h1 span { color: var(--accent); }
+  #wrap { position: relative; }
+  canvas {
+    background: #1e6b34; image-rendering: pixelated;
+    border: 4px solid #2b3560; border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    max-width: 96vw; height: auto;
+  }
+  #hint { font-size: 13px; color: #9aa6d6; text-align: center; max-width: 640px; line-height: 1.5; }
+  kbd {
+    background: var(--panel); border: 1px solid #333c66; border-bottom-width: 3px;
+    border-radius: 4px; padding: 1px 6px; font-size: 12px; color: var(--ink);
+  }
+  #touch { display: none; }
+</style>
+</head>
+<body>
+  <h1><span>◆</span> Triforce Quest <span>◆</span> <small style="font-weight:400;color:#9aa6d6">Mario × Zelda × Pokémon</small></h1>
+  <div id="wrap">
+    <canvas id="game" width="512" height="480"></canvas>
+  </div>
+  <div id="hint">
+    <b>Steuerung:</b> <kbd>← ↑ → ↓</kbd> / <kbd>WASD</kbd> bewegen &nbsp;•&nbsp;
+    <kbd>Leertaste</kbd> / <kbd>J</kbd> Schwert &nbsp;•&nbsp; <kbd>Enter</kbd> bestätigen
+    <br>
+    Sammle <b style="color:#ffcc33">Münzen</b>, zerschlage Blöcke, weiche Gegnern aus und wage dich ins <b style="color:#8be37a">hohe Gras</b> — dort lauern wilde Kreaturen zum Fangen!
+  </div>
+
+<script>
+"use strict";
+/* ===========================================================================
+   TRIFORCE QUEST — ein Genre-Mashup:
+     • Zelda   : Top-Down-Overworld, Schwert, Herzen, Truhen
+     • Mario   : Münzen, zerschlagbare Ziegelblöcke, Warp-Röhren
+     • Pokémon : Zufallsbegegnungen im Gras, rundenbasierte Kämpfe, Fangen
+   Alles in einer Datei, reines Canvas, keine Abhängigkeiten.
+=========================================================================== */
+
+const cv = document.getElementById("game");
+const ctx = cv.getContext("2d");
+const TILE = 32;
+const COLS = 16, ROWS = 15;              // 512 x 480
+ctx.imageSmoothingEnabled = false;
+
+/* ----------------------------------------------------------------------- */
+/* Tile-Karte der Overworld
+   0 Gras  1 Baum/Fels(fest)  2 hohes Gras(Encounter)  3 Wasser(fest)
+   4 Ziegelblock(Mario, zerschlagbar)  5 Münze  6 Truhe  7 Warp-Röhre  8 Sand-Weg */
+const LEGEND = { GRASS:0, WALL:1, TALL:2, WATER:3, BRICK:4, COIN:5, CHEST:6, PIPE:7, PATH:8 };
+const MAP = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,8,8,8,5,0,0,4,4,0,2,2,2,1],
+  [1,0,1,1,8,0,0,0,0,0,0,0,2,2,2,1],
+  [1,0,1,6,8,0,4,4,4,0,1,0,2,2,2,1],
+  [1,0,1,1,8,0,0,5,0,0,1,0,0,0,0,1],
+  [1,0,8,8,8,0,0,0,0,0,1,1,1,0,1,1],
+  [1,0,8,0,0,0,3,3,3,0,0,0,8,8,8,1],
+  [1,5,8,0,4,0,3,3,3,0,4,0,8,6,8,1],
+  [1,0,8,0,0,0,3,3,3,0,0,0,8,8,8,1],
+  [1,0,8,8,8,8,0,0,0,0,1,0,0,0,0,1],
+  [1,0,1,0,2,2,2,0,4,0,1,0,7,0,0,1],
+  [1,0,1,0,2,2,2,0,0,0,1,0,0,0,5,1],
+  [1,0,0,0,2,2,2,0,5,0,0,0,4,4,0,1],
+  [1,0,8,8,8,8,8,8,8,8,8,8,8,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+// tiefe Kopie, damit wir Tiles verändern können (Münzen/Blöcke/Truhen)
+let world = MAP.map(r => r.slice());
+
+const SOLID = new Set([LEGEND.WALL, LEGEND.WATER, LEGEND.BRICK]);
+
+/* ----------------------------------------------------------------------- */
+/* Spielerstatus */
+const player = {
+  x: 1 * TILE, y: 1 * TILE, w: TILE - 6, h: TILE - 6,
+  px: 1, py: 1,            // Ziel-Tile für Grid-Bewegung
+  moving: false, mx: 0, my: 0,
+  dir: "down", speed: 3,
+  maxHp: 3, hp: 3,         // Herzen (Zelda)
+  coins: 0,
+  attack: 0,               // Angriffs-Timer
+  invuln: 0,
+  party: [],               // gefangene Kreaturen (Pokémon)
+};
+
+/* Kreaturen-"Pokédex" */
+const SPECIES = [
+  { name: "Glutwelpe",  color:"#ff7a3c", emoji:"🔥", maxHp: 22, atk: 6 },
+  { name: "Aquamolch",  color:"#3ca0ff", emoji:"💧", maxHp: 26, atk: 5 },
+  { name: "Blattbold",  color:"#5fd06b", emoji:"🌿", maxHp: 24, atk: 5 },
+  { name: "Steinknorz", color:"#b08a5a", emoji:"🪨", maxHp: 30, atk: 4 },
+  { name: "Blitzfluse", color:"#ffd23c", emoji:"⚡", maxHp: 20, atk: 7 },
+];
+function makeCreature(spec, level) {
+  const s = SPECIES[spec];
+  const lv = level || (1 + Math.floor(Math.random() * 4));
+  const hp = s.maxHp + lv * 3;
+  return { spec, name: s.name, color: s.color, emoji: s.emoji,
+           level: lv, maxHp: hp, hp, atk: s.atk + lv };
+}
+// Startbegleiter
+player.party.push(makeCreature(2, 3));
+
+/* Roaming-Gegner (Zelda-Style, mit Schwert zu besiegen) */
+let enemies = [
+  { x: 11*TILE, y: 1*TILE, dir: 1, alive: true, cool: 0 },
+  { x: 7*TILE,  y: 12*TILE, dir: -1, alive: true, cool: 0 },
+  { x: 13*TILE, y: 7*TILE, dir: 1, alive: true, cool: 0 },
+];
+
+/* Floating-Texts (Feedback) */
+let floaters = [];
+function floater(text, x, y, color) {
+  floaters.push({ text, x, y, color: color || "#fff", life: 60 });
+}
+
+/* ----------------------------------------------------------------------- */
+/* Eingabe */
+const keys = {};
+let enterEdge = false, attackEdge = false;
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if ([" ","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault();
+  if (!keys[k]) {
+    if (k === "enter") enterEdge = true;
+    if (k === " " || k === "j") attackEdge = true;
+  }
+  keys[k] = true;
+});
+addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+
+/* ----------------------------------------------------------------------- */
+/* Spielzustände: "overworld" | "battle" | "message" | "gameover" */
+let state = "overworld";
+let message = null;   // {lines:[], after:fn}
+let battle = null;
+
+function showMessage(lines, after) {
+  message = { lines: Array.isArray(lines) ? lines : [lines], after: after || null };
+  state = "message";
+}
+
+/* =========================================================================
+   OVERWORLD-LOGIK
+========================================================================= */
+function tileAt(col, row) {
+  if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return LEGEND.WALL;
+  return world[row][col];
+}
+function isSolid(col, row) { return SOLID.has(tileAt(col, row)); }
+
+function tryStartMove(dx, dy, dir) {
+  player.dir = dir;
+  if (player.moving) return;
+  const nc = player.px + dx, nr = player.py + dy;
+  if (isSolid(nc, nr)) return;              // Wand/Wasser/Block blockiert
+  player.moving = true;
+  player.mx = dx; player.my = dy;
+}
+
+function updateOverworld() {
+  if (player.invuln > 0) player.invuln--;
+
+  // Schwertangriff (Zelda)
+  if (attackEdge && player.attack <= 0) {
+    player.attack = 14;
+  }
+  if (player.attack > 0) {
+    player.attack--;
+    resolveSword();
+  }
+
+  // Grid-basierte Bewegung
+  if (!player.moving) {
+    if (keys["arrowleft"] || keys["a"])  tryStartMove(-1, 0, "left");
+    else if (keys["arrowright"]|| keys["d"]) tryStartMove(1, 0, "right");
+    else if (keys["arrowup"]   || keys["w"]) tryStartMove(0, -1, "up");
+    else if (keys["arrowdown"] || keys["s"]) tryStartMove(0, 1, "down");
+  }
+  if (player.moving) {
+    const tx = (player.px + player.mx) * TILE + 3;
+    const ty = (player.py + player.my) * TILE + 3;
+    player.x += Math.sign(tx - player.x) * player.speed;
+    player.y += Math.sign(ty - player.y) * player.speed;
+    if (Math.abs(tx - player.x) < player.speed && Math.abs(ty - player.y) < player.speed) {
+      player.x = tx; player.y = ty;
+      player.px += player.mx; player.py += player.my;
+      player.moving = false;
+      onEnterTile(player.px, player.py);
+    }
+  }
+
+  updateEnemies();
+}
+
+function onEnterTile(col, row) {
+  const t = world[row][col];
+  if (t === LEGEND.COIN) {                 // Mario-Münze
+    world[row][col] = LEGEND.GRASS;
+    player.coins++;
+    floater("+1 ¢", col*TILE+8, row*TILE, "#ffcc33");
+  } else if (t === LEGEND.CHEST) {         // Zelda-Truhe
+    world[row][col] = LEGEND.GRASS;
+    const heal = 1;
+    player.maxHp++; player.hp = player.maxHp;
+    player.coins += 5;
+    showMessage([
+      "Du öffnest eine Truhe!",
+      "❤ Max-Herzen +1 (voll geheilt)",
+      "¢ +5 Münzen",
+    ]);
+  } else if (t === LEGEND.PIPE) {          // Mario-Röhre → Warp
+    warpPlayer();
+  } else if (t === LEGEND.TALL) {          // hohes Gras → Pokémon-Encounter
+    if (Math.random() < 0.28) startBattle();
+  }
+}
+
+function warpPlayer() {
+  // die beiden Röhren-Positionen finden und zur jeweils anderen springen
+  const pipes = [];
+  for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++)
+    if (world[r][c] === LEGEND.PIPE) pipes.push({c, r});
+  // wir haben nur eine Röhre → springe zum entfernten begehbaren Startort
+  floater("WARP!", player.x, player.y-6, "#8be37a");
+  player.px = 1; player.py = 13;
+  player.x = player.px*TILE+3; player.y = player.py*TILE+3;
+}
+
+/* Schwert trifft Gegner in Blickrichtung */
+function swordHitBox() {
+  const cx = player.x + player.w/2, cy = player.y + player.h/2;
+  const reach = TILE;
+  let bx = cx - reach/2, by = cy - reach/2, bw = reach, bh = reach;
+  if (player.dir === "left")  bx = player.x - reach;
+  if (player.dir === "right") bx = player.x + player.w;
+  if (player.dir === "up")    by = player.y - reach;
+  if (player.dir === "down")  by = player.y + player.h;
+  return { x: bx, y: by, w: bw, h: bh };
+}
+function rectsOverlap(a, b) {
+  return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+}
+function resolveSword() {
+  if (player.attack !== 13) return; // nur im ersten aktiven Frame treffen
+  const hb = swordHitBox();
+  // Gegner treffen
+  enemies.forEach(en => {
+    if (!en.alive) return;
+    if (rectsOverlap(hb, { x: en.x+4, y: en.y+4, w: TILE-8, h: TILE-8 })) {
+      en.alive = false;
+      player.coins += 2;
+      floater("besiegt! +2¢", en.x, en.y, "#ff9");
+    }
+  });
+  // Ziegelblock zerschlagen (Mario)
+  const tc = Math.floor((hb.x + hb.w/2) / TILE);
+  const tr = Math.floor((hb.y + hb.h/2) / TILE);
+  if (tileAt(tc, tr) === LEGEND.BRICK) {
+    world[tr][tc] = LEGEND.GRASS;
+    if (Math.random() < 0.5) { player.coins++; floater("+1¢", tc*TILE+8, tr*TILE, "#ffcc33"); }
+    else floater("*krach*", tc*TILE, tr*TILE, "#e0a060");
+  }
+}
+
+function updateEnemies() {
+  enemies.forEach(en => {
+    if (!en.alive) return;
+    if (en.cool > 0) { en.cool--; }
+    else {
+      // simple Patrouille horizontal, dreht an Hindernissen um
+      const nx = en.x + en.dir * 1.2;
+      const c = Math.floor((nx + (en.dir>0?TILE:0)) / TILE);
+      const r = Math.floor((en.y + TILE/2) / TILE);
+      if (isSolid(c, r)) { en.dir *= -1; en.cool = 8; }
+      else en.x = nx;
+    }
+    // Kollision mit Spieler → Schaden (Zelda-Herzen)
+    if (player.invuln === 0 &&
+        rectsOverlap({x:player.x,y:player.y,w:player.w,h:player.h},
+                     {x:en.x+4,y:en.y+4,w:TILE-8,h:TILE-8})) {
+      damagePlayer(1);
+    }
+  });
+}
+
+function damagePlayer(n) {
+  player.hp -= n;
+  player.invuln = 60;
+  floater("-"+n+"❤", player.x, player.y-4, "#ff5b5b");
+  if (player.hp <= 0) {
+    state = "gameover";
+  }
+}
+
+/* =========================================================================
+   POKÉMON-KAMPF (rundenbasiert)
+========================================================================= */
+function startBattle() {
+  const wild = makeCreature(Math.floor(Math.random()*SPECIES.length));
+  const mine = player.party.find(c => c.hp > 0) || player.party[0];
+  battle = {
+    wild, mine,
+    log: [`Ein wildes ${wild.name} (Lv.${wild.level}) erscheint!`],
+    turn: "player",          // player | enemy | end
+    menu: 0,                 // 0 Kampf 1 Fangen 2 Fliehen
+    anim: 0,
+    over: false,
+  };
+  state = "battle";
+}
+
+function battleLog(s) { battle.log.push(s); if (battle.log.length > 3) battle.log.shift(); }
+
+function playerBattleAction() {
+  const b = battle;
+  if (b.turn !== "player" || b.over) return;
+  if (b.menu === 0) {              // KÄMPFEN
+    const dmg = b.mine.atk + Math.floor(Math.random()*4);
+    b.wild.hp = Math.max(0, b.wild.hp - dmg);
+    battleLog(`${b.mine.name} greift an! ${dmg} Schaden.`);
+    if (b.wild.hp <= 0) { endBattle("Das wilde " + b.wild.name + " wurde besiegt! +3¢", 3); return; }
+    b.turn = "enemy"; b.anim = 20;
+  } else if (b.menu === 1) {       // FANGEN
+    const rate = 0.35 + (1 - b.wild.hp / b.wild.maxHp) * 0.55; // je schwächer, desto besser
+    if (Math.random() < rate) {
+      player.party.push({ ...b.wild });
+      endBattle(`${b.wild.name} wurde gefangen! Es tritt deinem Team bei. 🎉`, 0);
+    } else {
+      battleLog(`Fast! ${b.wild.name} bricht aus...`);
+      b.turn = "enemy"; b.anim = 20;
+    }
+  } else if (b.menu === 2) {       // FLIEHEN
+    if (Math.random() < 0.7) endBattle("Du bist entkommen.", 0);
+    else { battleLog("Flucht misslungen!"); b.turn = "enemy"; b.anim = 20; }
+  }
+}
+
+function enemyBattleTurn() {
+  const b = battle;
+  const dmg = b.wild.atk + Math.floor(Math.random()*3);
+  b.mine.hp = Math.max(0, b.mine.hp - dmg);
+  battleLog(`${b.wild.name} greift an! ${dmg} Schaden.`);
+  if (b.mine.hp <= 0) {
+    const next = player.party.find(c => c.hp > 0 && c !== b.mine);
+    if (next) { b.mine = next; battleLog(`${next.name}, du bist dran!`); b.turn = "player"; }
+    else {
+      // ganzes Team k.o. → ein Herz Schaden und zurück in die Overworld
+      endBattle("Dein Team ist erschöpft! Du fliehst und verlierst ein Herz.", 0, () => damagePlayer(1));
+    }
+  } else {
+    b.turn = "player";
+  }
+}
+
+function endBattle(text, coinReward, after) {
+  battle.over = true;
+  player.coins += (coinReward || 0);
+  showMessage(text, () => {
+    // Team leicht heilen nach jedem Kampf
+    player.party.forEach(c => { c.hp = Math.min(c.maxHp, c.hp + 4); });
+    if (after) after();
+    battle = null;
+    if (state !== "gameover") state = "overworld";
+  });
+}
+
+function updateBattle() {
+  const b = battle;
+  if (!b || b.over) return;
+  if (b.anim > 0) { b.anim--; return; }
+  if (b.turn === "enemy") { enemyBattleTurn(); return; }
+  // Spieler-Menü
+  if (b.turn === "player") {
+    if (keys["arrowup"] || keys["w"]) { if(!b._mv){b.menu=(b.menu+2)%3;b._mv=1;} }
+    else if (keys["arrowdown"] || keys["s"]) { if(!b._mv){b.menu=(b.menu+1)%3;b._mv=1;} }
+    else b._mv = 0;
+    if (enterEdge || attackEdge) playerBattleAction();
+  }
+}
+
+/* =========================================================================
+   RENDERING
+========================================================================= */
+function drawTile(t, x, y) {
+  switch (t) {
+    case LEGEND.GRASS:
+      ctx.fillStyle = "#2f9e44"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle = "#2b8f3d";
+      ctx.fillRect(x+6,y+10,3,3); ctx.fillRect(x+20,y+22,3,3);
+      break;
+    case LEGEND.WALL:
+      ctx.fillStyle = "#3a5a40"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle = "#588157"; ctx.beginPath();
+      ctx.arc(x+16,y+13,10,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#344e41"; ctx.fillRect(x+13,y+18,6,12);
+      break;
+    case LEGEND.TALL:
+      ctx.fillStyle = "#2f9e44"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle = "#1e7a32";
+      for (let i=0;i<4;i++){ ctx.fillRect(x+4+i*7, y+8, 4, 20); }
+      ctx.fillStyle = "#8be37a";
+      for (let i=0;i<4;i++){ ctx.fillRect(x+4+i*7, y+8, 4, 6); }
+      break;
+    case LEGEND.WATER:
+      ctx.fillStyle = "#3ca0ff"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle = "#7cc4ff";
+      ctx.fillRect(x+4,y+8,10,2); ctx.fillRect(x+18,y+18,10,2);
+      break;
+    case LEGEND.BRICK:
+      ctx.fillStyle = "#b5651d"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.strokeStyle = "#7a3f10"; ctx.lineWidth = 2;
+      ctx.strokeRect(x+1,y+1,TILE-2,14); ctx.strokeRect(x+1,y+15,TILE-2,14);
+      ctx.beginPath(); ctx.moveTo(x+16,y+1); ctx.lineTo(x+16,y+15);
+      ctx.moveTo(x+8,y+15); ctx.lineTo(x+8,y+31);
+      ctx.moveTo(x+24,y+15); ctx.lineTo(x+24,y+31); ctx.stroke();
+      break;
+    case LEGEND.COIN:
+      drawTile(LEGEND.GRASS, x, y);
+      ctx.fillStyle = "#ffcc33"; ctx.beginPath();
+      ctx.arc(x+16,y+16,8,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#a67c00"; ctx.font = "bold 12px sans-serif";
+      ctx.textAlign="center"; ctx.fillText("¢", x+16, y+20);
+      break;
+    case LEGEND.CHEST:
+      drawTile(LEGEND.GRASS, x, y);
+      ctx.fillStyle = "#8a5a2b"; ctx.fillRect(x+5,y+10,22,16);
+      ctx.fillStyle = "#c98a3b"; ctx.fillRect(x+5,y+10,22,6);
+      ctx.fillStyle = "#ffcc33"; ctx.fillRect(x+14,y+15,4,6);
+      break;
+    case LEGEND.PIPE:
+      drawTile(LEGEND.GRASS, x, y);
+      ctx.fillStyle = "#2ecc40"; ctx.fillRect(x+4,y+8,24,24);
+      ctx.fillStyle = "#27ae38"; ctx.fillRect(x+2,y+6,28,8);
+      ctx.fillStyle = "#7fffa0"; ctx.fillRect(x+6,y+16,4,14);
+      break;
+    case LEGEND.PATH:
+      ctx.fillStyle = "#d9c18f"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle = "#cbb079";
+      ctx.fillRect(x+5,y+6,4,4); ctx.fillRect(x+20,y+18,4,4);
+      break;
+  }
+}
+
+function drawPlayer() {
+  const blink = player.invuln > 0 && Math.floor(player.invuln/4)%2===0;
+  if (blink) return;
+  const x = player.x, y = player.y, w = player.w, h = player.h;
+  // Körper (Link-grün)
+  ctx.fillStyle = "#3cb043"; ctx.fillRect(x, y+6, w, h-6);
+  // Kopf
+  ctx.fillStyle = "#ffd9a0"; ctx.fillRect(x+4, y, w-8, 10);
+  // Mütze
+  ctx.fillStyle = "#1f8a2c"; ctx.fillRect(x+2, y-2, w-4, 5);
+  // Augen je nach Richtung
+  ctx.fillStyle = "#123";
+  if (player.dir === "down")  { ctx.fillRect(x+7,y+4,2,2); ctx.fillRect(x+w-9,y+4,2,2); }
+  if (player.dir === "up")    { /* Rücken */ }
+  if (player.dir === "left")  { ctx.fillRect(x+6,y+4,2,2); }
+  if (player.dir === "right") { ctx.fillRect(x+w-8,y+4,2,2); }
+  // Schwert
+  if (player.attack > 0) {
+    ctx.fillStyle = "#d8e0ff";
+    const hb = swordHitBox();
+    ctx.fillRect(hb.x+8, hb.y+8, hb.w-16, hb.h-16);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(hb.x+hb.w/2-2, hb.y+hb.h/2-2, 4, 4);
+  }
+}
+
+function drawEnemy(en) {
+  if (!en.alive) return;
+  const x = en.x, y = en.y;
+  ctx.fillStyle = "#c0392b"; ctx.fillRect(x+4,y+6,TILE-8,TILE-10);
+  ctx.fillStyle = "#e74c3c"; ctx.fillRect(x+6,y+4,TILE-12,6);
+  ctx.fillStyle = "#fff"; ctx.fillRect(x+9,y+12,4,4); ctx.fillRect(x+TILE-13,y+12,4,4);
+  ctx.fillStyle = "#000"; ctx.fillRect(x+10,y+13,2,2); ctx.fillRect(x+TILE-12,y+13,2,2);
+}
+
+function drawHUD() {
+  // Herzen
+  for (let i=0;i<player.maxHp;i++){
+    const hx = 8 + i*20, hy = 6;
+    ctx.fillStyle = i < player.hp ? "#ff4d5e" : "#5a2530";
+    // Herz aus zwei Kreisen + Dreieck
+    ctx.beginPath();
+    ctx.arc(hx+5, hy+6, 5, 0, Math.PI*2);
+    ctx.arc(hx+13, hy+6, 5, 0, Math.PI*2);
+    ctx.moveTo(hx, hy+8); ctx.lineTo(hx+9, hy+18); ctx.lineTo(hx+18, hy+8);
+    ctx.closePath(); ctx.fill();
+  }
+  // Münzen
+  ctx.fillStyle = "#ffcc33"; ctx.beginPath(); ctx.arc(cv.width-70, 15, 7, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#a67c00"; ctx.font="bold 10px sans-serif"; ctx.textAlign="center"; ctx.fillText("¢", cv.width-70,19);
+  ctx.fillStyle = "#fff"; ctx.font = "bold 14px sans-serif"; ctx.textAlign="left";
+  ctx.fillText("× " + player.coins, cv.width-58, 20);
+  // Team-Zähler
+  ctx.fillStyle = "#8be37a"; ctx.font = "11px sans-serif"; ctx.textAlign="right";
+  ctx.fillText("Team: " + player.party.length + " 🎒", cv.width-8, 36);
+}
+
+function drawFloaters() {
+  floaters.forEach(f => {
+    ctx.globalAlpha = Math.max(0, f.life/60);
+    ctx.fillStyle = f.color; ctx.font = "bold 12px sans-serif"; ctx.textAlign="center";
+    ctx.fillText(f.text, f.x + TILE/2, f.y);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function drawOverworld() {
+  for (let r=0;r<ROWS;r++)
+    for (let c=0;c<COLS;c++)
+      drawTile(world[r][c], c*TILE, r*TILE);
+  enemies.forEach(drawEnemy);
+  drawPlayer();
+  drawFloaters();
+  drawHUD();
+}
+
+/* --- Kampfbildschirm --- */
+function bar(x,y,w,cur,max,color) {
+  ctx.fillStyle = "#000"; ctx.fillRect(x-1,y-1,w+2,8);
+  ctx.fillStyle = "#333"; ctx.fillRect(x,y,w,6);
+  ctx.fillStyle = color;  ctx.fillRect(x,y, Math.max(0,w*cur/max), 6);
+}
+function drawCreature(c, x, y, big, back) {
+  const s = big ? 56 : 44;
+  ctx.fillStyle = c.color;
+  ctx.beginPath(); ctx.arc(x, y, s/2, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.25)";
+  ctx.beginPath(); ctx.arc(x-s/6, y-s/6, s/5, 0, Math.PI*2); ctx.fill();
+  // Gesicht
+  ctx.fillStyle = "#111";
+  const eo = back ? 1 : 1;
+  ctx.fillRect(x-10, y-4, 4, 5); ctx.fillRect(x+6, y-4, 4, 5);
+  ctx.fillStyle = "#111"; ctx.fillRect(x-6, y+8, 12, 3);
+  ctx.font = "18px serif"; ctx.textAlign="center"; ctx.fillText(c.emoji, x, y-s/2-4);
+}
+function drawBattle() {
+  const b = battle;
+  // Hintergrund
+  ctx.fillStyle = "#dff0d8"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle = "#bfe0b0"; ctx.fillRect(0,300,cv.width,180);
+  // Wildes (oben rechts)
+  ctx.fillStyle = "#a8d5a0"; ctx.beginPath(); ctx.ellipse(360,140,80,20,0,0,Math.PI*2); ctx.fill();
+  drawCreature(b.wild, 360, 110, true, false);
+  // Meins (unten links, "von hinten")
+  ctx.fillStyle = "#a8d5a0"; ctx.beginPath(); ctx.ellipse(150,300,80,22,0,0,Math.PI*2); ctx.fill();
+  drawCreature(b.mine, 150, 265, true, true);
+
+  // Info-Boxen
+  function infoBox(c, x, y) {
+    ctx.fillStyle = "#fff"; ctx.strokeStyle="#333"; ctx.lineWidth=3;
+    ctx.fillRect(x,y,180,46); ctx.strokeRect(x,y,180,46);
+    ctx.fillStyle="#222"; ctx.font="bold 13px sans-serif"; ctx.textAlign="left";
+    ctx.fillText(c.name, x+8, y+16);
+    ctx.font="11px sans-serif"; ctx.fillText("Lv."+c.level, x+140, y+16);
+    bar(x+8, y+26, 150, c.hp, c.maxHp, c.hp > c.maxHp*0.3 ? "#2ecc40" : "#ff9f1a");
+    ctx.fillStyle="#444"; ctx.font="9px sans-serif";
+    ctx.fillText(c.hp+"/"+c.maxHp, x+120, y+43);
+  }
+  infoBox(b.wild, 30, 40);
+  infoBox(b.mine, cv.width-210, 210);
+
+  // Log-/Menü-Box
+  ctx.fillStyle = "#1b2233"; ctx.fillRect(8, 360, cv.width-16, 112);
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.strokeRect(8,360,cv.width-16,112);
+  ctx.fillStyle = "#e8ecff"; ctx.font = "13px sans-serif"; ctx.textAlign="left";
+  b.log.forEach((l,i)=> ctx.fillText(l, 20, 384 + i*18));
+
+  // Menü rechts
+  if (b.turn === "player" && !b.over) {
+    const items = ["⚔ KÄMPFEN", "🎯 FANGEN", "🏃 FLIEHEN"];
+    items.forEach((it,i)=>{
+      const y = 384 + i*22;
+      ctx.fillStyle = i === b.menu ? "#ffcc33" : "#9aa6d6";
+      ctx.font = i === b.menu ? "bold 14px sans-serif" : "14px sans-serif";
+      ctx.textAlign="left";
+      ctx.fillText((i===b.menu?"▶ ":"  ")+it, cv.width-150, y);
+    });
+  }
+}
+
+/* --- Message-Box --- */
+function drawMessage() {
+  drawOverworld();
+  ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0,0,cv.width,cv.height);
+  const bw = 420, bh = 40 + message.lines.length*24;
+  const bx = (cv.width-bw)/2, by = (cv.height-bh)/2;
+  ctx.fillStyle = "#1b2233"; ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle = "#ffcc33"; ctx.lineWidth = 3; ctx.strokeRect(bx,by,bw,bh);
+  ctx.fillStyle = "#e8ecff"; ctx.font = "14px sans-serif"; ctx.textAlign="center";
+  message.lines.forEach((l,i)=> ctx.fillText(l, cv.width/2, by+28+i*24));
+  ctx.fillStyle = "#9aa6d6"; ctx.font = "11px sans-serif";
+  ctx.fillText("[ Enter / Leertaste ]", cv.width/2, by+bh-8);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle = "#ff4d5e"; ctx.font = "bold 40px sans-serif"; ctx.textAlign="center";
+  ctx.fillText("GAME OVER", cv.width/2, 200);
+  ctx.fillStyle = "#fff"; ctx.font = "16px sans-serif";
+  ctx.fillText("Münzen: " + player.coins + "  •  Gefangen: " + player.party.length, cv.width/2, 250);
+  ctx.fillStyle = "#9aa6d6"; ctx.font = "13px sans-serif";
+  ctx.fillText("[ Enter ] für Neustart", cv.width/2, 300);
+}
+
+/* =========================================================================
+   HAUPTSCHLEIFE
+========================================================================= */
+function resetGame() {
+  world = MAP.map(r => r.slice());
+  Object.assign(player, {
+    x: 1*TILE+3, y: 1*TILE+3, px:1, py:1, moving:false, mx:0, my:0,
+    dir:"down", maxHp:3, hp:3, coins:0, attack:0, invuln:0, party:[]
+  });
+  player.party.push(makeCreature(2,3));
+  enemies = [
+    { x: 11*TILE, y: 1*TILE, dir: 1, alive: true, cool: 0 },
+    { x: 7*TILE,  y: 12*TILE, dir: -1, alive: true, cool: 0 },
+    { x: 13*TILE, y: 7*TILE, dir: 1, alive: true, cool: 0 },
+  ];
+  floaters = []; battle = null; message = null; state = "overworld";
+}
+
+function update() {
+  // Floater altern
+  floaters.forEach(f => { f.life--; f.y -= 0.4; });
+  floaters = floaters.filter(f => f.life > 0);
+
+  if (state === "overworld") updateOverworld();
+  else if (state === "battle") updateBattle();
+  else if (state === "message") {
+    if (enterEdge || attackEdge) {
+      const after = message.after; message = null;
+      state = (battle && !battle.over) ? "battle" : "overworld";
+      if (after) after();
+    }
+  } else if (state === "gameover") {
+    if (enterEdge) resetGame();
+  }
+
+  // Edge-Flags zurücksetzen
+  enterEdge = false; attackEdge = false;
+}
+
+function render() {
+  ctx.clearRect(0,0,cv.width,cv.height);
+  if (state === "battle") drawBattle();
+  else if (state === "message") drawMessage();
+  else if (state === "gameover") drawGameOver();
+  else drawOverworld();
+}
+
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+// Startbildschirm-Nachricht
+player.x = 1*TILE+3; player.y = 1*TILE+3;
+showMessage([
+  "⚔ TRIFORCE QUEST ⚔",
+  "Erkunde die Welt, sammle Münzen (Mario),",
+  "kämpfe mit dem Schwert (Zelda) und fange",
+  "wilde Kreaturen im hohen Gras (Pokémon)!",
+], () => { state = "overworld"; });
+loop();
+</script>
+</body>
+</html>
