@@ -45,9 +45,9 @@
   <div id="wrap"><canvas id="game" width="512" height="480"></canvas></div>
   <div id="hint">
     <kbd>← ↑ → ↓</kbd>/<kbd>WASD</kbd> bewegen • <kbd>Leer</kbd>/<kbd>J</kbd> Schwert / A •
-    <kbd>Enter</kbd> reden/bestätigen / B<br>
+    <kbd>Enter</kbd> reden/bestätigen / B • <kbd>M</kbd> Musik an/aus<br>
     Finde die <b style="color:#ffcc33">3 Triforce-Splitter</b>, rüste dich im
-    <b style="color:#8be37a">Shop</b> und besiege den Boss!
+    <b style="color:#8be37a">Shop</b>, heil dich an der <b style="color:#5fe08a">Statue</b> und besiege den Boss!
   </div>
   <div id="touch">
     <div class="pad">
@@ -76,8 +76,8 @@ const TILE = 32, COLS = 16, ROWS = 15;
 
 /* ---- Tiles ---- */
 const T = { GRASS:0, WALL:1, TALL:2, WATER:3, BRICK:4, COIN:5, CHEST:6, PATH:8,
-            SHARD:9, SHOP:10, GATE:11, SIGN:12, FLOOR:13, TREE:14 };
-const SOLID = new Set([T.WALL, T.WATER, T.BRICK, T.SHOP, T.GATE, T.SIGN, T.TREE]);
+            SHARD:9, SHOP:10, GATE:11, SIGN:12, FLOOR:13, TREE:14, HEAL:15 };
+const SOLID = new Set([T.WALL, T.WATER, T.BRICK, T.SHOP, T.GATE, T.SIGN, T.TREE, T.HEAL]);
 
 /* ---- Kreaturen ---- */
 const SPECIES = [
@@ -134,7 +134,7 @@ function buildAllRooms(){
   {
     const exits = { east:"grass", south:"forest" };
     const t = blankRoom(T.GRASS); carve(t, exits);
-    set(t,3,3,T.SHOP); set(t,5,5,T.SIGN); set(t,7,1,T.GATE);
+    set(t,3,3,T.SHOP); set(t,5,5,T.SIGN); set(t,7,1,T.GATE); set(t,12,5,T.HEAL);
     set(t,10,3,T.COIN); set(t,11,9,T.COIN); set(t,4,10,T.COIN);
     set(t,2,2,T.TREE); set(t,13,2,T.TREE); set(t,13,11,T.TREE);
     rooms.village = { tiles:t, exits, enemies:[] };
@@ -213,6 +213,7 @@ function press(k){
     if (k==="enter"||k==="b") enterEdge=true;
     if (k===" "||k==="j"||k==="a") attackEdge=true;
   }
+  if (k==="m") musicOn=!musicOn;
   keys[k]=true;
   initAudio();
 }
@@ -270,6 +271,20 @@ const sfx = {
   win:()=>{ [523,659,784,1047,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.15,"triangle",0.07),i*140)); },
 };
 
+/* ---- Hintergrundmusik (Chiptune-Loop auf 8tel-Raster) ---- */
+let musicOn=true, musicIdx=0;
+const TRACKS = {
+  explore:[330,0,392,0,440,392,330,0, 294,0,330,262,0,294,0,0],
+  battle :[440,440,0,392,392,0,349,0, 330,392,440,494,523,0,494,0],
+  title  :[523,0,659,0,784,0,659,523, 587,0,659,0,523,0,0,0],
+};
+function currentTrack(){ return state==="battle"?"battle":(state==="title"||state==="victory")?"title":"explore"; }
+setInterval(()=>{
+  if (!actx || !musicOn) return;
+  const seq=TRACKS[currentTrack()]; const f=seq[musicIdx%seq.length]; musicIdx++;
+  if (f) beep(f, 0.16, "triangle", 0.022);
+}, 195);
+
 /* =========================================================================
    EFFEKTE — Partikel, Floater, Screenshake
 ========================================================================= */
@@ -316,6 +331,10 @@ function doTransition(roomKey, dir){
 function interact(){                            // Enter/B im Overworld
   const f=facingTile(); const t=tileAt(f.c,f.r);
   if (t===T.SHOP) openShop();
+  else if (t===T.HEAL){
+    player.party.forEach(c=>{ c.hp=c.maxHp; }); player.hp=player.maxHp;
+    sfx.levelup(); showMessage(["💚 Die Heil-Statue leuchtet auf...","Dein Team und deine Herzen sind voll!"]); saveGame();
+  }
   else if (t===T.SIGN) showMessage(["📜 »Wanderer! Sammle die 3 Triforce-",
                                      "Splitter in Wiese, Wald und Höhle.",
                                      "Dann öffnet sich das Tor zum Boss.«"]);
@@ -476,11 +495,23 @@ function playerAction(){
     if (player.potions<=0){ blog("Keine Tränke vorhanden."); return; }
     player.potions--; const heal=Math.min(b.mine.maxHp-b.mine.hp,20); b.mine.hp+=heal;
     sfx.coin(); blog(`${b.mine.name} wird um ${heal} geheilt.`); b.turn="enemy"; b.anim=22;
-  } else if (b.menu===3){                         // FLIEHEN
+  } else if (b.menu===3){                         // WECHSELN
+    if (player.party.length<=1){ blog("Du hast keine weitere Kreatur."); return; }
+    b.sub="team"; b.teamSel=0; sfx.select();
+  } else if (b.menu===4){                         // FLIEHEN
     if (b.isBoss){ blog("Vor dem Boss gibt es kein Entkommen!"); b.turn="enemy"; b.anim=22; return; }
     if (Math.random()<0.7) endBattle(["Du bist entkommen."], 0);
     else { blog("Flucht misslungen!"); b.turn="enemy"; b.anim=22; }
   }
+}
+function teamSwitchAction(){
+  const b=battle, n=player.party.length;
+  if (b.teamSel===n){ b.sub=null; sfx.select(); return; }   // "Zurück"
+  const pick=player.party[b.teamSel];
+  if (pick===b.mine){ b.sub=null; sfx.select(); return; }    // schon aktiv
+  if (pick.hp<=0){ blog(`${pick.name} ist kampfunfähig!`); sfx.hurt(); return; }
+  b.mine=pick; b.sub=null; blog(`Los, ${pick.name}!`); sfx.select();
+  b.turn="enemy"; b.anim=22;                                  // Wechsel kostet den Zug
 }
 function enemyTurn(){
   const b=battle;
@@ -508,8 +539,16 @@ function updateBattle(){
   if (b.anim>0){ b.anim--; return; }
   if (b.turn==="enemy"){ enemyTurn(); return; }
   if (b.turn==="player"){
-    if (keys["arrowup"]||keys["w"]){ if(!b._mv){ b.menu=(b.menu+3)%4; b._mv=1; sfx.select(); } }
-    else if (keys["arrowdown"]||keys["s"]){ if(!b._mv){ b.menu=(b.menu+1)%4; b._mv=1; sfx.select(); } }
+    if (b.sub==="team"){
+      const n=player.party.length+1;   // +Zurück
+      if (keys["arrowup"]||keys["w"]){ if(!b._mv){ b.teamSel=(b.teamSel+n-1)%n; b._mv=1; sfx.select(); } }
+      else if (keys["arrowdown"]||keys["s"]){ if(!b._mv){ b.teamSel=(b.teamSel+1)%n; b._mv=1; sfx.select(); } }
+      else b._mv=0;
+      if (enterEdge||attackEdge) teamSwitchAction();
+      return;
+    }
+    if (keys["arrowup"]||keys["w"]){ if(!b._mv){ b.menu=(b.menu+4)%5; b._mv=1; sfx.select(); } }
+    else if (keys["arrowdown"]||keys["s"]){ if(!b._mv){ b.menu=(b.menu+1)%5; b._mv=1; sfx.select(); } }
     else b._mv=0;
     if (enterEdge||attackEdge) playerAction();
   }
@@ -620,6 +659,13 @@ function drawTile(t,x,y){
       ctx.fillStyle="#8a5a2b"; ctx.fillRect(x+14,y+16,4,12);
       ctx.fillStyle="#c98a3b"; ctx.fillRect(x+6,y+6,20,12);
       ctx.fillStyle="#5a3a1a"; ctx.fillRect(x+9,y+9,14,2); ctx.fillRect(x+9,y+13,10,2); break;
+    case T.HEAL: drawTile(T.GRASS,x,y);
+      const gg=0.4+0.4*Math.abs(Math.sin(player.walkFrame*0.08+y));
+      ctx.fillStyle="rgba(120,255,160,"+gg+")"; ctx.beginPath(); ctx.arc(x+16,y+16,13,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle="#9aa6c0"; ctx.fillRect(x+8,y+18,16,12);            // Sockel
+      ctx.fillStyle="#5fe08a";                                          // Herz
+      ctx.beginPath(); ctx.arc(x+12,y+11,4,0,Math.PI*2); ctx.arc(x+20,y+11,4,0,Math.PI*2);
+      ctx.moveTo(x+8,y+13); ctx.lineTo(x+16,y+22); ctx.lineTo(x+24,y+13); ctx.closePath(); ctx.fill(); break;
   }
 }
 function drawPlayer(){
@@ -700,10 +746,18 @@ function drawBattle(){
   ctx.fillStyle="#e8ecff"; ctx.font="12.5px sans-serif"; ctx.textAlign="left";
   b.log.forEach((l,i)=>ctx.fillText(l,20,382+i*18));
   if (b.turn==="player"&&!b.over){
-    const items=["⚔ KÄMPFEN",`🎯 FANGEN (${player.balls})`,`🧪 TRANK (${player.potions})`,"🏃 FLIEHEN"];
-    items.forEach((it,i)=>{ const y=380+i*22; ctx.fillStyle=i===b.menu?"#ffcc33":"#9aa6d6";
-      ctx.font=i===b.menu?"bold 13px sans-serif":"13px sans-serif";
-      ctx.fillText((i===b.menu?"▶ ":"  ")+it, cv.width-172, y); });
+    if (b.sub==="team"){
+      const list=player.party.map(c=>`${c.name} ${Math.ceil(c.hp)}/${c.maxHp}`); list.push("Zurück");
+      list.forEach((it,i)=>{ const y=376+i*17; const cr=player.party[i];
+        ctx.fillStyle=i===b.teamSel?"#ffcc33":(cr&&cr.hp<=0?"#7a6a6a":"#9aa6d6");
+        ctx.font=i===b.teamSel?"bold 12px sans-serif":"12px sans-serif";
+        ctx.fillText((i===b.teamSel?"▶ ":"  ")+it, 300, y); });
+    } else {
+      const items=["⚔ KÄMPFEN",`🎯 FANGEN (${player.balls})`,`🧪 TRANK (${player.potions})`,"🔄 WECHSELN","🏃 FLIEHEN"];
+      items.forEach((it,i)=>{ const y=374+i*20; ctx.fillStyle=i===b.menu?"#ffcc33":"#9aa6d6";
+        ctx.font=i===b.menu?"bold 13px sans-serif":"13px sans-serif";
+        ctx.fillText((i===b.menu?"▶ ":"  ")+it, cv.width-172, y); });
+    }
   }
 }
 function drawMessage(){
@@ -768,9 +822,29 @@ function newGame(){
   Object.assign(player,{ room:"village", px:2, py:7, x:2*TILE+3, y:7*TILE+3,
     moving:false, mx:0, my:0, dir:"down", maxHp:3, hp:3, coins:0, balls:3, potions:1,
     shards:0, attack:0, invuln:0, party:[], walkFrame:0 });
-  player.party.push(makeCreature(2,3));         // Start-Begleiter Blattbold
   particles=[]; floaters=[]; battle=null; message=null; shop=null;
-  state="overworld"; saveGame();
+  starterSel=0; state="starter";                 // erst Begleiter wählen (Pokémon-Style)
+}
+const STARTERS=[0,1,2];                           // Glutwelpe / Aquamolch / Blattbold
+function drawStarter(){
+  ctx.fillStyle="#0b1020"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#ffe066"; ctx.font="bold 22px sans-serif"; ctx.textAlign="center";
+  ctx.fillText("Wähle deinen Begleiter",cv.width/2,70);
+  STARTERS.forEach((sp,i)=>{
+    const x=110+i*146, y=200, s=SPECIES[sp], sel=i===starterSel;
+    ctx.fillStyle=sel?"#242f5c":"#161c33"; ctx.fillRect(x-56,y-96,112,180);
+    ctx.strokeStyle=sel?"#ffcc33":"#333c66"; ctx.lineWidth=sel?4:2; ctx.strokeRect(x-56,y-96,112,180);
+    ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(x,y-30,32,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.25)"; ctx.beginPath(); ctx.arc(x-10,y-40,12,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="#111"; ctx.fillRect(x-11,y-34,4,5); ctx.fillRect(x+7,y-34,4,5); ctx.fillRect(x-7,y-20,14,3);
+    ctx.font="22px serif"; ctx.fillText(s.emoji,x,y-70);
+    ctx.fillStyle="#e8ecff"; ctx.font="bold 14px sans-serif"; ctx.fillText(s.name,x,y+26);
+    const tp={fire:"🔥 Feuer",water:"💧 Wasser",grass:"🌿 Pflanze"}[s.type]||s.type;
+    ctx.fillStyle="#9aa6d6"; ctx.font="11px sans-serif"; ctx.fillText(tp,x,y+46);
+    ctx.fillText("Typ-Stärken zählen!",x,y+64);
+  });
+  ctx.fillStyle="#9aa6d6"; ctx.font="12px sans-serif";
+  ctx.fillText("← → wählen • Enter/A bestätigen",cv.width/2,cv.height-40);
 }
 
 function update(){
@@ -788,6 +862,13 @@ function update(){
       else newGame();
     }
   }
+  else if (state==="starter"){
+    if (keys["arrowleft"]){ if(!starterMv){ starterSel=(starterSel+2)%3; starterMv=1; sfx.select(); } }
+    else if (keys["arrowright"]){ if(!starterMv){ starterSel=(starterSel+1)%3; starterMv=1; sfx.select(); } }
+    else starterMv=0;
+    if (enterEdge||attackEdge){ player.party=[makeCreature(STARTERS[starterSel],5)];
+      sfx.levelup(); state="overworld"; saveGame(); }
+  }
   else if (state==="overworld") updateOverworld();
   else if (state==="battle") updateBattle();
   else if (state==="shop") updateShop();
@@ -799,13 +880,14 @@ function update(){
 
   enterEdge=false; attackEdge=false;
 }
-let titleMv=0;
+let titleMv=0, starterSel=0, starterMv=0;
 
 function render(){
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.save();
   if (shakeT>0){ ctx.translate((Math.random()-0.5)*shakeMag, (Math.random()-0.5)*shakeMag); }
   if (state==="title") drawTitle();
+  else if (state==="starter") drawStarter();
   else if (state==="battle") drawBattle();
   else if (state==="shop") drawShop();
   else if (state==="message") drawMessage();
