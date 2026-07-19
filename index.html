@@ -2,688 +2,824 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 <title>Triforce Quest — Mario × Zelda × Pokémon</title>
 <style>
   :root { --bg:#0b1020; --panel:#161c33; --ink:#e8ecff; --accent:#ffcc33; }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
-    margin: 0; height: 100%;
+    margin: 0; min-height: 100%;
     background: radial-gradient(1200px 800px at 50% -10%, #1a2247, #070a16);
     color: var(--ink);
     font-family: "Segoe UI", system-ui, sans-serif;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 12px; padding: 16px;
+    gap: 10px; padding: 12px;
   }
-  h1 { margin: 0; font-size: 20px; letter-spacing: 1px; }
+  h1 { margin: 0; font-size: 19px; letter-spacing: 1px; }
   h1 span { color: var(--accent); }
   #wrap { position: relative; }
   canvas {
-    background: #1e6b34; image-rendering: pixelated;
+    background: #16351f; image-rendering: pixelated;
     border: 4px solid #2b3560; border-radius: 8px;
     box-shadow: 0 20px 60px rgba(0,0,0,.5);
-    max-width: 96vw; height: auto;
+    max-width: 96vw; height: auto; touch-action: none;
   }
-  #hint { font-size: 13px; color: #9aa6d6; text-align: center; max-width: 640px; line-height: 1.5; }
-  kbd {
-    background: var(--panel); border: 1px solid #333c66; border-bottom-width: 3px;
-    border-radius: 4px; padding: 1px 6px; font-size: 12px; color: var(--ink);
-  }
-  #touch { display: none; }
+  #hint { font-size: 12.5px; color: #9aa6d6; text-align: center; max-width: 660px; line-height: 1.5; }
+  kbd { background: var(--panel); border: 1px solid #333c66; border-bottom-width: 3px;
+        border-radius: 4px; padding: 1px 6px; font-size: 12px; color: var(--ink); }
+  /* Touch-Steuerung */
+  #touch { display: none; width: 100%; max-width: 512px; margin-top: 6px;
+           justify-content: space-between; align-items: center; user-select: none; }
+  #touch.on { display: flex; }
+  .pad { display: grid; grid-template-columns: repeat(3,52px); grid-template-rows: repeat(3,52px); gap: 4px; }
+  .btn { background: var(--panel); border: 1px solid #333c66; border-bottom-width: 4px;
+         border-radius: 10px; color: var(--ink); font-size: 22px; display: flex;
+         align-items: center; justify-content: center; touch-action: none; }
+  .btn:active { background: #24305c; transform: translateY(2px); }
+  .acts { display: flex; gap: 12px; }
+  .abtn { width: 66px; height: 66px; border-radius: 50%; font-size: 15px; font-weight: bold; }
 </style>
 </head>
 <body>
-  <h1><span>◆</span> Triforce Quest <span>◆</span> <small style="font-weight:400;color:#9aa6d6">Mario × Zelda × Pokémon</small></h1>
-  <div id="wrap">
-    <canvas id="game" width="512" height="480"></canvas>
-  </div>
+  <h1><span>◆</span> Triforce Quest <span>◆</span></h1>
+  <div id="wrap"><canvas id="game" width="512" height="480"></canvas></div>
   <div id="hint">
-    <b>Steuerung:</b> <kbd>← ↑ → ↓</kbd> / <kbd>WASD</kbd> bewegen &nbsp;•&nbsp;
-    <kbd>Leertaste</kbd> / <kbd>J</kbd> Schwert &nbsp;•&nbsp; <kbd>Enter</kbd> bestätigen
-    <br>
-    Sammle <b style="color:#ffcc33">Münzen</b>, zerschlage Blöcke, weiche Gegnern aus und wage dich ins <b style="color:#8be37a">hohe Gras</b> — dort lauern wilde Kreaturen zum Fangen!
+    <kbd>← ↑ → ↓</kbd>/<kbd>WASD</kbd> bewegen • <kbd>Leer</kbd>/<kbd>J</kbd> Schwert / A •
+    <kbd>Enter</kbd> reden/bestätigen / B<br>
+    Finde die <b style="color:#ffcc33">3 Triforce-Splitter</b>, rüste dich im
+    <b style="color:#8be37a">Shop</b> und besiege den Boss!
+  </div>
+  <div id="touch">
+    <div class="pad">
+      <div></div><div class="btn" data-k="up">▲</div><div></div>
+      <div class="btn" data-k="left">◀</div><div></div><div class="btn" data-k="right">▶</div>
+      <div></div><div class="btn" data-k="down">▼</div><div></div>
+    </div>
+    <div class="acts">
+      <div class="btn abtn" data-k="b">B</div>
+      <div class="btn abtn" data-k="a">A</div>
+    </div>
   </div>
 
 <script>
 "use strict";
 /* ===========================================================================
-   TRIFORCE QUEST — ein Genre-Mashup:
-     • Zelda   : Top-Down-Overworld, Schwert, Herzen, Truhen
-     • Mario   : Münzen, zerschlagbare Ziegelblöcke, Warp-Röhren
-     • Pokémon : Zufallsbegegnungen im Gras, rundenbasierte Kämpfe, Fangen
-   Alles in einer Datei, reines Canvas, keine Abhängigkeiten.
+   TRIFORCE QUEST  —  Mario × Zelda × Pokémon  (eine Datei, reines Canvas)
+   • Zelda   : verbundene Overworld-Räume, Schwert, Herzen, Truhen, Boss
+   • Mario   : Münzen, zerschlagbare Blöcke, Shop-Ökonomie
+   • Pokémon : Gras-Zufallskämpfe, Typen, XP/Level, Fangen mit Bällen
 =========================================================================== */
-
 const cv = document.getElementById("game");
 const ctx = cv.getContext("2d");
-const TILE = 32;
-const COLS = 16, ROWS = 15;              // 512 x 480
 ctx.imageSmoothingEnabled = false;
+const TILE = 32, COLS = 16, ROWS = 15;
 
-/* ----------------------------------------------------------------------- */
-/* Tile-Karte der Overworld
-   0 Gras  1 Baum/Fels(fest)  2 hohes Gras(Encounter)  3 Wasser(fest)
-   4 Ziegelblock(Mario, zerschlagbar)  5 Münze  6 Truhe  7 Warp-Röhre  8 Sand-Weg */
-const LEGEND = { GRASS:0, WALL:1, TALL:2, WATER:3, BRICK:4, COIN:5, CHEST:6, PIPE:7, PATH:8 };
-const MAP = [
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,0,0,8,8,8,5,0,0,4,4,0,2,2,2,1],
-  [1,0,1,1,8,0,0,0,0,0,0,0,2,2,2,1],
-  [1,0,1,6,8,0,4,4,4,0,1,0,2,2,2,1],
-  [1,0,1,1,8,0,0,5,0,0,1,0,0,0,0,1],
-  [1,0,8,8,8,0,0,0,0,0,1,1,1,0,1,1],
-  [1,0,8,0,0,0,3,3,3,0,0,0,8,8,8,1],
-  [1,5,8,0,4,0,3,3,3,0,4,0,8,6,8,1],
-  [1,0,8,0,0,0,3,3,3,0,0,0,8,8,8,1],
-  [1,0,8,8,8,8,0,0,0,0,1,0,0,0,0,1],
-  [1,0,1,0,2,2,2,0,4,0,1,0,7,0,0,1],
-  [1,0,1,0,2,2,2,0,0,0,1,0,0,0,5,1],
-  [1,0,0,0,2,2,2,0,5,0,0,0,4,4,0,1],
-  [1,0,8,8,8,8,8,8,8,8,8,8,8,0,0,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+/* ---- Tiles ---- */
+const T = { GRASS:0, WALL:1, TALL:2, WATER:3, BRICK:4, COIN:5, CHEST:6, PATH:8,
+            SHARD:9, SHOP:10, GATE:11, SIGN:12, FLOOR:13, TREE:14 };
+const SOLID = new Set([T.WALL, T.WATER, T.BRICK, T.SHOP, T.GATE, T.SIGN, T.TREE]);
+
+/* ---- Kreaturen ---- */
+const SPECIES = [
+  { name:"Glutwelpe",  color:"#ff7a3c", emoji:"🔥", type:"fire",  hp:22, atk:6 },
+  { name:"Aquamolch",  color:"#3ca0ff", emoji:"💧", type:"water", hp:26, atk:5 },
+  { name:"Blattbold",  color:"#5fd06b", emoji:"🌿", type:"grass", hp:24, atk:5 },
+  { name:"Steinknorz", color:"#b08a5a", emoji:"🪨", type:"rock",  hp:30, atk:4 },
+  { name:"Blitzfluse", color:"#ffd23c", emoji:"⚡", type:"elec",  hp:20, atk:7 },
 ];
-// tiefe Kopie, damit wir Tiles verändern können (Münzen/Blöcke/Truhen)
-let world = MAP.map(r => r.slice());
+const STRONG = { fire:"grass", grass:"water", water:"fire" }; // Schere-Stein-Papier
+function effectiveness(atkType, defType){
+  if (STRONG[atkType] === defType) return 1.5;
+  if (STRONG[defType] === atkType) return 0.66;
+  return 1;
+}
+function makeCreature(specIdx, level){
+  const s = SPECIES[specIdx];
+  const lv = level || (1 + (Math.random()*4|0));
+  const maxHp = s.hp + lv*3;
+  return { spec:specIdx, name:s.name, color:s.color, emoji:s.emoji, type:s.type,
+           level:lv, maxHp, hp:maxHp, atk:s.atk + lv, xp:0 };
+}
 
-const SOLID = new Set([LEGEND.WALL, LEGEND.WATER, LEGEND.BRICK]);
-
-/* ----------------------------------------------------------------------- */
-/* Spielerstatus */
+/* ---- Spieler ---- */
 const player = {
-  x: 1 * TILE, y: 1 * TILE, w: TILE - 6, h: TILE - 6,
-  px: 1, py: 1,            // Ziel-Tile für Grid-Bewegung
-  moving: false, mx: 0, my: 0,
-  dir: "down", speed: 3,
-  maxHp: 3, hp: 3,         // Herzen (Zelda)
-  coins: 0,
-  attack: 0,               // Angriffs-Timer
-  invuln: 0,
-  party: [],               // gefangene Kreaturen (Pokémon)
+  room:"village", px:2, py:7, x:2*TILE+3, y:7*TILE+3, w:TILE-6, h:TILE-6,
+  moving:false, mx:0, my:0, dir:"down", speed:4,
+  maxHp:3, hp:3, coins:0, balls:3, potions:1, shards:0,
+  attack:0, invuln:0, party:[], walkFrame:0,
 };
 
-/* Kreaturen-"Pokédex" */
-const SPECIES = [
-  { name: "Glutwelpe",  color:"#ff7a3c", emoji:"🔥", maxHp: 22, atk: 6 },
-  { name: "Aquamolch",  color:"#3ca0ff", emoji:"💧", maxHp: 26, atk: 5 },
-  { name: "Blattbold",  color:"#5fd06b", emoji:"🌿", maxHp: 24, atk: 5 },
-  { name: "Steinknorz", color:"#b08a5a", emoji:"🪨", maxHp: 30, atk: 4 },
-  { name: "Blitzfluse", color:"#ffd23c", emoji:"⚡", maxHp: 20, atk: 7 },
-];
-function makeCreature(spec, level) {
-  const s = SPECIES[spec];
-  const lv = level || (1 + Math.floor(Math.random() * 4));
-  const hp = s.maxHp + lv * 3;
-  return { spec, name: s.name, color: s.color, emoji: s.emoji,
-           level: lv, maxHp: hp, hp, atk: s.atk + lv };
+/* =========================================================================
+   WELT — mehrere Räume, programmatisch gebaut (weniger Tippfehler)
+========================================================================= */
+let rooms = {};
+function blankRoom(fill){
+  const t = [];
+  for (let r=0;r<ROWS;r++){ const row=[]; for(let c=0;c<COLS;c++){
+    row.push((r===0||r===ROWS-1||c===0||c===COLS-1) ? T.WALL : fill);
+  } t.push(row); }
+  return t;
 }
-// Startbegleiter
-player.party.push(makeCreature(2, 3));
-
-/* Roaming-Gegner (Zelda-Style, mit Schwert zu besiegen) */
-let enemies = [
-  { x: 11*TILE, y: 1*TILE, dir: 1, alive: true, cool: 0 },
-  { x: 7*TILE,  y: 12*TILE, dir: -1, alive: true, cool: 0 },
-  { x: 13*TILE, y: 7*TILE, dir: 1, alive: true, cool: 0 },
-];
-
-/* Floating-Texts (Feedback) */
-let floaters = [];
-function floater(text, x, y, color) {
-  floaters.push({ text, x, y, color: color || "#fff", life: 60 });
+function carve(t, exits){
+  if (exits.east)  t[7][COLS-1] = T.PATH;
+  if (exits.west)  t[7][0]      = T.PATH;
+  if (exits.north) t[0][7]      = T.PATH;
+  if (exits.south) t[ROWS-1][7] = T.PATH;
 }
+function buildAllRooms(){
+  rooms = {};
+  const set = (t,c,r,v)=>{ t[r][c]=v; };
 
-/* ----------------------------------------------------------------------- */
-/* Eingabe */
-const keys = {};
-let enterEdge = false, attackEdge = false;
-addEventListener("keydown", e => {
-  const k = e.key.toLowerCase();
-  if ([" ","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault();
-  if (!keys[k]) {
-    if (k === "enter") enterEdge = true;
-    if (k === " " || k === "j") attackEdge = true;
+  /* --- Dorf: Shop, Schild, Boss-Tor --- */
+  {
+    const exits = { east:"grass", south:"forest" };
+    const t = blankRoom(T.GRASS); carve(t, exits);
+    set(t,3,3,T.SHOP); set(t,5,5,T.SIGN); set(t,7,1,T.GATE);
+    set(t,10,3,T.COIN); set(t,11,9,T.COIN); set(t,4,10,T.COIN);
+    set(t,2,2,T.TREE); set(t,13,2,T.TREE); set(t,13,11,T.TREE);
+    rooms.village = { tiles:t, exits, enemies:[] };
   }
-  keys[k] = true;
-});
-addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+  /* --- Graswiese: hohes Gras (Kämpfe) + Splitter 1 --- */
+  {
+    const exits = { west:"village", south:"cave" };
+    const t = blankRoom(T.GRASS); carve(t, exits);
+    for (let r=2;r<=6;r++) for (let c=9;c<=13;c++) set(t,c,r,T.TALL);
+    set(t,11,3,T.SHARD);                 // Splitter im Gras
+    set(t,3,3,T.COIN); set(t,3,10,T.COIN); set(t,6,11,T.COIN);
+    rooms.grass = { tiles:t, exits, enemies:[
+      { x:5*TILE, y:9*TILE, dir:1, hp:2, maxHp:2, alive:true, cool:0, flash:0 },
+    ] };
+  }
+  /* --- Wald: Blöcke verbergen Splitter 2 + Gegner --- */
+  {
+    const exits = { north:"village", east:"cave" };
+    const t = blankRoom(T.GRASS); carve(t, exits);
+    [[2,3],[3,3],[4,3],[11,4],[12,4],[3,9],[4,9],[12,10]].forEach(p=>set(t,p[0],p[1],T.TREE));
+    // Ziegel-Tresor um den Splitter (aufbrechen mit Schwert!)
+    set(t,8,8,T.SHARD);
+    [[7,8],[9,8],[8,7],[8,9]].forEach(p=>set(t,p[0],p[1],T.BRICK));
+    set(t,2,11,T.COIN); set(t,13,7,T.COIN);
+    rooms.forest = { tiles:t, exits, enemies:[
+      { x:6*TILE, y:5*TILE, dir:1, hp:2, maxHp:2, alive:true, cool:0, flash:0 },
+      { x:10*TILE, y:11*TILE, dir:-1, hp:2, maxHp:2, alive:true, cool:0, flash:0 },
+    ] };
+  }
+  /* --- Höhle: Wasser, Gegner, Splitter 3 --- */
+  {
+    const exits = { north:"grass", west:"forest" };
+    const t = blankRoom(T.FLOOR); carve(t, exits);
+    for (let r=5;r<=8;r++) for (let c=6;c<=9;c++) set(t,c,r,T.WATER);
+    set(t,13,2,T.SHARD);
+    set(t,2,12,T.CHEST); set(t,3,3,T.COIN); set(t,12,12,T.COIN);
+    rooms.cave = { tiles:t, exits, enemies:[
+      { x:4*TILE, y:3*TILE, dir:1, hp:3, maxHp:3, alive:true, cool:0, flash:0 },
+      { x:11*TILE, y:9*TILE, dir:-1, hp:3, maxHp:3, alive:true, cool:0, flash:0 },
+    ] };
+  }
+  /* --- Boss-Arena --- */
+  {
+    const t = blankRoom(T.FLOOR);
+    for (let c=1;c<COLS-1;c++){ t[1][c]=T.WALL; }
+    rooms.boss = { tiles:t, exits:{}, enemies:[] };
+  }
+}
 
-/* ----------------------------------------------------------------------- */
-/* Spielzustände: "overworld" | "battle" | "message" | "gameover" */
-let state = "overworld";
-let message = null;   // {lines:[], after:fn}
-let battle = null;
+function getRoom(){ return rooms[player.room]; }
+function tileAt(c,r){
+  if (r<0||r>=ROWS||c<0||c>=COLS) return T.WALL;
+  return getRoom().tiles[r][c];
+}
+function isSolid(c,r){ return SOLID.has(tileAt(c,r)); }
 
-function showMessage(lines, after) {
-  message = { lines: Array.isArray(lines) ? lines : [lines], after: after || null };
+/* =========================================================================
+   ZUSTAND / DIALOGE
+========================================================================= */
+let state = "title";          // title|overworld|battle|message|shop|gameover|victory
+let message = null, battle = null, shop = null;
+let hasSave = false;
+
+function showMessage(lines, after){
+  message = { lines: Array.isArray(lines)?lines:[lines], after: after||null };
   state = "message";
 }
 
 /* =========================================================================
-   OVERWORLD-LOGIK
+   EINGABE
 ========================================================================= */
-function tileAt(col, row) {
-  if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return LEGEND.WALL;
-  return world[row][col];
+const keys = {};
+let enterEdge=false, attackEdge=false;
+function press(k){
+  if (!keys[k]){
+    if (k==="enter"||k==="b") enterEdge=true;
+    if (k===" "||k==="j"||k==="a") attackEdge=true;
+  }
+  keys[k]=true;
+  initAudio();
 }
-function isSolid(col, row) { return SOLID.has(tileAt(col, row)); }
+function release(k){ keys[k]=false; }
+addEventListener("keydown", e=>{
+  const k=e.key.toLowerCase();
+  if ([" ","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault();
+  press(k);
+});
+addEventListener("keyup", e=> release(e.key.toLowerCase()));
 
-function tryStartMove(dx, dy, dir) {
-  player.dir = dir;
+/* Touch: DOM-Buttons auf key-Flags mappen */
+const touchMap = { up:"arrowup", down:"arrowdown", left:"arrowleft", right:"arrowright", a:"a", b:"enter" };
+(function initTouch(){
+  const isTouch = ("ontouchstart" in window) || navigator.maxTouchPoints>0;
+  const bar = document.getElementById("touch");
+  if (isTouch) bar.classList.add("on");
+  document.querySelectorAll("#touch .btn").forEach(el=>{
+    const key = touchMap[el.dataset.k];
+    const down = e=>{ e.preventDefault(); press(key); };
+    const up   = e=>{ e.preventDefault(); release(key); };
+    el.addEventListener("touchstart", down, {passive:false});
+    el.addEventListener("touchend", up, {passive:false});
+    el.addEventListener("touchcancel", up, {passive:false});
+    el.addEventListener("mousedown", down);
+    el.addEventListener("mouseup", up);
+    el.addEventListener("mouseleave", up);
+  });
+})();
+
+/* =========================================================================
+   AUDIO (WebAudio-Beeps, keine Dateien)
+========================================================================= */
+let actx = null;
+function initAudio(){ if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function beep(freq, dur, type, vol){
+  if(!actx) return;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type=type||"square"; o.frequency.value=freq;
+  g.gain.value=vol||0.06;
+  o.connect(g); g.connect(actx.destination);
+  const now=actx.currentTime;
+  g.gain.setValueAtTime(g.gain.value, now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now+(dur||0.1));
+  o.start(now); o.stop(now+(dur||0.1));
+}
+const sfx = {
+  coin:()=>{ beep(988,0.06,"square"); setTimeout(()=>beep(1319,0.08,"square"),60); },
+  sword:()=>beep(220,0.07,"sawtooth",0.05),
+  hit:()=>beep(140,0.09,"square",0.07),
+  hurt:()=>beep(90,0.18,"sawtooth",0.08),
+  select:()=>beep(660,0.04,"square",0.04),
+  levelup:()=>{ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.1,"triangle",0.06),i*80)); },
+  catch:()=>{ [660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f,0.1,"square",0.06),i*90)); },
+  win:()=>{ [523,659,784,1047,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.15,"triangle",0.07),i*140)); },
+};
+
+/* =========================================================================
+   EFFEKTE — Partikel, Floater, Screenshake
+========================================================================= */
+let particles=[], floaters=[], shakeT=0, shakeMag=0;
+function spawnParticles(x,y,color,n){
+  for(let i=0;i<(n||6);i++) particles.push({
+    x,y, vx:(Math.random()-0.5)*3, vy:(Math.random()-0.5)*3-1,
+    life:18+Math.random()*10, color });
+}
+function floater(text,x,y,color){ floaters.push({text,x,y,color:color||"#fff",life:55}); }
+function shake(frames,mag){ shakeT=Math.max(shakeT,frames); shakeMag=mag||4; }
+
+/* =========================================================================
+   OVERWORLD
+========================================================================= */
+function dirToCompass(d){ return {left:"west",right:"east",up:"north",down:"south"}[d]; }
+function facingTile(){
+  const d={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]}[player.dir];
+  return { c: player.px+d[0], r: player.py+d[1] };
+}
+
+function tryStartMove(dx,dy,dir){
+  player.dir=dir;
   if (player.moving) return;
-  const nc = player.px + dx, nr = player.py + dy;
-  if (isSolid(nc, nr)) return;              // Wand/Wasser/Block blockiert
-  player.moving = true;
-  player.mx = dx; player.my = dy;
+  const nc=player.px+dx, nr=player.py+dy;
+  if (nc<0||nc>=COLS||nr<0||nr>=ROWS){        // Raumwechsel?
+    const ex=getRoom().exits[dirToCompass(dir)];
+    if (ex) doTransition(ex, dir);
+    return;
+  }
+  if (isSolid(nc,nr)) return;
+  player.moving=true; player.mx=dx; player.my=dy;
+}
+function doTransition(roomKey, dir){
+  player.room=roomKey; player.moving=false;
+  if (dir==="right"){ player.px=0;      player.py=7; }
+  if (dir==="left"){  player.px=COLS-1; player.py=7; }
+  if (dir==="up"){    player.px=7;      player.py=ROWS-1; }
+  if (dir==="down"){  player.px=7;      player.py=0; }
+  player.x=player.px*TILE+3; player.y=player.py*TILE+3;
+  saveGame();
 }
 
-function updateOverworld() {
-  if (player.invuln > 0) player.invuln--;
+function interact(){                            // Enter/B im Overworld
+  const f=facingTile(); const t=tileAt(f.c,f.r);
+  if (t===T.SHOP) openShop();
+  else if (t===T.SIGN) showMessage(["📜 »Wanderer! Sammle die 3 Triforce-",
+                                     "Splitter in Wiese, Wald und Höhle.",
+                                     "Dann öffnet sich das Tor zum Boss.«"]);
+  else if (t===T.GATE){
+    if (player.shards>=3){ showMessage(["Das Tor erkennt die 3 Splitter...",
+                                        "Es öffnet sich! Der Boss erwartet dich."],
+                                        ()=>enterBoss()); }
+    else showMessage(["Das Tor ist versiegelt.",
+                      "Splitter: "+player.shards+" / 3"]);
+  }
+}
 
-  // Schwertangriff (Zelda)
-  if (attackEdge && player.attack <= 0) {
-    player.attack = 14;
-  }
-  if (player.attack > 0) {
-    player.attack--;
-    resolveSword();
-  }
+function updateOverworld(){
+  if (player.invuln>0) player.invuln--;
 
-  // Grid-basierte Bewegung
-  if (!player.moving) {
-    if (keys["arrowleft"] || keys["a"])  tryStartMove(-1, 0, "left");
-    else if (keys["arrowright"]|| keys["d"]) tryStartMove(1, 0, "right");
-    else if (keys["arrowup"]   || keys["w"]) tryStartMove(0, -1, "up");
-    else if (keys["arrowdown"] || keys["s"]) tryStartMove(0, 1, "down");
+  if (attackEdge && player.attack<=0){ player.attack=14; sfx.sword(); }
+  if (player.attack>0){ player.attack--; resolveSword(); }
+  if (enterEdge) interact();
+
+  if (!player.moving){
+    if (keys["arrowleft"]||keys["a"])       tryStartMove(-1,0,"left");
+    else if (keys["arrowright"]||keys["d"]) tryStartMove(1,0,"right");
+    else if (keys["arrowup"]||keys["w"])    tryStartMove(0,-1,"up");
+    else if (keys["arrowdown"]||keys["s"])  tryStartMove(0,1,"down");
   }
-  if (player.moving) {
-    const tx = (player.px + player.mx) * TILE + 3;
-    const ty = (player.py + player.my) * TILE + 3;
-    player.x += Math.sign(tx - player.x) * player.speed;
-    player.y += Math.sign(ty - player.y) * player.speed;
-    if (Math.abs(tx - player.x) < player.speed && Math.abs(ty - player.y) < player.speed) {
-      player.x = tx; player.y = ty;
-      player.px += player.mx; player.py += player.my;
-      player.moving = false;
-      onEnterTile(player.px, player.py);
+  if (player.moving){
+    player.walkFrame++;
+    const tx=(player.px+player.mx)*TILE+3, ty=(player.py+player.my)*TILE+3;
+    player.x+=Math.sign(tx-player.x)*player.speed;
+    player.y+=Math.sign(ty-player.y)*player.speed;
+    if (Math.abs(tx-player.x)<player.speed && Math.abs(ty-player.y)<player.speed){
+      player.x=tx; player.y=ty; player.px+=player.mx; player.py+=player.my;
+      player.moving=false; onEnterTile(player.px,player.py);
     }
-  }
+  } else player.walkFrame=0;
 
   updateEnemies();
 }
 
-function onEnterTile(col, row) {
-  const t = world[row][col];
-  if (t === LEGEND.COIN) {                 // Mario-Münze
-    world[row][col] = LEGEND.GRASS;
-    player.coins++;
-    floater("+1 ¢", col*TILE+8, row*TILE, "#ffcc33");
-  } else if (t === LEGEND.CHEST) {         // Zelda-Truhe
-    world[row][col] = LEGEND.GRASS;
-    const heal = 1;
-    player.maxHp++; player.hp = player.maxHp;
-    player.coins += 5;
-    showMessage([
-      "Du öffnest eine Truhe!",
-      "❤ Max-Herzen +1 (voll geheilt)",
-      "¢ +5 Münzen",
-    ]);
-  } else if (t === LEGEND.PIPE) {          // Mario-Röhre → Warp
-    warpPlayer();
-  } else if (t === LEGEND.TALL) {          // hohes Gras → Pokémon-Encounter
-    if (Math.random() < 0.28) startBattle();
-  }
+function onEnterTile(c,r){
+  const room=getRoom(); const t=room.tiles[r][c];
+  if (t===T.COIN){ room.tiles[r][c]=baseFloor(); player.coins++; sfx.coin();
+    floater("+1¢", c*TILE+8, r*TILE, "#ffcc33"); spawnParticles(c*TILE+16,r*TILE+16,"#ffcc33",5); saveGame(); }
+  else if (t===T.SHARD){ room.tiles[r][c]=baseFloor(); player.shards++; sfx.win();
+    spawnParticles(c*TILE+16,r*TILE+16,"#ffe066",14); shake(14,3);
+    showMessage(["✦ Triforce-Splitter gefunden! ✦","Splitter: "+player.shards+" / 3"]); saveGame(); }
+  else if (t===T.CHEST){ room.tiles[r][c]=baseFloor(); player.maxHp++; player.hp=player.maxHp;
+    player.coins+=5; sfx.coin(); saveGame();
+    showMessage(["Du öffnest eine Truhe!","❤ Max-Herzen +1 (voll geheilt)","¢ +5 Münzen"]); }
+  else if (t===T.TALL){ if (Math.random()<0.28) startBattle(); }
 }
+function baseFloor(){ return player.room==="cave"||player.room==="boss" ? T.FLOOR : T.GRASS; }
 
-function warpPlayer() {
-  // die beiden Röhren-Positionen finden und zur jeweils anderen springen
-  const pipes = [];
-  for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++)
-    if (world[r][c] === LEGEND.PIPE) pipes.push({c, r});
-  // wir haben nur eine Röhre → springe zum entfernten begehbaren Startort
-  floater("WARP!", player.x, player.y-6, "#8be37a");
-  player.px = 1; player.py = 13;
-  player.x = player.px*TILE+3; player.y = player.py*TILE+3;
+/* Schwert */
+function swordHitBox(){
+  const cx=player.x+player.w/2, cy=player.y+player.h/2, reach=TILE;
+  let bx=cx-reach/2, by=cy-reach/2, bw=reach, bh=reach;
+  if (player.dir==="left")  bx=player.x-reach;
+  if (player.dir==="right") bx=player.x+player.w;
+  if (player.dir==="up")    by=player.y-reach;
+  if (player.dir==="down")  by=player.y+player.h;
+  return {x:bx,y:by,w:bw,h:bh};
 }
-
-/* Schwert trifft Gegner in Blickrichtung */
-function swordHitBox() {
-  const cx = player.x + player.w/2, cy = player.y + player.h/2;
-  const reach = TILE;
-  let bx = cx - reach/2, by = cy - reach/2, bw = reach, bh = reach;
-  if (player.dir === "left")  bx = player.x - reach;
-  if (player.dir === "right") bx = player.x + player.w;
-  if (player.dir === "up")    by = player.y - reach;
-  if (player.dir === "down")  by = player.y + player.h;
-  return { x: bx, y: by, w: bw, h: bh };
-}
-function rectsOverlap(a, b) {
-  return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
-}
-function resolveSword() {
-  if (player.attack !== 13) return; // nur im ersten aktiven Frame treffen
-  const hb = swordHitBox();
-  // Gegner treffen
-  enemies.forEach(en => {
+function rects(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
+function resolveSword(){
+  if (player.attack!==13) return;             // nur erster aktiver Frame
+  const hb=swordHitBox(), room=getRoom();
+  room.enemies.forEach(en=>{
     if (!en.alive) return;
-    if (rectsOverlap(hb, { x: en.x+4, y: en.y+4, w: TILE-8, h: TILE-8 })) {
-      en.alive = false;
-      player.coins += 2;
-      floater("besiegt! +2¢", en.x, en.y, "#ff9");
+    if (rects(hb,{x:en.x+4,y:en.y+4,w:TILE-8,h:TILE-8})){
+      en.hp--; en.flash=8; sfx.hit(); shake(6,3);
+      spawnParticles(en.x+16,en.y+16,"#ff9",6);
+      if (en.hp<=0){ en.alive=false; player.coins+=2;
+        floater("+2¢", en.x, en.y, "#ff9"); spawnParticles(en.x+16,en.y+16,"#fff",10); saveGame(); }
     }
   });
-  // Ziegelblock zerschlagen (Mario)
-  const tc = Math.floor((hb.x + hb.w/2) / TILE);
-  const tr = Math.floor((hb.y + hb.h/2) / TILE);
-  if (tileAt(tc, tr) === LEGEND.BRICK) {
-    world[tr][tc] = LEGEND.GRASS;
-    if (Math.random() < 0.5) { player.coins++; floater("+1¢", tc*TILE+8, tr*TILE, "#ffcc33"); }
-    else floater("*krach*", tc*TILE, tr*TILE, "#e0a060");
+  const tc=Math.floor((hb.x+hb.w/2)/TILE), tr=Math.floor((hb.y+hb.h/2)/TILE);
+  if (tileAt(tc,tr)===T.BRICK){
+    room.tiles[tr][tc]=baseFloor(); sfx.hit(); shake(6,3);
+    spawnParticles(tc*TILE+16,tr*TILE+16,"#e0a060",10);
+    if (Math.random()<0.5){ player.coins++; sfx.coin(); floater("+1¢", tc*TILE+8, tr*TILE, "#ffcc33"); }
+    saveGame();
   }
 }
 
-function updateEnemies() {
-  enemies.forEach(en => {
+function updateEnemies(){
+  getRoom().enemies.forEach(en=>{
     if (!en.alive) return;
-    if (en.cool > 0) { en.cool--; }
+    if (en.flash>0) en.flash--;
+    if (en.cool>0) en.cool--;
     else {
-      // simple Patrouille horizontal, dreht an Hindernissen um
-      const nx = en.x + en.dir * 1.2;
-      const c = Math.floor((nx + (en.dir>0?TILE:0)) / TILE);
-      const r = Math.floor((en.y + TILE/2) / TILE);
-      if (isSolid(c, r)) { en.dir *= -1; en.cool = 8; }
-      else en.x = nx;
+      const nx=en.x+en.dir*1.1;
+      const c=Math.floor((nx+(en.dir>0?TILE:0))/TILE), r=Math.floor((en.y+TILE/2)/TILE);
+      if (isSolid(c,r)){ en.dir*=-1; en.cool=8; } else en.x=nx;
     }
-    // Kollision mit Spieler → Schaden (Zelda-Herzen)
-    if (player.invuln === 0 &&
-        rectsOverlap({x:player.x,y:player.y,w:player.w,h:player.h},
-                     {x:en.x+4,y:en.y+4,w:TILE-8,h:TILE-8})) {
-      damagePlayer(1);
-    }
+    if (player.invuln===0 && rects({x:player.x,y:player.y,w:player.w,h:player.h},
+                                   {x:en.x+4,y:en.y+4,w:TILE-8,h:TILE-8})) damagePlayer(1);
   });
 }
-
-function damagePlayer(n) {
-  player.hp -= n;
-  player.invuln = 60;
+function damagePlayer(n){
+  player.hp-=n; player.invuln=60; sfx.hurt(); shake(10,5);
   floater("-"+n+"❤", player.x, player.y-4, "#ff5b5b");
-  if (player.hp <= 0) {
-    state = "gameover";
-  }
+  if (player.hp<=0){ state="gameover"; localStorage.removeItem("triforce-save"); }
 }
 
 /* =========================================================================
-   POKÉMON-KAMPF (rundenbasiert)
+   KAMPF (rundenbasiert)
 ========================================================================= */
-function startBattle() {
-  const wild = makeCreature(Math.floor(Math.random()*SPECIES.length));
-  const mine = player.party.find(c => c.hp > 0) || player.party[0];
-  battle = {
-    wild, mine,
-    log: [`Ein wildes ${wild.name} (Lv.${wild.level}) erscheint!`],
-    turn: "player",          // player | enemy | end
-    menu: 0,                 // 0 Kampf 1 Fangen 2 Fliehen
-    anim: 0,
-    over: false,
-  };
-  state = "battle";
+function firstHealthy(){ return player.party.find(c=>c.hp>0) || player.party[0]; }
+function startBattle(){
+  const wild=makeCreature(Math.random()*SPECIES.length|0);
+  battle={ wild, mine:firstHealthy(),
+    log:[`Ein wildes ${wild.name} (Lv.${wild.level}) erscheint!`],
+    turn:"player", menu:0, anim:0, over:false, _mv:0, isBoss:false };
+  state="battle";
 }
+function enterBoss(){
+  player.room="boss"; player.px=7; player.py=12; player.x=7*TILE+3; player.y=12*TILE+3;
+  const boss={ spec:3, name:"Schattenkönig", color:"#7b2ff7", emoji:"👑", type:"rock",
+               level:9, maxHp:90, hp:90, atk:11, xp:0 };
+  battle={ wild:boss, mine:firstHealthy(),
+    log:["👑 Der Schattenkönig erhebt sich!","Er lässt sich NICHT fangen — besiege ihn!"],
+    turn:"player", menu:0, anim:0, over:false, _mv:0, isBoss:true };
+  state="battle";
+}
+function blog(s){ battle.log.push(s); if (battle.log.length>3) battle.log.shift(); }
 
-function battleLog(s) { battle.log.push(s); if (battle.log.length > 3) battle.log.shift(); }
-
-function playerBattleAction() {
-  const b = battle;
-  if (b.turn !== "player" || b.over) return;
-  if (b.menu === 0) {              // KÄMPFEN
-    const dmg = b.mine.atk + Math.floor(Math.random()*4);
-    b.wild.hp = Math.max(0, b.wild.hp - dmg);
-    battleLog(`${b.mine.name} greift an! ${dmg} Schaden.`);
-    if (b.wild.hp <= 0) { endBattle("Das wilde " + b.wild.name + " wurde besiegt! +3¢", 3); return; }
-    b.turn = "enemy"; b.anim = 20;
-  } else if (b.menu === 1) {       // FANGEN
-    const rate = 0.35 + (1 - b.wild.hp / b.wild.maxHp) * 0.55; // je schwächer, desto besser
-    if (Math.random() < rate) {
-      player.party.push({ ...b.wild });
-      endBattle(`${b.wild.name} wurde gefangen! Es tritt deinem Team bei. 🎉`, 0);
-    } else {
-      battleLog(`Fast! ${b.wild.name} bricht aus...`);
-      b.turn = "enemy"; b.anim = 20;
-    }
-  } else if (b.menu === 2) {       // FLIEHEN
-    if (Math.random() < 0.7) endBattle("Du bist entkommen.", 0);
-    else { battleLog("Flucht misslungen!"); b.turn = "enemy"; b.anim = 20; }
+function gainXp(c, amount){
+  c.xp+=amount;
+  while (c.xp >= c.level*12){
+    c.xp-=c.level*12; c.level++; c.maxHp+=4; c.hp=c.maxHp; c.atk+=2;
+    sfx.levelup(); blog(`${c.name} steigt auf Level ${c.level}!`);
   }
 }
 
-function enemyBattleTurn() {
-  const b = battle;
-  const dmg = b.wild.atk + Math.floor(Math.random()*3);
-  b.mine.hp = Math.max(0, b.mine.hp - dmg);
-  battleLog(`${b.wild.name} greift an! ${dmg} Schaden.`);
-  if (b.mine.hp <= 0) {
-    const next = player.party.find(c => c.hp > 0 && c !== b.mine);
-    if (next) { b.mine = next; battleLog(`${next.name}, du bist dran!`); b.turn = "player"; }
-    else {
-      // ganzes Team k.o. → ein Herz Schaden und zurück in die Overworld
-      endBattle("Dein Team ist erschöpft! Du fliehst und verlierst ein Herz.", 0, () => damagePlayer(1));
+function playerAction(){
+  const b=battle; if (b.turn!=="player"||b.over) return;
+  if (b.menu===0){                              // KÄMPFEN
+    const eff=effectiveness(b.mine.type, b.wild.type);
+    const dmg=Math.max(1, Math.round((b.mine.atk + (Math.random()*4|0))*eff));
+    b.wild.hp=Math.max(0,b.wild.hp-dmg); sfx.hit();
+    blog(`${b.mine.name}: ${dmg} Schaden`+(eff>1?" — sehr effektiv!":eff<1?" — kaum Wirkung":""));
+    if (b.wild.hp<=0){
+      if (b.isBoss){ endBattle(["Der Schattenkönig ist besiegt!"], 0, ()=>{ state="victory"; sfx.win(); }); return; }
+      gainXp(b.mine, b.wild.level*6+8);
+      endBattle([`Das wilde ${b.wild.name} wurde besiegt!`, `${b.mine.name} erhält EP. +3¢`], 3); return;
     }
-  } else {
-    b.turn = "player";
+    b.turn="enemy"; b.anim=22;
+  } else if (b.menu===1){                        // FANGEN
+    if (b.isBoss){ blog("Der Boss lässt sich nicht fangen!"); b.turn="enemy"; b.anim=22; return; }
+    if (player.balls<=0){ blog("Keine Fangbälle! Kauf welche im Shop."); return; }
+    player.balls--;
+    const rate=0.30 + (1-b.wild.hp/b.wild.maxHp)*0.6;
+    if (Math.random()<rate){ player.party.push({...b.wild}); sfx.catch();
+      endBattle([`${b.wild.name} wurde gefangen! 🎉`, "Es tritt deinem Team bei."], 0); }
+    else { blog(`Mist! ${b.wild.name} bricht aus...`); b.turn="enemy"; b.anim=22; }
+  } else if (b.menu===2){                        // TRANK
+    if (player.potions<=0){ blog("Keine Tränke vorhanden."); return; }
+    player.potions--; const heal=Math.min(b.mine.maxHp-b.mine.hp,20); b.mine.hp+=heal;
+    sfx.coin(); blog(`${b.mine.name} wird um ${heal} geheilt.`); b.turn="enemy"; b.anim=22;
+  } else if (b.menu===3){                         // FLIEHEN
+    if (b.isBoss){ blog("Vor dem Boss gibt es kein Entkommen!"); b.turn="enemy"; b.anim=22; return; }
+    if (Math.random()<0.7) endBattle(["Du bist entkommen."], 0);
+    else { blog("Flucht misslungen!"); b.turn="enemy"; b.anim=22; }
   }
 }
-
-function endBattle(text, coinReward, after) {
-  battle.over = true;
-  player.coins += (coinReward || 0);
-  showMessage(text, () => {
-    // Team leicht heilen nach jedem Kampf
-    player.party.forEach(c => { c.hp = Math.min(c.maxHp, c.hp + 4); });
+function enemyTurn(){
+  const b=battle;
+  const eff=effectiveness(b.wild.type, b.mine.type);
+  const dmg=Math.max(1, Math.round((b.wild.atk + (Math.random()*3|0))*eff));
+  b.mine.hp=Math.max(0,b.mine.hp-dmg); sfx.hurt(); shake(6,3);
+  blog(`${b.wild.name}: ${dmg} Schaden`+(eff>1?" — sehr effektiv!":""));
+  if (b.mine.hp<=0){
+    const next=player.party.find(c=>c.hp>0 && c!==b.mine);
+    if (next){ b.mine=next; blog(`${next.name}, du bist dran!`); b.turn="player"; }
+    else endBattle(["Dein Team ist erschöpft!","Du fliehst und verlierst ein Herz."], 0, ()=>damagePlayer(1));
+  } else b.turn="player";
+}
+function endBattle(lines, coins, after){
+  battle.over=true; player.coins+=(coins||0);
+  showMessage(lines, ()=>{
+    player.party.forEach(c=>{ if(c.hp>0) c.hp=Math.min(c.maxHp,c.hp+4); }); // leichte Regen.
     if (after) after();
-    battle = null;
-    if (state !== "gameover") state = "overworld";
+    battle=null; if (state!=="gameover"&&state!=="victory") state="overworld";
+    saveGame();
   });
 }
-
-function updateBattle() {
-  const b = battle;
-  if (!b || b.over) return;
-  if (b.anim > 0) { b.anim--; return; }
-  if (b.turn === "enemy") { enemyBattleTurn(); return; }
-  // Spieler-Menü
-  if (b.turn === "player") {
-    if (keys["arrowup"] || keys["w"]) { if(!b._mv){b.menu=(b.menu+2)%3;b._mv=1;} }
-    else if (keys["arrowdown"] || keys["s"]) { if(!b._mv){b.menu=(b.menu+1)%3;b._mv=1;} }
-    else b._mv = 0;
-    if (enterEdge || attackEdge) playerBattleAction();
+function updateBattle(){
+  const b=battle; if(!b||b.over) return;
+  if (b.anim>0){ b.anim--; return; }
+  if (b.turn==="enemy"){ enemyTurn(); return; }
+  if (b.turn==="player"){
+    if (keys["arrowup"]||keys["w"]){ if(!b._mv){ b.menu=(b.menu+3)%4; b._mv=1; sfx.select(); } }
+    else if (keys["arrowdown"]||keys["s"]){ if(!b._mv){ b.menu=(b.menu+1)%4; b._mv=1; sfx.select(); } }
+    else b._mv=0;
+    if (enterEdge||attackEdge) playerAction();
   }
 }
 
 /* =========================================================================
-   RENDERING
+   SHOP
 ========================================================================= */
-function drawTile(t, x, y) {
-  switch (t) {
-    case LEGEND.GRASS:
-      ctx.fillStyle = "#2f9e44"; ctx.fillRect(x,y,TILE,TILE);
-      ctx.fillStyle = "#2b8f3d";
-      ctx.fillRect(x+6,y+10,3,3); ctx.fillRect(x+20,y+22,3,3);
-      break;
-    case LEGEND.WALL:
-      ctx.fillStyle = "#3a5a40"; ctx.fillRect(x,y,TILE,TILE);
-      ctx.fillStyle = "#588157"; ctx.beginPath();
-      ctx.arc(x+16,y+13,10,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#344e41"; ctx.fillRect(x+13,y+18,6,12);
-      break;
-    case LEGEND.TALL:
-      ctx.fillStyle = "#2f9e44"; ctx.fillRect(x,y,TILE,TILE);
-      ctx.fillStyle = "#1e7a32";
-      for (let i=0;i<4;i++){ ctx.fillRect(x+4+i*7, y+8, 4, 20); }
-      ctx.fillStyle = "#8be37a";
-      for (let i=0;i<4;i++){ ctx.fillRect(x+4+i*7, y+8, 4, 6); }
-      break;
-    case LEGEND.WATER:
-      ctx.fillStyle = "#3ca0ff"; ctx.fillRect(x,y,TILE,TILE);
-      ctx.fillStyle = "#7cc4ff";
-      ctx.fillRect(x+4,y+8,10,2); ctx.fillRect(x+18,y+18,10,2);
-      break;
-    case LEGEND.BRICK:
-      ctx.fillStyle = "#b5651d"; ctx.fillRect(x,y,TILE,TILE);
-      ctx.strokeStyle = "#7a3f10"; ctx.lineWidth = 2;
+const SHOP_ITEMS=[
+  { name:"Fangball", price:10, apply:()=>player.balls++ , info:"zum Fangen" },
+  { name:"Trank",    price:8,  apply:()=>player.potions++, info:"heilt 20 HP" },
+  { name:"Herz-Container", price:30, apply:()=>{ player.maxHp++; player.hp=player.maxHp; }, info:"+1 Max-Herz" },
+];
+function openShop(){ shop={ sel:0, _mv:0, msg:"Willkommen! Was darf's sein?" }; state="shop"; sfx.select(); }
+function updateShop(){
+  const items=SHOP_ITEMS.length+1; // +Verlassen
+  if (keys["arrowup"]||keys["w"]){ if(!shop._mv){ shop.sel=(shop.sel+items-1)%items; shop._mv=1; sfx.select(); } }
+  else if (keys["arrowdown"]||keys["s"]){ if(!shop._mv){ shop.sel=(shop.sel+1)%items; shop._mv=1; sfx.select(); } }
+  else shop._mv=0;
+  if (enterEdge||attackEdge){
+    if (shop.sel===SHOP_ITEMS.length){ state="overworld"; saveGame(); return; }
+    const it=SHOP_ITEMS[shop.sel];
+    if (player.coins>=it.price){ player.coins-=it.price; it.apply(); sfx.coin(); shop.msg=it.name+" gekauft!"; saveGame(); }
+    else { shop.msg="Zu wenig Münzen für "+it.name+"."; sfx.hurt(); }
+  }
+}
+
+/* =========================================================================
+   SPEICHERN / LADEN
+========================================================================= */
+function saveGame(){
+  try{
+    const rs={}; for (const k in rooms) rs[k]={ tiles:rooms[k].tiles, enemies:rooms[k].enemies };
+    const data={ v:2, room:player.room,
+      p:{ px:player.px,py:player.py,dir:player.dir, maxHp:player.maxHp,hp:player.hp,
+          coins:player.coins,balls:player.balls,potions:player.potions,shards:player.shards,
+          party:player.party },
+      rooms:rs };
+    localStorage.setItem("triforce-save", JSON.stringify(data));
+    hasSave=true;
+  }catch(e){}
+}
+function loadGame(){
+  try{
+    const raw=localStorage.getItem("triforce-save"); if(!raw) return false;
+    const d=JSON.parse(raw); if(!d||!d.rooms) return false;
+    buildAllRooms();
+    for (const k in d.rooms){ if (rooms[k]){ rooms[k].tiles=d.rooms[k].tiles; rooms[k].enemies=d.rooms[k].enemies; } }
+    Object.assign(player, d.p);
+    player.room=d.room; player.moving=false; player.mx=0; player.my=0;
+    player.attack=0; player.invuln=0; player.walkFrame=0;
+    player.x=player.px*TILE+3; player.y=player.py*TILE+3;
+    return true;
+  }catch(e){ return false; }
+}
+
+/* =========================================================================
+   RENDER
+========================================================================= */
+function drawTile(t,x,y){
+  switch(t){
+    case T.GRASS: ctx.fillStyle="#2f9e44"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle="#2b8f3d"; ctx.fillRect(x+6,y+10,3,3); ctx.fillRect(x+20,y+22,3,3); break;
+    case T.FLOOR: ctx.fillStyle="#3b3f52"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle="#33374a"; ctx.fillRect(x+4,y+4,10,10); ctx.fillRect(x+18,y+18,10,10); break;
+    case T.PATH: ctx.fillStyle="#d9c18f"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle="#cbb079"; ctx.fillRect(x+5,y+6,4,4); ctx.fillRect(x+20,y+18,4,4); break;
+    case T.WALL: ctx.fillStyle="#3a5a40"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle="#4b6b50"; ctx.fillRect(x+2,y+2,TILE-4,TILE-4);
+      ctx.fillStyle="#2f4a35"; ctx.fillRect(x+2,y+15,TILE-4,2); break;
+    case T.TREE: ctx.fillStyle="#2f9e44"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle="#5a3a1a"; ctx.fillRect(x+13,y+18,6,12);
+      ctx.fillStyle="#1e7a32"; ctx.beginPath(); ctx.arc(x+16,y+13,11,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle="#2b8f3d"; ctx.beginPath(); ctx.arc(x+12,y+11,5,0,Math.PI*2); ctx.fill(); break;
+    case T.TALL: ctx.fillStyle="#2f9e44"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle="#1e7a32"; for(let i=0;i<4;i++) ctx.fillRect(x+4+i*7,y+8,4,20);
+      ctx.fillStyle="#8be37a"; for(let i=0;i<4;i++) ctx.fillRect(x+4+i*7,y+8,4,6); break;
+    case T.WATER: ctx.fillStyle="#3ca0ff"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle="#7cc4ff"; ctx.fillRect(x+4,y+8,10,2); ctx.fillRect(x+18,y+18,10,2); break;
+    case T.BRICK: ctx.fillStyle="#b5651d"; ctx.fillRect(x,y,TILE,TILE);
+      ctx.strokeStyle="#7a3f10"; ctx.lineWidth=2;
       ctx.strokeRect(x+1,y+1,TILE-2,14); ctx.strokeRect(x+1,y+15,TILE-2,14);
       ctx.beginPath(); ctx.moveTo(x+16,y+1); ctx.lineTo(x+16,y+15);
-      ctx.moveTo(x+8,y+15); ctx.lineTo(x+8,y+31);
-      ctx.moveTo(x+24,y+15); ctx.lineTo(x+24,y+31); ctx.stroke();
-      break;
-    case LEGEND.COIN:
-      drawTile(LEGEND.GRASS, x, y);
-      ctx.fillStyle = "#ffcc33"; ctx.beginPath();
-      ctx.arc(x+16,y+16,8,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#a67c00"; ctx.font = "bold 12px sans-serif";
-      ctx.textAlign="center"; ctx.fillText("¢", x+16, y+20);
-      break;
-    case LEGEND.CHEST:
-      drawTile(LEGEND.GRASS, x, y);
-      ctx.fillStyle = "#8a5a2b"; ctx.fillRect(x+5,y+10,22,16);
-      ctx.fillStyle = "#c98a3b"; ctx.fillRect(x+5,y+10,22,6);
-      ctx.fillStyle = "#ffcc33"; ctx.fillRect(x+14,y+15,4,6);
-      break;
-    case LEGEND.PIPE:
-      drawTile(LEGEND.GRASS, x, y);
-      ctx.fillStyle = "#2ecc40"; ctx.fillRect(x+4,y+8,24,24);
-      ctx.fillStyle = "#27ae38"; ctx.fillRect(x+2,y+6,28,8);
-      ctx.fillStyle = "#7fffa0"; ctx.fillRect(x+6,y+16,4,14);
-      break;
-    case LEGEND.PATH:
-      ctx.fillStyle = "#d9c18f"; ctx.fillRect(x,y,TILE,TILE);
-      ctx.fillStyle = "#cbb079";
-      ctx.fillRect(x+5,y+6,4,4); ctx.fillRect(x+20,y+18,4,4);
-      break;
+      ctx.moveTo(x+8,y+15); ctx.lineTo(x+8,y+31); ctx.moveTo(x+24,y+15); ctx.lineTo(x+24,y+31); ctx.stroke(); break;
+    case T.COIN: drawTile(T.GRASS,x,y);
+      ctx.fillStyle="#ffcc33"; ctx.beginPath(); ctx.arc(x+16,y+16,8,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle="#a67c00"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText("¢",x+16,y+20); break;
+    case T.CHEST: drawTile(T.FLOOR,x,y);
+      ctx.fillStyle="#8a5a2b"; ctx.fillRect(x+5,y+10,22,16);
+      ctx.fillStyle="#c98a3b"; ctx.fillRect(x+5,y+10,22,6);
+      ctx.fillStyle="#ffcc33"; ctx.fillRect(x+14,y+15,4,6); break;
+    case T.SHARD: (player.room==="cave")?drawTile(T.FLOOR,x,y):drawTile(T.GRASS,x,y);
+      const g=Math.abs(Math.sin(player.walkFrame*0.1+x));
+      ctx.fillStyle="rgba(255,224,102,"+(0.3+g*0.4)+")"; ctx.beginPath(); ctx.arc(x+16,y+16,13,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle="#ffe066"; ctx.beginPath(); ctx.moveTo(x+16,y+5); ctx.lineTo(x+27,y+24); ctx.lineTo(x+5,y+24); ctx.closePath(); ctx.fill();
+      ctx.fillStyle="#fff7c0"; ctx.beginPath(); ctx.moveTo(x+16,y+11); ctx.lineTo(x+21,y+21); ctx.lineTo(x+11,y+21); ctx.closePath(); ctx.fill(); break;
+    case T.SHOP: drawTile(T.GRASS,x,y);
+      ctx.fillStyle="#c0392b"; ctx.fillRect(x+3,y+2,TILE-6,8);       // Markise
+      ctx.fillStyle="#fff"; for(let i=0;i<3;i++) ctx.fillRect(x+4+i*9,y+2,4,8);
+      ctx.fillStyle="#8a5a2b"; ctx.fillRect(x+6,y+12,20,18);         // Körper
+      ctx.fillStyle="#ffd9a0"; ctx.fillRect(x+11,y+14,10,8);        // Gesicht
+      ctx.fillStyle="#123"; ctx.fillRect(x+13,y+17,2,2); ctx.fillRect(x+18,y+17,2,2); break;
+    case T.GATE: drawTile(T.WALL,x,y);
+      ctx.fillStyle="#2b2f45"; ctx.fillRect(x+5,y+6,22,24);
+      ctx.fillStyle=(player.shards>=3?"#ffe066":"#111"); ctx.beginPath(); ctx.arc(x+16,y+16,4,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle="#556"; ctx.fillRect(x+15,y+18,2,8); break;
+    case T.SIGN: drawTile(T.GRASS,x,y);
+      ctx.fillStyle="#8a5a2b"; ctx.fillRect(x+14,y+16,4,12);
+      ctx.fillStyle="#c98a3b"; ctx.fillRect(x+6,y+6,20,12);
+      ctx.fillStyle="#5a3a1a"; ctx.fillRect(x+9,y+9,14,2); ctx.fillRect(x+9,y+13,10,2); break;
   }
 }
-
-function drawPlayer() {
-  const blink = player.invuln > 0 && Math.floor(player.invuln/4)%2===0;
-  if (blink) return;
-  const x = player.x, y = player.y, w = player.w, h = player.h;
-  // Körper (Link-grün)
-  ctx.fillStyle = "#3cb043"; ctx.fillRect(x, y+6, w, h-6);
-  // Kopf
-  ctx.fillStyle = "#ffd9a0"; ctx.fillRect(x+4, y, w-8, 10);
-  // Mütze
-  ctx.fillStyle = "#1f8a2c"; ctx.fillRect(x+2, y-2, w-4, 5);
-  // Augen je nach Richtung
-  ctx.fillStyle = "#123";
-  if (player.dir === "down")  { ctx.fillRect(x+7,y+4,2,2); ctx.fillRect(x+w-9,y+4,2,2); }
-  if (player.dir === "up")    { /* Rücken */ }
-  if (player.dir === "left")  { ctx.fillRect(x+6,y+4,2,2); }
-  if (player.dir === "right") { ctx.fillRect(x+w-8,y+4,2,2); }
-  // Schwert
-  if (player.attack > 0) {
-    ctx.fillStyle = "#d8e0ff";
-    const hb = swordHitBox();
-    ctx.fillRect(hb.x+8, hb.y+8, hb.w-16, hb.h-16);
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(hb.x+hb.w/2-2, hb.y+hb.h/2-2, 4, 4);
-  }
+function drawPlayer(){
+  if (player.invuln>0 && (player.invuln>>2)%2===0) return;
+  const x=player.x,y=player.y,w=player.w,h=player.h;
+  const bob=(player.moving && (player.walkFrame>>3)%2===0)?1:0;
+  ctx.fillStyle="#1f8a2c"; ctx.fillRect(x,y-2-bob,w,5);            // Mütze
+  ctx.fillStyle="#ffd9a0"; ctx.fillRect(x+4,y-bob,w-8,10);        // Kopf
+  ctx.fillStyle="#3cb043"; ctx.fillRect(x,y+6-bob,w,h-6);         // Körper
+  ctx.fillStyle="#123";
+  if (player.dir==="down"){ ctx.fillRect(x+7,y+4-bob,2,2); ctx.fillRect(x+w-9,y+4-bob,2,2); }
+  if (player.dir==="left")  ctx.fillRect(x+6,y+4-bob,2,2);
+  if (player.dir==="right") ctx.fillRect(x+w-8,y+4-bob,2,2);
+  if (player.attack>0){ ctx.fillStyle="#eef2ff"; const hb=swordHitBox();
+    ctx.fillRect(hb.x+7,hb.y+7,hb.w-14,hb.h-14);
+    ctx.fillStyle="#fff"; ctx.fillRect(hb.x+hb.w/2-2,hb.y+hb.h/2-2,4,4); }
 }
-
-function drawEnemy(en) {
+function drawEnemy(en){
   if (!en.alive) return;
-  const x = en.x, y = en.y;
-  ctx.fillStyle = "#c0392b"; ctx.fillRect(x+4,y+6,TILE-8,TILE-10);
-  ctx.fillStyle = "#e74c3c"; ctx.fillRect(x+6,y+4,TILE-12,6);
-  ctx.fillStyle = "#fff"; ctx.fillRect(x+9,y+12,4,4); ctx.fillRect(x+TILE-13,y+12,4,4);
-  ctx.fillStyle = "#000"; ctx.fillRect(x+10,y+13,2,2); ctx.fillRect(x+TILE-12,y+13,2,2);
+  const x=en.x,y=en.y;
+  ctx.fillStyle=en.flash>0?"#fff":"#c0392b"; ctx.fillRect(x+4,y+6,TILE-8,TILE-10);
+  ctx.fillStyle=en.flash>0?"#fff":"#e74c3c"; ctx.fillRect(x+6,y+4,TILE-12,6);
+  ctx.fillStyle="#fff"; ctx.fillRect(x+9,y+12,4,4); ctx.fillRect(x+TILE-13,y+12,4,4);
+  ctx.fillStyle="#000"; ctx.fillRect(x+10,y+13,2,2); ctx.fillRect(x+TILE-12,y+13,2,2);
+  if (en.maxHp>1){ ctx.fillStyle="#000"; ctx.fillRect(x+4,y-2,TILE-8,3);
+    ctx.fillStyle="#2ecc40"; ctx.fillRect(x+4,y-2,(TILE-8)*en.hp/en.maxHp,3); }
 }
-
-function drawHUD() {
-  // Herzen
-  for (let i=0;i<player.maxHp;i++){
-    const hx = 8 + i*20, hy = 6;
-    ctx.fillStyle = i < player.hp ? "#ff4d5e" : "#5a2530";
-    // Herz aus zwei Kreisen + Dreieck
-    ctx.beginPath();
-    ctx.arc(hx+5, hy+6, 5, 0, Math.PI*2);
-    ctx.arc(hx+13, hy+6, 5, 0, Math.PI*2);
-    ctx.moveTo(hx, hy+8); ctx.lineTo(hx+9, hy+18); ctx.lineTo(hx+18, hy+8);
-    ctx.closePath(); ctx.fill();
-  }
-  // Münzen
-  ctx.fillStyle = "#ffcc33"; ctx.beginPath(); ctx.arc(cv.width-70, 15, 7, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#a67c00"; ctx.font="bold 10px sans-serif"; ctx.textAlign="center"; ctx.fillText("¢", cv.width-70,19);
-  ctx.fillStyle = "#fff"; ctx.font = "bold 14px sans-serif"; ctx.textAlign="left";
-  ctx.fillText("× " + player.coins, cv.width-58, 20);
-  // Team-Zähler
-  ctx.fillStyle = "#8be37a"; ctx.font = "11px sans-serif"; ctx.textAlign="right";
-  ctx.fillText("Team: " + player.party.length + " 🎒", cv.width-8, 36);
+function drawHUD(){
+  for (let i=0;i<player.maxHp;i++){ const hx=8+i*20, hy=6;
+    ctx.fillStyle=i<player.hp?"#ff4d5e":"#5a2530";
+    ctx.beginPath(); ctx.arc(hx+5,hy+6,5,0,Math.PI*2); ctx.arc(hx+13,hy+6,5,0,Math.PI*2);
+    ctx.moveTo(hx,hy+8); ctx.lineTo(hx+9,hy+18); ctx.lineTo(hx+18,hy+8); ctx.closePath(); ctx.fill(); }
+  ctx.textAlign="right"; ctx.font="bold 13px sans-serif";
+  ctx.fillStyle="#ffcc33"; ctx.fillText("¢ "+player.coins, cv.width-8, 18);
+  ctx.fillStyle="#8be37a"; ctx.fillText("◓ "+player.balls+"  🧪 "+player.potions, cv.width-8, 34);
+  ctx.fillStyle="#ffe066"; ctx.fillText("✦ "+player.shards+"/3", cv.width-8, 50);
+  ctx.textAlign="left"; ctx.fillStyle="#cdd6ff"; ctx.font="11px sans-serif";
+  ctx.fillText(roomName(), 8, cv.height-8);
 }
+function roomName(){ return {village:"Dorf",grass:"Graswiese",forest:"Wald",cave:"Höhle",boss:"Boss-Arena"}[player.room]||""; }
 
-function drawFloaters() {
-  floaters.forEach(f => {
-    ctx.globalAlpha = Math.max(0, f.life/60);
-    ctx.fillStyle = f.color; ctx.font = "bold 12px sans-serif"; ctx.textAlign="center";
-    ctx.fillText(f.text, f.x + TILE/2, f.y);
-    ctx.globalAlpha = 1;
-  });
-}
-
-function drawOverworld() {
-  for (let r=0;r<ROWS;r++)
-    for (let c=0;c<COLS;c++)
-      drawTile(world[r][c], c*TILE, r*TILE);
-  enemies.forEach(drawEnemy);
+function drawOverworld(){
+  const room=getRoom();
+  for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) drawTile(room.tiles[r][c], c*TILE, r*TILE);
+  room.enemies.forEach(drawEnemy);
   drawPlayer();
-  drawFloaters();
+  particles.forEach(p=>{ ctx.globalAlpha=Math.max(0,p.life/28); ctx.fillStyle=p.color; ctx.fillRect(p.x-2,p.y-2,4,4); ctx.globalAlpha=1; });
+  floaters.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life/55); ctx.fillStyle=f.color;
+    ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(f.text,f.x+TILE/2,f.y); ctx.globalAlpha=1; });
   drawHUD();
 }
 
-/* --- Kampfbildschirm --- */
-function bar(x,y,w,cur,max,color) {
-  ctx.fillStyle = "#000"; ctx.fillRect(x-1,y-1,w+2,8);
-  ctx.fillStyle = "#333"; ctx.fillRect(x,y,w,6);
-  ctx.fillStyle = color;  ctx.fillRect(x,y, Math.max(0,w*cur/max), 6);
-}
-function drawCreature(c, x, y, big, back) {
-  const s = big ? 56 : 44;
-  ctx.fillStyle = c.color;
-  ctx.beginPath(); ctx.arc(x, y, s/2, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,.25)";
-  ctx.beginPath(); ctx.arc(x-s/6, y-s/6, s/5, 0, Math.PI*2); ctx.fill();
-  // Gesicht
-  ctx.fillStyle = "#111";
-  const eo = back ? 1 : 1;
-  ctx.fillRect(x-10, y-4, 4, 5); ctx.fillRect(x+6, y-4, 4, 5);
-  ctx.fillStyle = "#111"; ctx.fillRect(x-6, y+8, 12, 3);
-  ctx.font = "18px serif"; ctx.textAlign="center"; ctx.fillText(c.emoji, x, y-s/2-4);
-}
-function drawBattle() {
-  const b = battle;
-  // Hintergrund
-  ctx.fillStyle = "#dff0d8"; ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.fillStyle = "#bfe0b0"; ctx.fillRect(0,300,cv.width,180);
-  // Wildes (oben rechts)
-  ctx.fillStyle = "#a8d5a0"; ctx.beginPath(); ctx.ellipse(360,140,80,20,0,0,Math.PI*2); ctx.fill();
-  drawCreature(b.wild, 360, 110, true, false);
-  // Meins (unten links, "von hinten")
-  ctx.fillStyle = "#a8d5a0"; ctx.beginPath(); ctx.ellipse(150,300,80,22,0,0,Math.PI*2); ctx.fill();
-  drawCreature(b.mine, 150, 265, true, true);
-
-  // Info-Boxen
-  function infoBox(c, x, y) {
-    ctx.fillStyle = "#fff"; ctx.strokeStyle="#333"; ctx.lineWidth=3;
-    ctx.fillRect(x,y,180,46); ctx.strokeRect(x,y,180,46);
-    ctx.fillStyle="#222"; ctx.font="bold 13px sans-serif"; ctx.textAlign="left";
-    ctx.fillText(c.name, x+8, y+16);
-    ctx.font="11px sans-serif"; ctx.fillText("Lv."+c.level, x+140, y+16);
-    bar(x+8, y+26, 150, c.hp, c.maxHp, c.hp > c.maxHp*0.3 ? "#2ecc40" : "#ff9f1a");
-    ctx.fillStyle="#444"; ctx.font="9px sans-serif";
-    ctx.fillText(c.hp+"/"+c.maxHp, x+120, y+43);
-  }
-  infoBox(b.wild, 30, 40);
-  infoBox(b.mine, cv.width-210, 210);
-
-  // Log-/Menü-Box
-  ctx.fillStyle = "#1b2233"; ctx.fillRect(8, 360, cv.width-16, 112);
-  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.strokeRect(8,360,cv.width-16,112);
-  ctx.fillStyle = "#e8ecff"; ctx.font = "13px sans-serif"; ctx.textAlign="left";
-  b.log.forEach((l,i)=> ctx.fillText(l, 20, 384 + i*18));
-
-  // Menü rechts
-  if (b.turn === "player" && !b.over) {
-    const items = ["⚔ KÄMPFEN", "🎯 FANGEN", "🏃 FLIEHEN"];
-    items.forEach((it,i)=>{
-      const y = 384 + i*22;
-      ctx.fillStyle = i === b.menu ? "#ffcc33" : "#9aa6d6";
-      ctx.font = i === b.menu ? "bold 14px sans-serif" : "14px sans-serif";
-      ctx.textAlign="left";
-      ctx.fillText((i===b.menu?"▶ ":"  ")+it, cv.width-150, y);
-    });
+/* --- Kampf --- */
+function bar(x,y,w,cur,max,color){ ctx.fillStyle="#000"; ctx.fillRect(x-1,y-1,w+2,8);
+  ctx.fillStyle="#333"; ctx.fillRect(x,y,w,6); ctx.fillStyle=color; ctx.fillRect(x,y,Math.max(0,w*cur/max),6); }
+function drawCreature(c,x,y){ const s=56;
+  ctx.fillStyle=c.color; ctx.beginPath(); ctx.arc(x,y,s/2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.25)"; ctx.beginPath(); ctx.arc(x-s/6,y-s/6,s/5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="#111"; ctx.fillRect(x-10,y-4,4,5); ctx.fillRect(x+6,y-4,4,5); ctx.fillRect(x-6,y+8,12,3);
+  ctx.font="18px serif"; ctx.textAlign="center"; ctx.fillText(c.emoji,x,y-s/2-4); }
+function drawBattle(){
+  const b=battle;
+  ctx.fillStyle="#dff0d8"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#bfe0b0"; ctx.fillRect(0,300,cv.width,180);
+  ctx.fillStyle="#a8d5a0"; ctx.beginPath(); ctx.ellipse(360,140,80,20,0,0,Math.PI*2); ctx.fill();
+  drawCreature(b.wild,360,110);
+  ctx.fillStyle="#a8d5a0"; ctx.beginPath(); ctx.ellipse(150,300,80,22,0,0,Math.PI*2); ctx.fill();
+  drawCreature(b.mine,150,265);
+  function info(c,x,y){ ctx.fillStyle="#fff"; ctx.strokeStyle="#333"; ctx.lineWidth=3;
+    ctx.fillRect(x,y,182,48); ctx.strokeRect(x,y,182,48);
+    ctx.fillStyle="#222"; ctx.font="bold 13px sans-serif"; ctx.textAlign="left"; ctx.fillText(c.name,x+8,y+16);
+    ctx.font="11px sans-serif"; ctx.fillText("Lv."+c.level,x+142,y+16);
+    bar(x+8,y+26,152,c.hp,c.maxHp,c.hp>c.maxHp*0.3?"#2ecc40":"#ff9f1a");
+    ctx.fillStyle="#444"; ctx.font="9px sans-serif"; ctx.fillText(Math.ceil(c.hp)+"/"+c.maxHp,x+118,y+44); }
+  info(b.wild,30,40); info(b.mine,cv.width-212,206);
+  ctx.fillStyle="#1b2233"; ctx.fillRect(8,360,cv.width-16,112);
+  ctx.strokeStyle="#fff"; ctx.lineWidth=3; ctx.strokeRect(8,360,cv.width-16,112);
+  ctx.fillStyle="#e8ecff"; ctx.font="12.5px sans-serif"; ctx.textAlign="left";
+  b.log.forEach((l,i)=>ctx.fillText(l,20,382+i*18));
+  if (b.turn==="player"&&!b.over){
+    const items=["⚔ KÄMPFEN",`🎯 FANGEN (${player.balls})`,`🧪 TRANK (${player.potions})`,"🏃 FLIEHEN"];
+    items.forEach((it,i)=>{ const y=380+i*22; ctx.fillStyle=i===b.menu?"#ffcc33":"#9aa6d6";
+      ctx.font=i===b.menu?"bold 13px sans-serif":"13px sans-serif";
+      ctx.fillText((i===b.menu?"▶ ":"  ")+it, cv.width-172, y); });
   }
 }
-
-/* --- Message-Box --- */
-function drawMessage() {
+function drawMessage(){
   drawOverworld();
-  ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0,0,cv.width,cv.height);
-  const bw = 420, bh = 40 + message.lines.length*24;
-  const bx = (cv.width-bw)/2, by = (cv.height-bh)/2;
-  ctx.fillStyle = "#1b2233"; ctx.fillRect(bx,by,bw,bh);
-  ctx.strokeStyle = "#ffcc33"; ctx.lineWidth = 3; ctx.strokeRect(bx,by,bw,bh);
-  ctx.fillStyle = "#e8ecff"; ctx.font = "14px sans-serif"; ctx.textAlign="center";
-  message.lines.forEach((l,i)=> ctx.fillText(l, cv.width/2, by+28+i*24));
-  ctx.fillStyle = "#9aa6d6"; ctx.font = "11px sans-serif";
-  ctx.fillText("[ Enter / Leertaste ]", cv.width/2, by+bh-8);
+  ctx.fillStyle="rgba(0,0,0,.55)"; ctx.fillRect(0,0,cv.width,cv.height);
+  const bw=440, bh=40+message.lines.length*24, bx=(cv.width-bw)/2, by=(cv.height-bh)/2;
+  ctx.fillStyle="#1b2233"; ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle="#ffcc33"; ctx.lineWidth=3; ctx.strokeRect(bx,by,bw,bh);
+  ctx.fillStyle="#e8ecff"; ctx.font="14px sans-serif"; ctx.textAlign="center";
+  message.lines.forEach((l,i)=>ctx.fillText(l,cv.width/2,by+28+i*24));
+  ctx.fillStyle="#9aa6d6"; ctx.font="11px sans-serif"; ctx.fillText("[ Enter / A ]",cv.width/2,by+bh-8);
 }
-
-function drawGameOver() {
-  ctx.fillStyle = "#000"; ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.fillStyle = "#ff4d5e"; ctx.font = "bold 40px sans-serif"; ctx.textAlign="center";
-  ctx.fillText("GAME OVER", cv.width/2, 200);
-  ctx.fillStyle = "#fff"; ctx.font = "16px sans-serif";
-  ctx.fillText("Münzen: " + player.coins + "  •  Gefangen: " + player.party.length, cv.width/2, 250);
-  ctx.fillStyle = "#9aa6d6"; ctx.font = "13px sans-serif";
-  ctx.fillText("[ Enter ] für Neustart", cv.width/2, 300);
+function drawShop(){
+  drawOverworld();
+  ctx.fillStyle="rgba(0,0,0,.6)"; ctx.fillRect(0,0,cv.width,cv.height);
+  const bx=90,by=90,bw=332,bh=290;
+  ctx.fillStyle="#1b2233"; ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle="#ffcc33"; ctx.lineWidth=3; ctx.strokeRect(bx,by,bw,bh);
+  ctx.fillStyle="#ffcc33"; ctx.font="bold 18px sans-serif"; ctx.textAlign="center"; ctx.fillText("🛒 SHOP",cv.width/2,by+30);
+  ctx.fillStyle="#cdd6ff"; ctx.font="12px sans-serif"; ctx.fillText(shop.msg,cv.width/2,by+52);
+  ctx.fillStyle="#ffcc33"; ctx.fillText("Deine Münzen: "+player.coins+"¢",cv.width/2,by+72);
+  const opts=SHOP_ITEMS.map(it=>`${it.name} — ${it.price}¢  (${it.info})`); opts.push("Verlassen");
+  ctx.textAlign="left"; ctx.font="14px sans-serif";
+  opts.forEach((o,i)=>{ const y=by+108+i*34; ctx.fillStyle=i===shop.sel?"#ffcc33":"#9aa6d6";
+    ctx.font=i===shop.sel?"bold 14px sans-serif":"14px sans-serif";
+    ctx.fillText((i===shop.sel?"▶ ":"  ")+o, bx+24, y); });
+  ctx.fillStyle="#9aa6d6"; ctx.font="11px sans-serif"; ctx.textAlign="center";
+  ctx.fillText("↑↓ wählen • Enter/A kaufen",cv.width/2,by+bh-12);
+}
+function drawTitle(){
+  ctx.fillStyle="#0b1020"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#ffe066"; ctx.font="bold 34px sans-serif"; ctx.textAlign="center"; ctx.fillText("◆ TRIFORCE QUEST ◆",cv.width/2,140);
+  ctx.fillStyle="#9aa6d6"; ctx.font="14px sans-serif"; ctx.fillText("Mario × Zelda × Pokémon",cv.width/2,168);
+  const opts=hasSave?["Weiter","Neues Spiel"]:["Neues Spiel"];
+  opts.forEach((o,i)=>{ const y=250+i*40; ctx.fillStyle=i===titleSel?"#ffcc33":"#cdd6ff";
+    ctx.font=i===titleSel?"bold 20px sans-serif":"18px sans-serif";
+    ctx.fillText((i===titleSel?"▶ ":"")+o,cv.width/2,y); });
+  ctx.fillStyle="#6b76a8"; ctx.font="12px sans-serif"; ctx.fillText("↑↓ wählen • Enter/A starten",cv.width/2,cv.height-30);
+}
+function drawGameOver(){
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#ff4d5e"; ctx.font="bold 40px sans-serif"; ctx.textAlign="center"; ctx.fillText("GAME OVER",cv.width/2,200);
+  ctx.fillStyle="#fff"; ctx.font="15px sans-serif";
+  ctx.fillText("Münzen: "+player.coins+"  •  Splitter: "+player.shards+"/3",cv.width/2,248);
+  ctx.fillStyle="#9aa6d6"; ctx.font="13px sans-serif"; ctx.fillText("[ Enter / A ] Titelbildschirm",cv.width/2,300);
+}
+function drawVictory(){
+  ctx.fillStyle="#101830"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#ffe066"; ctx.font="bold 36px sans-serif"; ctx.textAlign="center"; ctx.fillText("★ SIEG! ★",cv.width/2,150);
+  ctx.fillStyle="#fff"; ctx.font="15px sans-serif";
+  ctx.fillText("Der Schattenkönig ist besiegt!",cv.width/2,200);
+  ctx.fillText("Team: "+player.party.length+" Kreaturen  •  "+player.coins+"¢",cv.width/2,230);
+  ctx.fillStyle="#9aa6d6"; ctx.font="13px sans-serif"; ctx.fillText("[ Enter / A ] Titelbildschirm",cv.width/2,290);
 }
 
 /* =========================================================================
    HAUPTSCHLEIFE
 ========================================================================= */
-function resetGame() {
-  world = MAP.map(r => r.slice());
-  Object.assign(player, {
-    x: 1*TILE+3, y: 1*TILE+3, px:1, py:1, moving:false, mx:0, my:0,
-    dir:"down", maxHp:3, hp:3, coins:0, attack:0, invuln:0, party:[]
-  });
-  player.party.push(makeCreature(2,3));
-  enemies = [
-    { x: 11*TILE, y: 1*TILE, dir: 1, alive: true, cool: 0 },
-    { x: 7*TILE,  y: 12*TILE, dir: -1, alive: true, cool: 0 },
-    { x: 13*TILE, y: 7*TILE, dir: 1, alive: true, cool: 0 },
-  ];
-  floaters = []; battle = null; message = null; state = "overworld";
+let titleSel=0;
+function newGame(){
+  buildAllRooms();
+  Object.assign(player,{ room:"village", px:2, py:7, x:2*TILE+3, y:7*TILE+3,
+    moving:false, mx:0, my:0, dir:"down", maxHp:3, hp:3, coins:0, balls:3, potions:1,
+    shards:0, attack:0, invuln:0, party:[], walkFrame:0 });
+  player.party.push(makeCreature(2,3));         // Start-Begleiter Blattbold
+  particles=[]; floaters=[]; battle=null; message=null; shop=null;
+  state="overworld"; saveGame();
 }
 
-function update() {
-  // Floater altern
-  floaters.forEach(f => { f.life--; f.y -= 0.4; });
-  floaters = floaters.filter(f => f.life > 0);
+function update(){
+  floaters.forEach(f=>{ f.life--; f.y-=0.4; }); floaters=floaters.filter(f=>f.life>0);
+  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.life--; }); particles=particles.filter(p=>p.life>0);
+  if (shakeT>0) shakeT--;
 
-  if (state === "overworld") updateOverworld();
-  else if (state === "battle") updateBattle();
-  else if (state === "message") {
-    if (enterEdge || attackEdge) {
-      const after = message.after; message = null;
-      state = (battle && !battle.over) ? "battle" : "overworld";
-      if (after) after();
+  if (state==="title"){
+    const n=hasSave?2:1;
+    if (keys["arrowup"]||keys["w"]){ if(!titleMv){ titleSel=(titleSel+n-1)%n; titleMv=1; sfx.select(); } }
+    else if (keys["arrowdown"]||keys["s"]){ if(!titleMv){ titleSel=(titleSel+1)%n; titleMv=1; sfx.select(); } }
+    else titleMv=0;
+    if (enterEdge||attackEdge){
+      if (hasSave && titleSel===0){ if(!loadGame()) newGame(); state="overworld"; }
+      else newGame();
     }
-  } else if (state === "gameover") {
-    if (enterEdge) resetGame();
   }
+  else if (state==="overworld") updateOverworld();
+  else if (state==="battle") updateBattle();
+  else if (state==="shop") updateShop();
+  else if (state==="message"){ if (enterEdge||attackEdge){ const a=message.after; message=null;
+    state=(battle&&!battle.over)?"battle":( state==="message"?"overworld":state );
+    if (a) a(); } }
+  else if (state==="gameover"){ if (enterEdge||attackEdge){ titleSel=0; hasSave=!!localStorage.getItem("triforce-save"); state="title"; } }
+  else if (state==="victory"){ if (enterEdge||attackEdge){ localStorage.removeItem("triforce-save"); hasSave=false; titleSel=0; state="title"; } }
 
-  // Edge-Flags zurücksetzen
-  enterEdge = false; attackEdge = false;
+  enterEdge=false; attackEdge=false;
 }
+let titleMv=0;
 
-function render() {
+function render(){
   ctx.clearRect(0,0,cv.width,cv.height);
-  if (state === "battle") drawBattle();
-  else if (state === "message") drawMessage();
-  else if (state === "gameover") drawGameOver();
+  ctx.save();
+  if (shakeT>0){ ctx.translate((Math.random()-0.5)*shakeMag, (Math.random()-0.5)*shakeMag); }
+  if (state==="title") drawTitle();
+  else if (state==="battle") drawBattle();
+  else if (state==="shop") drawShop();
+  else if (state==="message") drawMessage();
+  else if (state==="gameover") drawGameOver();
+  else if (state==="victory") drawVictory();
   else drawOverworld();
+  ctx.restore();
 }
+function loop(){ update(); render(); requestAnimationFrame(loop); }
 
-function loop() {
-  update();
-  render();
-  requestAnimationFrame(loop);
-}
-// Startbildschirm-Nachricht
-player.x = 1*TILE+3; player.y = 1*TILE+3;
-showMessage([
-  "⚔ TRIFORCE QUEST ⚔",
-  "Erkunde die Welt, sammle Münzen (Mario),",
-  "kämpfe mit dem Schwert (Zelda) und fange",
-  "wilde Kreaturen im hohen Gras (Pokémon)!",
-], () => { state = "overworld"; });
+/* Init */
+buildAllRooms();
+hasSave = !!localStorage.getItem("triforce-save");
+titleSel = 0;
 loop();
 </script>
 </body>
