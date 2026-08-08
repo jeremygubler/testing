@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Subway Runner — Endless Runner</title>
+<style>
+  /* ============================================================
+     GLOBAL STYLES / UI LAYOUT
+     ============================================================ */
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #0b0f1a; color: #fff;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    user-select: none; touch-action: none;
+  }
+  #game { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  /* ---- HUD (in-game overlay) ---- */
+  #hud {
+    position: absolute; inset: 0; pointer-events: none;
+    display: none; flex-direction: column; justify-content: space-between;
+  }
+  #hud.active { display: flex; }
+  .hud-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 16px 20px;
+  }
+  .score-box { text-shadow: 0 2px 6px rgba(0,0,0,.6); }
+  .score-box .score { font-size: 34px; font-weight: 800; letter-spacing: 1px; }
+  .score-box .label { font-size: 12px; opacity: .7; text-transform: uppercase; letter-spacing: 2px; }
+  .coin-box {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,.35); padding: 8px 16px; border-radius: 30px;
+    font-size: 24px; font-weight: 800; backdrop-filter: blur(4px);
+  }
+  .coin-icon {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe58a, #f6b73c 60%, #c8860a);
+    box-shadow: 0 0 8px rgba(246,183,60,.7);
+  }
+
+  /* ---- Active power-up chips ---- */
+  #powerups {
+    position: absolute; top: 70px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+  }
+  .pchip {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,.4); padding: 6px 12px; border-radius: 20px;
+    font-size: 13px; font-weight: 700; backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,.15);
+  }
+  .pchip .bar {
+    width: 60px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.2); overflow: hidden;
+  }
+  .pchip .bar > i { display: block; height: 100%; background: #4fd1ff; transition: width .1s linear; }
+  .pchip .dot { width: 14px; height: 14px; border-radius: 4px; }
+
+  /* ---- Bottom controls (pause + mute) ---- */
+  .hud-bottom { display: flex; justify-content: space-between; align-items: flex-end; padding: 16px 20px; }
+  .combo { font-size: 20px; font-weight: 800; color: #ffd24a; text-shadow: 0 2px 6px rgba(0,0,0,.6); opacity: 0; transition: opacity .2s; }
+  .combo.show { opacity: 1; }
+  .btn-row { display: flex; gap: 10px; pointer-events: auto; }
+  .icon-btn {
+    width: 48px; height: 48px; border-radius: 14px; border: none; cursor: pointer;
+    background: rgba(255,255,255,.14); color: #fff; font-size: 22px; backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:active { transform: scale(.92); }
+
+  /* ---- Full-screen menu overlays (start / pause / gameover) ---- */
+  .overlay {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(30,40,80,.75), rgba(8,10,20,.92));
+    backdrop-filter: blur(6px); z-index: 10;
+  }
+  .overlay.active { display: flex; }
+  .title {
+    font-size: clamp(38px, 9vw, 82px); font-weight: 900; line-height: 1;
+    background: linear-gradient(90deg, #ff7b3d, #ffd24a, #4fd1ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 6px 30px rgba(255,150,60,.25); letter-spacing: 2px;
+  }
+  .subtitle { margin-top: 8px; font-size: 15px; opacity: .7; letter-spacing: 3px; text-transform: uppercase; }
+  .big-btn {
+    margin-top: 34px; padding: 16px 54px; font-size: 22px; font-weight: 800; letter-spacing: 1px;
+    border: none; border-radius: 40px; cursor: pointer; color: #10233b;
+    background: linear-gradient(90deg, #ffd24a, #ff9d3d);
+    box-shadow: 0 8px 30px rgba(255,160,60,.4); transition: transform .12s;
+  }
+  .big-btn:active { transform: scale(.95); }
+  .stat-line { margin-top: 22px; font-size: 20px; }
+  .stat-line b { font-size: 30px; color: #ffd24a; }
+  .hint { margin-top: 26px; font-size: 13px; opacity: .55; max-width: 380px; line-height: 1.7; }
+  .new-record { color: #4fd1ff; font-weight: 800; margin-top: 10px; letter-spacing: 2px; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ---- Character selection ---- */
+  .char-row { display: flex; gap: 14px; margin-top: 26px; flex-wrap: wrap; justify-content: center; }
+  .char {
+    width: 62px; height: 62px; border-radius: 16px; cursor: pointer;
+    border: 3px solid transparent; transition: transform .12s, border-color .12s;
+  }
+  .char.sel { border-color: #fff; transform: scale(1.12); }
+
+  /* ---- Loading ---- */
+  #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+             font-size: 18px; letter-spacing: 2px; color: #8fa; z-index: 20; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<!-- ===================== HUD ===================== -->
+<div id="hud">
+  <div class="hud-top">
+    <div class="score-box">
+      <div class="score" id="scoreVal">0</div>
+      <div class="label">Score</div>
+    </div>
+    <div class="coin-box"><span class="coin-icon"></span><span id="coinVal">0</span></div>
+  </div>
+  <div id="powerups"></div>
+  <div class="hud-bottom">
+    <div class="combo" id="combo"></div>
+    <div class="btn-row">
+      <button class="icon-btn" id="muteBtn" title="Sound">🔊</button>
+      <button class="icon-btn" id="pauseBtn" title="Pause">⏸</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== START SCREEN ===================== -->
+<div class="overlay active" id="startScreen">
+  <div class="title">SUBWAY RUNNER</div>
+  <div class="subtitle">Endless Runner</div>
+  <div class="char-row" id="charRow"></div>
+  <button class="big-btn" id="playBtn">▶ PLAY</button>
+  <div class="hint">
+    Desktop: ← → / A D wechseln · ↑ / W / Leertaste springen · ↓ / S rutschen · P Pause<br/>
+    Mobil: Wischen nach links/rechts/oben/unten
+  </div>
+</div>
+
+<!-- ===================== PAUSE SCREEN ===================== -->
+<div class="overlay" id="pauseScreen">
+  <div class="title" style="font-size:clamp(30px,7vw,60px)">PAUSE</div>
+  <button class="big-btn" id="resumeBtn">▶ WEITER</button>
+  <button class="big-btn" id="quitBtn" style="background:linear-gradient(90deg,#8a94a8,#5a6478);color:#fff;margin-top:16px;padding:12px 40px;font-size:17px">↩ HAUPTMENÜ</button>
+</div>
+
+<!-- ===================== GAME OVER SCREEN ===================== -->
+<div class="overlay" id="gameOverScreen">
+  <div class="title" style="font-size:clamp(32px,8vw,68px)">GAME OVER</div>
+  <div class="stat-line">Score: <b id="finalScore">0</b></div>
+  <div class="stat-line" style="font-size:16px">Münzen: <b id="finalCoins" style="font-size:22px">0</b></div>
+  <div class="stat-line" style="font-size:16px">Highscore: <b id="highScore" style="font-size:22px">0</b></div>
+  <div class="new-record" id="newRecord" style="display:none">★ NEUER REKORD ★</div>
+  <button class="big-btn" id="retryBtn">↻ RETRY</button>
+</div>
+
+<div id="loading">LADE 3D-ENGINE …</div>
+
+<!-- Three.js via CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ================================================================
+   SUBWAY RUNNER — Endless Runner Clone (Three.js, single file)
+   ----------------------------------------------------------------
+   Architektur / Hauptsysteme (zum späteren Anpassen):
+     • CONFIG          – zentrale Tuning-Werte (Speed, Lanes, Gravity …)
+     • AudioManager    – WebAudio Sound-Effekte + Musik + Mute
+     • ParticleSystem  – Partikel für Münzen & Crash
+     • Player          – Spielfigur: Lane-Wechsel, Sprung, Rutschen
+     • Pursuer         – Verfolger (Wächter + Hund) im Hintergrund
+     • TrackManager    – prozedurale Welt + Object Pooling (Segmente)
+     • ObstacleManager – Hindernisse (Züge, Barrieren, Balken, Rampen)
+     • CoinManager     – Münzen in Bögen/Linien + Magnet-Logik
+     • PowerupManager  – Jetpack, Magnet, Sneakers, Multiplier
+     • GameState       – Score, Coins, Highscore, Difficulty-Scaling
+     • Game            – Setup, requestAnimationFrame-Loop (Delta-Time)
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   CONFIG — alle wichtigen Stellschrauben an einem Ort
+   ---------------------------------------------------------------- */
+const CONFIG = {
+  LANE_WIDTH: 2.4,            // Abstand zwischen den 3 Lanes
+  LANES: [-2.4, 0, 2.4],     // X-Positionen links / mitte / rechts
+  START_SPEED: 14,            // Anfangs-Laufgeschwindigkeit (Einheiten/s)
+  MAX_SPEED: 42,              // maximale Geschwindigkeit
+  ACCEL: 0.32,                // Beschleunigung pro Sekunde
+  GRAVITY: 62,                // Fallbeschleunigung
+  JUMP_V: 17,                 // Sprung-Anfangsgeschwindigkeit
+  SNEAKER_JUMP_MULT: 1.35,    // höhere Sprünge mit Super-Sneakers
+  SLIDE_TIME: 0.7,            // Dauer einer Rutsch-Aktion (s)
+  LANE_CHANGE_SPEED: 12,      // seitliche Geschwindigkeit beim Lane-Wechsel
+  SEGMENT_LENGTH: 30,         // Länge eines Track-Segments
+  SEGMENT_COUNT: 8,           // Anzahl gepoolter Segmente
+  SPAWN_AHEAD: 60,            // wie weit vor dem Spieler gespawnt wird
+  RECYCLE_BEHIND: 30,         // wie weit hinter dem Spieler recycelt wird
+  COIN_VALUE: 1,
+  DRAW_DISTANCE: 220,
+  POWERUP_DURATION: {         // Wirkdauer in Sekunden
+    jetpack: 6, magnet: 8, sneakers: 8, multiplier: 8
+  },
+};
+
+/* Charaktere (Farben für die austauschbaren Modelle) */
+const CHARACTERS = [
+  { name: 'Jake',  body: 0xff5b4a, head: 0xffd8a8 },
+  { name: 'Tricky', body: 0xff4fa3, head: 0xffe0b3 },
+  { name: 'Fresh', body: 0x3d8bff, head: 0x6b4423 },
+  { name: 'Spike', body: 0x2ec26e, head: 0xffd8a8 },
+  { name: 'Yutani', body: 0xa64fff, head: 0xd6ffe0 },
+];
+
+/* ================================================================
+   AudioManager — prozedurale WebAudio-Sounds (kein externes Asset)
+   ================================================================ */
+class AudioManager {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+    this.musicGain = null;
+    this.musicNodes = [];
+  }
+  _ensure() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AC();
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.value = 0.6;
+      this.masterGain.connect(this.ctx.destination);
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+  }
+  // kurzer Ton-Blip (Basis für alle SFX)
+  _blip({ freq = 440, type = 'sine', dur = 0.12, vol = 0.4, slide = 0 }) {
+    if (this.muted) return;
+    this._ensure();
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(1, freq + slide), t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(this.masterGain);
+    osc.start(t); osc.stop(t + dur);
+  }
+  coin()  { this._blip({ freq: 880, type: 'square', dur: 0.08, vol: 0.18, slide: 500 }); }
+  jump()  { this._blip({ freq: 300, type: 'sine',   dur: 0.18, vol: 0.3,  slide: 400 }); }
+  slide() { this._blip({ freq: 500, type: 'sawtooth', dur: 0.2, vol: 0.15, slide: -300 }); }
+  power() { this._blip({ freq: 600, type: 'triangle', dur: 0.3, vol: 0.3, slide: 600 }); }
+  crash() {
+    if (this.muted) return; this._ensure();
+    // Rauschen für Crash
+    const t = this.ctx.currentTime, dur = 0.5;
+    const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * dur, this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(g); g.connect(this.masterGain); src.start(t);
+    this._blip({ freq: 120, type: 'square', dur: 0.4, vol: 0.4, slide: -80 });
+  }
+  // simple loopende Hintergrundmusik (Arpeggio)
+  startMusic() {
+    if (this.muted) return;
+    this._ensure();
+    this.stopMusic();
+    this.musicGain = this.ctx.createGain();
+    this.musicGain.gain.value = 0.05;
+    this.musicGain.connect(this.masterGain);
+    const notes = [261.6, 329.6, 392.0, 523.3, 392.0, 329.6];
+    let i = 0;
+    this.musicTimer = setInterval(() => {
+      if (this.muted) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
+      osc.type = 'triangle'; osc.frequency.value = notes[i % notes.length];
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(1, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+      osc.connect(g); g.connect(this.musicGain);
+      osc.start(t); osc.stop(t + 0.3);
+      i++;
+    }, 220);
+  }
+  stopMusic() { if (this.musicTimer) { clearInterval(this.musicTimer); this.musicTimer = null; } }
+  toggleMute() { this.muted = !this.muted; if (this.muted) this.stopMusic(); else this.startMusic(); return this.muted; }
+}
+
+/* ================================================================
+   ParticleSystem — leichte Sprite-Partikel (Pooling)
+   ================================================================ */
+class ParticleSystem {
+  constructor(scene) {
+    this.scene = scene;
+    this.particles = [];
+    this.pool = [];
+    this.geo = new THREE.SphereGeometry(0.12, 6, 6);
+  }
+  _get(color) {
+    let p = this.pool.pop();
+    if (!p) {
+      p = new THREE.Mesh(this.geo, new THREE.MeshBasicMaterial({ transparent: true }));
+      this.scene.add(p);
+    }
+    p.material.color.setHex(color);
+    p.material.opacity = 1;
+    p.visible = true;
+    return p;
+  }
+  burst(pos, color, count = 12, speed = 6) {
+    for (let i = 0; i < count; i++) {
+      const mesh = this._get(color);
+      mesh.position.copy(pos);
+      const a = Math.random() * Math.PI * 2, b = Math.random() * Math.PI;
+      this.particles.push({
+        mesh, life: 0.6, max: 0.6,
+        v: new THREE.Vector3(
+          Math.sin(b) * Math.cos(a) * speed * (0.4 + Math.random()),
+          Math.abs(Math.cos(b)) * speed * (0.6 + Math.random()),
+          Math.sin(b) * Math.sin(a) * speed * (0.4 + Math.random())
+        ),
+      });
+    }
+  }
+  update(dt) {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.life -= dt;
+      if (p.life <= 0) {
+        p.mesh.visible = false; this.pool.push(p.mesh);
+        this.particles.splice(i, 1); continue;
+      }
+      p.v.y -= 18 * dt;
+      p.mesh.position.addScaledVector(p.v, dt);
+      p.mesh.material.opacity = p.life / p.max;
+      const s = 0.5 + p.life / p.max;
+      p.mesh.scale.setScalar(s);
+    }
+  }
+}
+
+/* ================================================================
+   Player — Spielfigur
+   Zustände: laufen, springen, rutschen. Lane-Wechsel per Lerp.
+   ================================================================ */
+class Player {
+  constructor(scene, charIndex) {
+    this.scene = scene;
+    this.group = new THREE.Group();
+    this.lane = 1;                 // 0=links 1=mitte 2=rechts
+    this.targetX = CONFIG.LANES[1];
+    this.y = 0;                    // Höhe über Boden
+    this.vy = 0;                   // vertikale Geschwindigkeit
+    this.isJumping = false;
+    this.isSliding = false;
+    this.slideTimer = 0;
+    this.runTime = 0;              // für Lauf-Animation
+    this._build(charIndex);
+    scene.add(this.group);
+  }
+  _build(charIndex) {
+    const c = CHARACTERS[charIndex] || CHARACTERS[0];
+    // Körper
+    const bodyMat = new THREE.MeshStandardMaterial({ color: c.body, roughness: 0.6 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: c.head, roughness: 0.7 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x2a2f45, roughness: 0.7 });
+
+    this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.85, 0.4), bodyMat);
+    this.torso.position.y = 1.0; this.torso.castShadow = true;
+    this.head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), skinMat);
+    this.head.position.y = 1.68; this.head.castShadow = true;
+    // Beine
+    this.legL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.7, 0.28), darkMat);
+    this.legR = this.legL.clone();
+    this.legL.position.set(-0.18, 0.35, 0); this.legR.position.set(0.18, 0.35, 0);
+    this.legL.castShadow = this.legR.castShadow = true;
+    // Arme
+    this.armL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.22), bodyMat);
+    this.armR = this.armL.clone();
+    this.armL.position.set(-0.46, 1.05, 0); this.armR.position.set(0.46, 1.05, 0);
+
+    this.group.add(this.torso, this.head, this.legL, this.legR, this.armL, this.armR);
+    this.group.position.set(this.targetX, 0, 0);
+
+    // Jetpack-Modell (versteckt bis aktiv)
+    this.jetpack = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.25),
+      new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.6, roughness: 0.3 }));
+    this.jetpack.position.set(0, 1.05, -0.32); this.jetpack.visible = false;
+    this.group.add(this.jetpack);
+  }
+  setCharacter(charIndex) {
+    const c = CHARACTERS[charIndex] || CHARACTERS[0];
+    this.torso.material.color.setHex(c.body);
+    this.armL.material.color.setHex(c.body);
+    this.head.material.color.setHex(c.head);
+  }
+  moveLeft()  { if (this.lane > 0) { this.lane--; this.targetX = CONFIG.LANES[this.lane]; return true; } return false; }
+  moveRight() { if (this.lane < 2) { this.lane++; this.targetX = CONFIG.LANES[this.lane]; return true; } return false; }
+  jump(sneakers) {
+    if (this.isJumping || this.isSliding) return false;
+    this.isJumping = true;
+    this.vy = CONFIG.JUMP_V * (sneakers ? CONFIG.SNEAKER_JUMP_MULT : 1);
+    return true;
+  }
+  slide() {
+    if (this.isSliding || this.isJumping) return false;
+    this.isSliding = true; this.slideTimer = CONFIG.SLIDE_TIME;
+    return true;
+  }
+  reset() {
+    this.lane = 1; this.targetX = CONFIG.LANES[1];
+    this.group.position.set(this.targetX, 0, 0);
+    this.y = 0; this.vy = 0; this.isJumping = false; this.isSliding = false; this.slideTimer = 0;
+  }
+  update(dt, jetpackActive) {
+    this.runTime += dt;
+    // seitlicher Lane-Wechsel (sanft interpoliert)
+    const dx = this.targetX - this.group.position.x;
+    this.group.position.x += dx * Math.min(1, CONFIG.LANE_CHANGE_SPEED * dt);
+
+    // Jetpack: schwebt in fester Höhe
+    if (jetpackActive) {
+      this.isJumping = false; this.isSliding = false;
+      this.y += (5.5 - this.y) * Math.min(1, 6 * dt);
+      this.vy = 0;
+      this.jetpack.visible = true;
+    } else {
+      this.jetpack.visible = false;
+      // Sprung-Physik
+      if (this.isJumping) {
+        this.vy -= CONFIG.GRAVITY * dt;
+        this.y += this.vy * dt;
+        if (this.y <= 0) { this.y = 0; this.vy = 0; this.isJumping = false; }
+      }
+      // Rutschen
+      if (this.isSliding) {
+        this.slideTimer -= dt;
+        if (this.slideTimer <= 0) this.isSliding = false;
+      }
+    }
+    this.group.position.y = this.y;
+
+    // ---- Animation ----
+    this._animate();
+    // Rotationswinkel leicht in Bewegungsrichtung neigen
+    this.group.rotation.z = -dx * 0.12;
+  }
+  _animate() {
+    const t = this.runTime;
+    if (this.isSliding) {
+      // Ducken: Torso flach, Beine nach vorn
+      this.group.scale.y = 0.55;
+      this.torso.rotation.x = -1.1;
+      this.head.position.y = 1.2;
+      this.legL.rotation.x = 1.2; this.legR.rotation.x = 1.2;
+      this.armL.rotation.x = this.armR.rotation.x = 2.2;
+    } else {
+      this.group.scale.y = 1;
+      this.torso.rotation.x = this.isJumping ? -0.2 : 0.05;
+      this.head.position.y = 1.68;
+      if (this.isJumping) {
+        // Sprung-Pose
+        this.legL.rotation.x = -0.6; this.legR.rotation.x = 0.3;
+        this.armL.rotation.x = -1.8; this.armR.rotation.x = -1.8;
+      } else {
+        // Lauf-Zyklus (Sinus)
+        const swing = Math.sin(t * 14) * 0.9;
+        this.legL.rotation.x = swing; this.legR.rotation.x = -swing;
+        this.armL.rotation.x = -swing; this.armR.rotation.x = swing;
+      }
+    }
+  }
+  // Bounding-Box in Weltkoordinaten für Kollisionen
+  getBounds() {
+    const x = this.group.position.x;
+    const half = 0.35;
+    const bottom = this.y + (this.isSliding ? 0 : 0);
+    const top = this.y + (this.isSliding ? 0.7 : 1.9);
+    return { xMin: x - half, xMax: x + half, yMin: bottom, yMax: top, lane: this.lane };
+  }
+}
+
+/* ================================================================
+   Pursuer — Verfolger (Wächter + Hund) hinter dem Spieler.
+   Rückt bei Beinahe-Unfällen / Fehlern näher. Nur kosmetisch,
+   aber bei Vollaufholung Game Over-Trigger möglich.
+   ================================================================ */
+class Pursuer {
+  constructor(scene) {
+    this.scene = scene;
+    this.group = new THREE.Group();
+    this.distance = 14;    // Abstand hinter dem Spieler (größer = weiter weg)
+    this.maxDistance = 16;
+    // Wächter
+    const g = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2b3a67, roughness: 0.7 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.7 });
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.95, 0.45), bodyMat);
+    torso.position.y = 1.05;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), skinMat);
+    head.position.y = 1.75;
+    this.gLegL = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.8, 0.3), new THREE.MeshStandardMaterial({ color: 0x22283d }));
+    this.gLegR = this.gLegL.clone();
+    this.gLegL.position.set(-0.2, 0.4, 0); this.gLegR.position.set(0.2, 0.4, 0);
+    g.add(torso, head, this.gLegL, this.gLegR);
+    g.position.set(0.6, 0, 0);
+    // Hund
+    const dog = new THREE.Group();
+    const dogMat = new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.8 });
+    const dBody = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 0.35), dogMat);
+    dBody.position.y = 0.45;
+    const dHead = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), dogMat);
+    dHead.position.set(0.55, 0.55, 0);
+    dog.add(dBody, dHead);
+    dog.position.set(-0.7, 0, 0);
+    this.dog = dog; this.guard = g; this.time = 0;
+    this.group.add(g, dog);
+    scene.add(this.group);
+  }
+  reset() { this.distance = 14; }
+  penalize(amount) { this.distance = Math.max(4, this.distance - amount); }   // rückt näher
+  relax(dt) { this.distance = Math.min(this.maxDistance, this.distance + dt * 0.6); } // fällt langsam zurück
+  update(dt, playerZ) {
+    this.time += dt;
+    this.group.position.z = playerZ + this.distance; // hinter dem Spieler (positives z = hinten)
+    // Lauf-Animation
+    const s = Math.sin(this.time * 16) * 0.8;
+    this.gLegL.rotation.x = s; this.gLegR.rotation.x = -s;
+    this.guard.position.y = Math.abs(Math.sin(this.time * 16)) * 0.08;
+    this.dog.position.y = Math.abs(Math.sin(this.time * 20)) * 0.12;
+  }
+  isCaught() { return this.distance <= 4.2; }
+}
+
+/* ================================================================
+   TrackManager — prozedurale Welt mit Object Pooling.
+   Jedes Segment enthält Boden, Schienen und seitliche Wände/Tunnel.
+   Segmente werden vor dem Spieler positioniert & hinter ihm recycelt.
+   ================================================================ */
+class TrackManager {
+  constructor(scene) {
+    this.scene = scene;
+    this.segments = [];
+    const L = CONFIG.SEGMENT_LENGTH;
+    for (let i = 0; i < CONFIG.SEGMENT_COUNT; i++) {
+      const seg = this._buildSegment(L);
+      // Segmente liegen in Richtung -z (Spieler läuft nach -z)
+      seg.position.z = -i * L;
+      scene.add(seg);
+      this.segments.push(seg);
+    }
+    this.recycleThreshold = CONFIG.RECYCLE_BEHIND;
+  }
+  _buildSegment(L) {
+    const g = new THREE.Group();
+    // Boden
+    const ground = new THREE.Mesh(
+      new THREE.BoxGeometry(CONFIG.LANE_WIDTH * 3 + 2, 0.4, L),
+      new THREE.MeshStandardMaterial({ color: 0x3a3f52, roughness: 0.95 })
+    );
+    ground.position.y = -0.2; ground.receiveShadow = true;
+    g.add(ground);
+    // Schienen (3 Lanes)
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x8892a6, metalness: 0.7, roughness: 0.4 });
+    CONFIG.LANES.forEach(x => {
+      [-0.35, 0.35].forEach(off => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, L), railMat);
+        rail.position.set(x + off, 0.02, 0); g.add(rail);
+      });
+    });
+    // Schwellen (Querbalken) — periodisch
+    const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 1 });
+    for (let z = -L / 2; z < L / 2; z += 2.2) {
+      const sl = new THREE.Mesh(new THREE.BoxGeometry(CONFIG.LANE_WIDTH * 3 + 0.6, 0.08, 0.4), sleeperMat);
+      sl.position.set(0, 0.0, z); g.add(sl);
+    }
+    // Seitenwände (Tunnel-Look)
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x272b3d, roughness: 0.9 });
+    [-1, 1].forEach(side => {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.6, 6, L), wallMat);
+      wall.position.set(side * (CONFIG.LANE_WIDTH * 1.5 + 1.2), 2.6, 0);
+      g.add(wall);
+      // Lampen an der Wand
+      for (let z = -L / 2; z < L / 2; z += 10) {
+        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 0.4),
+          new THREE.MeshStandardMaterial({ color: 0xfff2b0, emissive: 0xffd060, emissiveIntensity: 1 }));
+        lamp.position.set(side * (CONFIG.LANE_WIDTH * 1.5 + 0.95), 4.5, z);
+        g.add(lamp);
+      }
+    });
+    return g;
+  }
+  reset() {
+    const L = CONFIG.SEGMENT_LENGTH;
+    this.segments.forEach((seg, i) => { seg.position.z = -i * L; });
+  }
+  // recycelt Segmente, die hinter den Spieler geraten sind, nach ganz vorne
+  update(playerZ) {
+    const L = CONFIG.SEGMENT_LENGTH;
+    for (const seg of this.segments) {
+      if (seg.position.z - L / 2 > playerZ + this.recycleThreshold) {
+        // finde das am weitesten vorne liegende Segment
+        let minZ = Infinity;
+        for (const s of this.segments) minZ = Math.min(minZ, s.position.z);
+        seg.position.z = minZ - L;
+      }
+    }
+  }
+}
+
+/* ================================================================
+   ObstacleManager — Hindernisse mit Object Pooling.
+   Typen: 'train' (hoch, blockiert Lane), 'lowbar' (drunter rutschen),
+          'barrier' (drüber springen), 'ramp' (Sprunghilfe/kosmetisch).
+   Spawnt in Wellen vor dem Spieler; recycelt hinter ihm.
+   ================================================================ */
+class ObstacleManager {
+  constructor(scene, particles) {
+    this.scene = scene;
+    this.particles = particles;
+    this.pool = [];         // freie Meshes je Typ
+    this.active = [];       // aktive Hindernisse { mesh, type, lane, z, box }
+    this.spawnZ = 0;        // nächste Spawn-Position (nach -z)
+    this._geo = {};
+    this._prebuild();
+  }
+  _prebuild() {
+    // Geometrien einmal erstellen und wiederverwenden
+    this._geo.train   = new THREE.BoxGeometry(1.8, 2.6, 8);
+    this._geo.lowbar  = new THREE.BoxGeometry(1.9, 0.35, 0.5);
+    this._geo.barrier = new THREE.BoxGeometry(1.9, 1.0, 0.5);
+    this._geo.ramp    = new THREE.BoxGeometry(1.9, 1.2, 3);
+    this._geo.post    = new THREE.BoxGeometry(0.15, 1.6, 0.15); // Pfosten für Balken
+  }
+  _makeMesh(type) {
+    let mesh;
+    if (type === 'train') {
+      mesh = new THREE.Group();
+      const car = new THREE.Mesh(this._geo.train, new THREE.MeshStandardMaterial({ color: 0xd94f4f, roughness: 0.5, metalness: 0.2 }));
+      car.position.y = 1.3; car.castShadow = true;
+      // Fenster
+      const winMat = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, emissive: 0x224466, metalness: 0.3 });
+      for (let z = -3; z <= 3; z += 2) {
+        const w = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.7, 0.1), winMat);
+        w.position.set(0, 1.7, z); mesh.add(w);
+      }
+      mesh.add(car);
+    } else if (type === 'lowbar') {
+      mesh = new THREE.Group();
+      const bar = new THREE.Mesh(this._geo.lowbar, new THREE.MeshStandardMaterial({ color: 0xffb020, roughness: 0.6 }));
+      bar.position.y = 1.7; bar.castShadow = true;
+      const p1 = new THREE.Mesh(this._geo.post, new THREE.MeshStandardMaterial({ color: 0x555 }));
+      const p2 = p1.clone(); p1.position.set(-0.9, 1.0, 0); p2.position.set(0.9, 1.0, 0);
+      mesh.add(bar, p1, p2);
+    } else if (type === 'barrier') {
+      mesh = new THREE.Mesh(this._geo.barrier, new THREE.MeshStandardMaterial({ color: 0xff5252, roughness: 0.6 }));
+      mesh.position.y = 0.5; mesh.castShadow = true;
+      const g = new THREE.Group(); g.add(mesh); mesh = g;
+    } else { // ramp
+      mesh = new THREE.Mesh(this._geo.ramp, new THREE.MeshStandardMaterial({ color: 0x6b7cff, roughness: 0.6 }));
+      mesh.position.y = 0.6; mesh.rotation.x = 0; mesh.castShadow = true;
+      const g = new THREE.Group(); g.add(mesh); mesh = g;
+    }
+    this.scene.add(mesh);
+    return mesh;
+  }
+  _get(type) {
+    const key = 't_' + type;
+    this.pool[key] = this.pool[key] || [];
+    let mesh = this.pool[key].pop();
+    if (!mesh) mesh = this._makeMesh(type);
+    mesh.visible = true;
+    return mesh;
+  }
+  _free(item) {
+    item.mesh.visible = false;
+    const key = 't_' + item.type;
+    this.pool[key].push(item.mesh);
+  }
+  reset() {
+    while (this.active.length) this._free(this.active.pop());
+    this.spawnZ = -50;
+  }
+  // Difficulty steuert Dichte; gibt zurück, wo weitergespawnt werden soll
+  update(dt, playerZ, difficulty, coinManager) {
+    // vor dem Spieler nachspawnen
+    while (this.spawnZ > playerZ - CONFIG.SPAWN_AHEAD) {
+      this._spawnWave(difficulty, coinManager);
+    }
+    // hinter dem Spieler recyceln
+    for (let i = this.active.length - 1; i >= 0; i--) {
+      const it = this.active[i];
+      if (it.z > playerZ + CONFIG.RECYCLE_BEHIND) {
+        this._free(it); this.active.splice(i, 1);
+      }
+    }
+  }
+  _spawnWave(difficulty, coinManager) {
+    // Abstand zwischen Wellen sinkt mit Difficulty -> höhere Dichte
+    const gap = Math.max(9, 20 - difficulty * 1.3);
+    this.spawnZ -= gap;
+    const z = this.spawnZ;
+
+    // Anzahl blockierter Lanes steigt mit Difficulty (nie alle 3 gleichzeitig)
+    const maxBlocked = difficulty < 3 ? 1 : (difficulty < 7 ? 2 : 2);
+    const numBlocked = 1 + Math.floor(Math.random() * maxBlocked);
+    const lanes = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, numBlocked);
+
+    const types = ['train', 'lowbar', 'barrier', 'ramp'];
+    lanes.forEach(lane => {
+      // Zug seltener bei niedriger Difficulty
+      let type = types[Math.floor(Math.random() * types.length)];
+      if (type === 'train' && Math.random() > 0.4 + difficulty * 0.04) type = 'barrier';
+      this._spawn(type, lane, z);
+    });
+
+    // freie Lane(s) mit Münzbogen belohnen
+    const freeLanes = [0, 1, 2].filter(l => !lanes.includes(l));
+    if (freeLanes.length && Math.random() > 0.3) {
+      const fl = freeLanes[Math.floor(Math.random() * freeLanes.length)];
+      coinManager.spawnLine(fl, z, 5 + Math.floor(Math.random() * 4), Math.random() > 0.6);
+    }
+  }
+  _spawn(type, lane, z) {
+    const mesh = this._get(type);
+    const x = CONFIG.LANES[lane];
+    mesh.position.set(x, 0, z);
+    // Kollisions-Box je Typ (Höhenbereich entscheidend für jump/slide)
+    let box;
+    if (type === 'train')       box = { yMin: 0, yMax: 2.6, w: 0.9 };       // muss ausgewichen werden (Lane wechseln)
+    else if (type === 'lowbar') box = { yMin: 1.3, yMax: 2.1, w: 0.95 };    // drunter rutschen
+    else if (type === 'barrier')box = { yMin: 0, yMax: 1.0, w: 0.95 };      // drüber springen
+    else                        box = { yMin: 0, yMax: 1.2, w: 0.95 };      // ramp: drüber springen
+    this.active.push({ mesh, type, lane, z, box });
+  }
+  // Kollisionsprüfung gegen Spieler-Bounds; gibt getroffenes Item zurück oder null
+  checkCollision(playerBounds, playerZ) {
+    for (const it of this.active) {
+      // z-Overlap (Spieler ist bei ~playerZ, Hindernis-Tiefe je Typ)
+      const depth = it.type === 'train' ? 4 : 0.6;
+      if (Math.abs(it.z - playerZ) > depth) continue;
+      // gleiche Lane?
+      if (it.lane !== playerBounds.lane) continue;
+      // Höhen-Overlap? (springen/rutschen entkommt bestimmten Boxen)
+      const yOverlap = playerBounds.yMax > it.box.yMin && playerBounds.yMin < it.box.yMax;
+      if (yOverlap) return it;
+    }
+    return null;
+  }
+  // Beinahe-Unfall zählen (für Combo): Hindernis in Nachbarlane knapp verpasst
+  countNearMiss(playerBounds, playerZ) {
+    let near = 0;
+    for (const it of this.active) {
+      if (Math.abs(it.z - playerZ) > 1.2) continue;
+      if (Math.abs(it.lane - playerBounds.lane) === 1) near++;
+    }
+    return near;
+  }
+}
+
+/* ================================================================
+   CoinManager — Münzen in Linien/Bögen, mit Object Pooling.
+   Magnet-Powerup zieht nahe Münzen zum Spieler.
+   ================================================================ */
+class CoinManager {
+  constructor(scene, particles, audio) {
+    this.scene = scene; this.particles = particles; this.audio = audio;
+    this.pool = []; this.active = [];
+    this.geo = new THREE.CylinderGeometry(0.28, 0.28, 0.08, 16);
+    this.mat = new THREE.MeshStandardMaterial({ color: 0xffcf3a, metalness: 0.8, roughness: 0.2, emissive: 0x7a5200, emissiveIntensity: 0.4 });
+    this.t = 0;
+  }
+  _get() {
+    let m = this.pool.pop();
+    if (!m) { m = new THREE.Mesh(this.geo, this.mat); m.rotation.z = Math.PI / 2; this.scene.add(m); }
+    m.visible = true; m.scale.setScalar(1);
+    return m;
+  }
+  _free(c) { c.mesh.visible = false; this.pool.push(c.mesh); }
+  reset() { while (this.active.length) this._free(this.active.pop()); }
+  // spawnt eine Linie oder einen Bogen von Münzen entlang einer Lane
+  spawnLine(lane, startZ, count, arc) {
+    const x = CONFIG.LANES[lane];
+    for (let i = 0; i < count; i++) {
+      const m = this._get();
+      const z = startZ - i * 1.6;
+      const y = arc ? 0.7 + Math.sin((i / (count - 1)) * Math.PI) * 2.2 : 0.7;
+      m.position.set(x, y, z);
+      this.active.push({ mesh: m, collected: false });
+    }
+  }
+  update(dt, player, playerZ, magnetActive, onCollect) {
+    this.t += dt;
+    const pb = player.getBounds();
+    const px = player.group.position.x, py = player.y + 0.9;
+    for (let i = this.active.length - 1; i >= 0; i--) {
+      const c = this.active[i];
+      c.mesh.rotation.y += dt * 4; // drehen
+      // Magnet: zieht Münzen im Radius an
+      if (magnetActive) {
+        const d = c.mesh.position.distanceTo(new THREE.Vector3(px, py, playerZ));
+        if (d < 7) c.mesh.position.lerp(new THREE.Vector3(px, py, playerZ), Math.min(1, 8 * dt));
+      }
+      // recyceln hinter Spieler
+      if (c.mesh.position.z > playerZ + CONFIG.RECYCLE_BEHIND) { this._free(c); this.active.splice(i, 1); continue; }
+      // Einsammeln
+      const dx = Math.abs(c.mesh.position.x - px);
+      const dz = Math.abs(c.mesh.position.z - playerZ);
+      const dy = Math.abs(c.mesh.position.y - py);
+      if (dx < 0.7 && dz < 0.9 && dy < 1.3) {
+        this.particles.burst(c.mesh.position, 0xffcf3a, 8, 5);
+        this.audio.coin();
+        onCollect();
+        this._free(c); this.active.splice(i, 1);
+      }
+    }
+  }
+}
+
+/* ================================================================
+   PowerupManager — spawnt & verwaltet zeitlich begrenzte Power-ups.
+   Typen: jetpack, magnet, sneakers, multiplier.
+   ================================================================ */
+const POWERUP_META = {
+  jetpack:    { color: 0x4fd1ff, label: 'JETPACK' },
+  magnet:     { color: 0xff5bd0, label: 'MAGNET' },
+  sneakers:   { color: 0x2ec26e, label: 'SNEAKERS' },
+  multiplier: { color: 0xffd24a, label: 'x2 SCORE' },
+};
+class PowerupManager {
+  constructor(scene, particles, audio) {
+    this.scene = scene; this.particles = particles; this.audio = audio;
+    this.pool = []; this.active = [];      // im Level liegende Power-ups
+    this.timers = {};                       // aktive Effekte: type -> Restzeit
+    this.geo = new THREE.OctahedronGeometry(0.45);
+    this.nextSpawnZ = -80;
+  }
+  _get(color) {
+    let m = this.pool.pop();
+    if (!m) { m = new THREE.Mesh(this.geo, new THREE.MeshStandardMaterial({ metalness: 0.4, roughness: 0.2, emissiveIntensity: 0.6 })); this.scene.add(m); }
+    m.material.color.setHex(color); m.material.emissive.setHex(color);
+    m.visible = true; return m;
+  }
+  _free(p) { p.mesh.visible = false; this.pool.push(p.mesh); }
+  reset() {
+    while (this.active.length) this._free(this.active.pop());
+    this.timers = {}; this.nextSpawnZ = -80;
+  }
+  update(dt, player, playerZ) {
+    // Effekt-Timer herunterzählen
+    for (const k of Object.keys(this.timers)) {
+      this.timers[k] -= dt;
+      if (this.timers[k] <= 0) delete this.timers[k];
+    }
+    // gelegentlich neues Power-up spawnen (in zufälliger Lane, mittige Höhe)
+    while (this.nextSpawnZ > playerZ - CONFIG.SPAWN_AHEAD) {
+      this.nextSpawnZ -= 55 + Math.random() * 40;
+      const types = Object.keys(POWERUP_META);
+      const type = types[Math.floor(Math.random() * types.length)];
+      const lane = Math.floor(Math.random() * 3);
+      const mesh = this._get(POWERUP_META[type].color);
+      mesh.position.set(CONFIG.LANES[lane], 1.2, this.nextSpawnZ);
+      this.active.push({ mesh, type });
+    }
+    // Rotation + Einsammeln
+    const px = player.group.position.x, py = player.y + 0.9;
+    for (let i = this.active.length - 1; i >= 0; i--) {
+      const p = this.active[i];
+      p.mesh.rotation.y += dt * 2; p.mesh.rotation.x += dt * 1.4;
+      if (p.mesh.position.z > playerZ + CONFIG.RECYCLE_BEHIND) { this._free(p); this.active.splice(i, 1); continue; }
+      const dx = Math.abs(p.mesh.position.x - px);
+      const dz = Math.abs(p.mesh.position.z - playerZ);
+      const dy = Math.abs(p.mesh.position.y - py);
+      if (dx < 0.9 && dz < 1.1 && dy < 1.6) {
+        this.activate(p.type);
+        this.particles.burst(p.mesh.position, POWERUP_META[p.type].color, 16, 7);
+        this.audio.power();
+        this._free(p); this.active.splice(i, 1);
+      }
+    }
+  }
+  activate(type) { this.timers[type] = CONFIG.POWERUP_DURATION[type]; }
+  isActive(type) { return !!this.timers[type]; }
+}
+
+/* ================================================================
+   GameState — Score, Coins, Highscore (in-memory), Difficulty.
+   Highscore bewusst in-memory (kein localStorage -> Artifact-safe).
+   ================================================================ */
+class GameState {
+  constructor() {
+    this.highScore = 0;   // In-Memory-Highscore (überlebt Retry, nicht Reload)
+    this.reset();
+  }
+  reset() {
+    this.score = 0; this.coins = 0; this.distance = 0;
+    this.speed = CONFIG.START_SPEED;
+    this.combo = 0; this.comboTimer = 0;
+    this.multiplier = 1;
+    this.running = false; this.paused = false; this.over = false;
+  }
+  get difficulty() {
+    // 0..~12, steigt mit Distanz — steuert Speed & Hindernisdichte
+    return Math.min(12, this.distance / 120);
+  }
+  update(dt, multiplierActive) {
+    // Speed steigt kontinuierlich mit Zeit/Distanz (gedeckelt)
+    this.speed = Math.min(CONFIG.MAX_SPEED, this.speed + CONFIG.ACCEL * dt);
+    this.distance += this.speed * dt;
+    // Score aus Distanz + Multiplier
+    const m = (multiplierActive ? 2 : 1);
+    this.score += this.speed * dt * 0.6 * m;
+    // Combo-Fenster
+    if (this.comboTimer > 0) { this.comboTimer -= dt; if (this.comboTimer <= 0) this.combo = 0; }
+  }
+  addCoin(multiplierActive) {
+    this.coins += 1;
+    this.score += CONFIG.COIN_VALUE * 10 * (multiplierActive ? 2 : 1);
+  }
+  addCombo() { this.combo++; this.comboTimer = 1.5; this.score += this.combo * 5; }
+  finalize() { if (Math.floor(this.score) > this.highScore) { this.highScore = Math.floor(this.score); return true; } return false; }
+}
+
+/* ================================================================
+   Game — Setup, Loop, Input, UI-Verdrahtung
+   ================================================================ */
+class Game {
+  constructor() {
+    this.audio = new AudioManager();
+    this.state = new GameState();
+    this.selectedChar = 0;
+    this._initThree();
+    this._initSystems();
+    this._initUI();
+    this._initInput();
+    this.lastNearMissZ = 0;
+    this.clock = new THREE.Clock();
+    document.getElementById('loading').style.display = 'none';
+    this._loop = this._loop.bind(this);
+    requestAnimationFrame(this._loop);
+  }
+
+  /* ---- Three.js Grundgerüst ---- */
+  _initThree() {
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x0b0f1a);
+    this.scene.fog = new THREE.Fog(0x0b0f1a, 40, CONFIG.DRAW_DISTANCE);
+
+    this.camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 500);
+    this.camera.position.set(0, 5, 9);
+    this.camera.lookAt(0, 1.5, -8);
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+    this.renderer.setSize(innerWidth, innerHeight);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('game').appendChild(this.renderer.domElement);
+
+    // Licht
+    const amb = new THREE.AmbientLight(0x8090b0, 0.7);
+    this.scene.add(amb);
+    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+    dir.position.set(6, 16, 8); dir.castShadow = true;
+    dir.shadow.camera.left = -12; dir.shadow.camera.right = 12;
+    dir.shadow.camera.top = 12; dir.shadow.camera.bottom = -12;
+    dir.shadow.mapSize.set(1024, 1024);
+    this.dirLight = dir; this.scene.add(dir);
+
+    addEventListener('resize', () => {
+      this.camera.aspect = innerWidth / innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(innerWidth, innerHeight);
+    });
+  }
+
+  /* ---- Spiel-Systeme instanziieren ---- */
+  _initSystems() {
+    this.particles = new ParticleSystem(this.scene);
+    this.track = new TrackManager(this.scene);
+    this.obstacles = new ObstacleManager(this.scene, this.particles);
+    this.coins = new CoinManager(this.scene, this.particles, this.audio);
+    this.powerups = new PowerupManager(this.scene, this.particles, this.audio);
+    this.player = new Player(this.scene, this.selectedChar);
+    this.pursuer = new Pursuer(this.scene);
+    this.playerZ = 0; // logische Vorwärtsposition (nimmt ab; -z ist vorwärts)
+  }
+
+  /* ---- UI-Elemente / Buttons ---- */
+  _initUI() {
+    this.ui = {
+      hud: document.getElementById('hud'),
+      score: document.getElementById('scoreVal'),
+      coin: document.getElementById('coinVal'),
+      powerups: document.getElementById('powerups'),
+      combo: document.getElementById('combo'),
+      start: document.getElementById('startScreen'),
+      pause: document.getElementById('pauseScreen'),
+      over: document.getElementById('gameOverScreen'),
+      finalScore: document.getElementById('finalScore'),
+      finalCoins: document.getElementById('finalCoins'),
+      highScore: document.getElementById('highScore'),
+      newRecord: document.getElementById('newRecord'),
+    };
+    document.getElementById('playBtn').onclick = () => this.start();
+    document.getElementById('retryBtn').onclick = () => this.start();
+    document.getElementById('resumeBtn').onclick = () => this.togglePause();
+    document.getElementById('quitBtn').onclick = () => this.toMenu();
+    document.getElementById('pauseBtn').onclick = () => this.togglePause();
+    document.getElementById('muteBtn').onclick = (e) => {
+      const m = this.audio.toggleMute();
+      e.target.textContent = m ? '🔇' : '🔊';
+    };
+
+    // Charakterauswahl-Kacheln aufbauen
+    const row = document.getElementById('charRow');
+    CHARACTERS.forEach((c, i) => {
+      const d = document.createElement('div');
+      d.className = 'char' + (i === 0 ? ' sel' : '');
+      d.style.background = `linear-gradient(135deg, #${c.body.toString(16).padStart(6,'0')}, #${c.head.toString(16).padStart(6,'0')})`;
+      d.title = c.name;
+      d.onclick = () => {
+        this.selectedChar = i;
+        this.player.setCharacter(i);
+        [...row.children].forEach(ch => ch.classList.remove('sel'));
+        d.classList.add('sel');
+      };
+      row.appendChild(d);
+    });
+  }
+
+  /* ---- Eingabe: Tastatur + Touch-Swipe ---- */
+  _initInput() {
+    // Tastatur
+    addEventListener('keydown', (e) => {
+      if (!this.state.running || this.state.paused) {
+        if (e.code === 'KeyP') this.togglePause();
+        return;
+      }
+      switch (e.code) {
+        case 'ArrowLeft': case 'KeyA':  if (this.player.moveLeft()) this.audio.jump(); break;
+        case 'ArrowRight': case 'KeyD': if (this.player.moveRight()) this.audio.jump(); break;
+        case 'ArrowUp': case 'KeyW': case 'Space':
+          if (this.player.jump(this.powerups.isActive('sneakers'))) this.audio.jump(); e.preventDefault(); break;
+        case 'ArrowDown': case 'KeyS': if (this.player.slide()) this.audio.slide(); break;
+        case 'KeyP': this.togglePause(); break;
+      }
+    });
+
+    // Touch-Swipe (4 Richtungen)
+    let sx = 0, sy = 0, touching = false;
+    const el = this.renderer.domElement;
+    el.addEventListener('touchstart', (e) => { touching = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    el.addEventListener('touchend', (e) => {
+      if (!touching) return; touching = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      const adx = Math.abs(dx), ady = Math.abs(dy);
+      if (Math.max(adx, ady) < 24) return; // Tap ignorieren
+      if (!this.state.running || this.state.paused) return;
+      if (adx > ady) {
+        if (dx > 0) { if (this.player.moveRight()) this.audio.jump(); }
+        else { if (this.player.moveLeft()) this.audio.jump(); }
+      } else {
+        if (dy < 0) { if (this.player.jump(this.powerups.isActive('sneakers'))) this.audio.jump(); }
+        else { if (this.player.slide()) this.audio.slide(); }
+      }
+    }, { passive: true });
+  }
+
+  /* ---- Spielsteuerung: Start / Pause / Menü / GameOver ---- */
+  start() {
+    // vollständiger Reset aller Systeme
+    this.state.reset();
+    this.state.running = true;
+    this.playerZ = 0;
+    this.player.setCharacter(this.selectedChar);
+    this.player.reset();
+    this.track.reset();
+    this.obstacles.reset();
+    this.coins.reset();
+    this.powerups.reset();
+    this.pursuer.reset();
+    this.lastNearMissZ = 0;
+    this.ui.start.classList.remove('active');
+    this.ui.over.classList.remove('active');
+    this.ui.pause.classList.remove('active');
+    this.ui.hud.classList.add('active');
+    this.audio.startMusic();
+  }
+  togglePause() {
+    if (!this.state.running) return;
+    this.state.paused = !this.state.paused;
+    this.ui.pause.classList.toggle('active', this.state.paused);
+    if (this.state.paused) this.audio.stopMusic(); else if (!this.audio.muted) this.audio.startMusic();
+  }
+  toMenu() {
+    this.state.running = false; this.state.paused = false;
+    this.ui.pause.classList.remove('active');
+    this.ui.hud.classList.remove('active');
+    this.ui.start.classList.add('active');
+    this.audio.stopMusic();
+  }
+  gameOver() {
+    if (this.state.over) return;
+    this.state.over = true; this.state.running = false;
+    this.audio.crash();
+    this.audio.stopMusic();
+    this.particles.burst(this.player.group.position.clone().setY(1.2), 0xff5252, 24, 9);
+    const isRecord = this.state.finalize();
+    this.ui.finalScore.textContent = Math.floor(this.state.score);
+    this.ui.finalCoins.textContent = this.state.coins;
+    this.ui.highScore.textContent = this.state.highScore;
+    this.ui.newRecord.style.display = isRecord ? 'block' : 'none';
+    this.ui.hud.classList.remove('active');
+    this.ui.over.classList.add('active');
+  }
+
+  /* ---- HUD aktualisieren ---- */
+  _updateHUD() {
+    this.ui.score.textContent = Math.floor(this.state.score);
+    this.ui.coin.textContent = this.state.coins;
+    // Power-up-Chips rendern
+    const timers = this.powerups.timers;
+    let html = '';
+    for (const type of Object.keys(timers)) {
+      const meta = POWERUP_META[type];
+      const pct = Math.max(0, timers[type] / CONFIG.POWERUP_DURATION[type]) * 100;
+      const col = '#' + meta.color.toString(16).padStart(6, '0');
+      html += `<div class="pchip"><span class="dot" style="background:${col}"></span>${meta.label}
+               <span class="bar"><i style="width:${pct}%;background:${col}"></i></span></div>`;
+    }
+    this.ui.powerups.innerHTML = html;
+    // Combo-Anzeige
+    if (this.state.combo > 1) {
+      this.ui.combo.textContent = `COMBO x${this.state.combo}`;
+      this.ui.combo.classList.add('show');
+    } else this.ui.combo.classList.remove('show');
+  }
+
+  /* ---- Kamera folgt Spieler (leichtes Nachziehen) ---- */
+  _updateCamera(dt) {
+    const targetX = this.player.group.position.x * 0.5;
+    this.camera.position.x += (targetX - this.camera.position.x) * Math.min(1, 5 * dt);
+    // Schatten-Licht mit Spieler mitziehen
+    this.dirLight.position.z = this.playerZ + 8;
+    this.dirLight.target.position.set(0, 0, this.playerZ - 6);
+    this.dirLight.target.updateMatrixWorld();
+  }
+
+  /* ============================================================
+     HAUPT-LOOP — requestAnimationFrame mit Delta-Time (60 FPS-Ziel)
+     ============================================================ */
+  _loop() {
+    requestAnimationFrame(this._loop);
+    let dt = this.clock.getDelta();
+    dt = Math.min(dt, 0.05); // Delta clampen (verhindert Sprünge nach Tab-Wechsel)
+
+    // Partikel laufen immer (auch im Menü hübsch)
+    this.particles.update(dt);
+
+    if (this.state.running && !this.state.paused) {
+      const jetpack = this.powerups.isActive('jetpack');
+      const magnet = this.powerups.isActive('magnet');
+      const multiplier = this.powerups.isActive('multiplier');
+
+      // Fortschritt / Score / Speed
+      this.state.update(dt, multiplier);
+
+      // Spieler nach vorne bewegen (-z)
+      const dz = this.state.speed * dt;
+      this.playerZ -= dz;
+      this.player.group.position.z = this.playerZ;
+      this.player.update(dt, jetpack);
+
+      // Welt + Objekte
+      this.track.update(this.playerZ);
+      this.obstacles.update(dt, this.playerZ, this.state.difficulty, this.coins);
+      this.coins.update(dt, this.player, this.playerZ, magnet, () => {
+        this.state.addCoin(multiplier);
+      });
+      this.powerups.update(dt, this.player, this.playerZ);
+
+      // Verfolger
+      this.pursuer.relax(dt);
+      this.pursuer.update(dt, this.playerZ);
+
+      // Kollision (außer bei Jetpack: fliegt über alles)
+      const pb = this.player.getBounds();
+      if (!jetpack) {
+        const hit = this.obstacles.checkCollision(pb, this.playerZ);
+        if (hit) {
+          this.pursuer.penalize(6);         // Verfolger rückt bei Crash stark nach
+          this.gameOver();
+        }
+      }
+
+      // Combo: Beinahe-Ausweichmanöver zählen (einmal pro Segment)
+      if (this.playerZ < this.lastNearMissZ - 4) {
+        this.lastNearMissZ = this.playerZ;
+        const near = this.obstacles.countNearMiss(pb, this.playerZ);
+        if (near > 0) this.state.addCombo();
+      }
+
+      // Verfolger holt Spieler ein -> Game Over
+      if (this.pursuer.isCaught()) this.gameOver();
+
+      this._updateCamera(dt);
+      this._updateHUD();
+    } else {
+      // Im Menü: Kamera langsam schwenken für lebendigen Hintergrund
+      this.pursuer.update(dt, this.playerZ);
+    }
+
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+/* ---- Start, sobald Three.js geladen ist ---- */
+window.addEventListener('load', () => {
+  if (typeof THREE === 'undefined') {
+    document.getElementById('loading').textContent = 'Fehler: Three.js konnte nicht geladen werden (CDN?).';
+    return;
+  }
+  window.game = new Game();
+});
+</script>
+</body>
+</html>
