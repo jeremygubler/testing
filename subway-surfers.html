@@ -439,8 +439,11 @@ class Player {
       this.jetpack.visible = true;
     } else {
       this.jetpack.visible = false;
-      // Sprung-Physik
-      if (this.isJumping) {
+      // Vertikale Physik: sobald der Spieler in der Luft ist — durch Sprung ODER
+      // weil der Jetpack ihn oben abgesetzt hat — zieht die Schwerkraft ihn herunter.
+      // (Vorher galt das nur bei isJumping, daher blieb man nach Jetpack-Ende hängen.)
+      if (this.isJumping || this.y > 0) {
+        this.isJumping = true; // Fall-/Sprungzustand aktiv (auch für die Landung nach Jetpack)
         this.vy -= CONFIG.GRAVITY * dt;
         this.y += this.vy * dt;
         if (this.y <= 0) { this.y = 0; this.vy = 0; this.isJumping = false; }
