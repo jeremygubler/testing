@@ -1155,6 +1155,11 @@ class Game {
   _updateCamera(dt) {
     const targetX = this.player.group.position.x * 0.5;
     this.camera.position.x += (targetX - this.camera.position.x) * Math.min(1, 5 * dt);
+    // Kamera folgt dem Spieler nach vorne (-z): fester Abstand hinter/über ihm.
+    // Ohne das bleibt die Kamera bei z=9 stehen und der Läufer verschwindet Richtung Horizont.
+    this.camera.position.z = this.playerZ + 9;
+    // Blickpunkt vor dem Spieler mitführen (leichtes Anheben für Tunnel-Sicht)
+    this.camera.lookAt(this.camera.position.x, 1.5, this.playerZ - 8);
     // Schatten-Licht mit Spieler mitziehen
     this.dirLight.position.z = this.playerZ + 8;
     this.dirLight.target.position.set(0, 0, this.playerZ - 6);
