@@ -27,6 +27,23 @@ Beim ersten Mal muss Playwright noch den Browser holen:
 npx playwright install chromium
 ```
 
+## Ohne Installation spielen
+
+`release/dino-dash.html` enthält das komplette Spiel in einer einzigen Datei —
+herunterladen, doppelklicken, fertig. Kein Node.js, kein Server, keine
+Internetverbindung nötig; auch der Highscore wird ganz normal gespeichert.
+
+Neu erzeugen lässt sie sich mit:
+
+```bash
+npm run build:single
+```
+
+Der normale `dist/`-Build funktioniert per Doppelklick übrigens **nicht**:
+Browser verweigern das Laden externer ES-Module über `file://`. Deshalb bettet
+`scripts/build-singlefile.mjs` das JavaScript direkt in die HTML-Datei ein —
+ein Inline-Modul muss nichts nachladen.
+
 ## Steuerung
 
 | Aktion | Tastatur | Touch |
