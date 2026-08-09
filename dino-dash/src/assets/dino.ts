@@ -72,9 +72,12 @@ export function drawDino(
 
   const bob = pose.airborne ? 0.03 : Math.sin(pose.runPhase * 2) * 0.026;
 
-  drawTail(ctx, pose, colors);
+  // Draw order doubles as depth ordering. The tail points back towards the
+  // camera, so it is drawn over the body and legs — that overlap is the
+  // clearest signal that we are looking at the dino's back.
   drawLegs(ctx, pose, colors);
   drawBody(ctx, bob, colors);
+  drawTail(ctx, pose, colors);
   drawArms(ctx, pose, bob, colors);
   drawHead(ctx, pose, bob, turnDir, colors);
 
@@ -103,36 +106,41 @@ function outline(ctx: CanvasRenderingContext2D, colors: ResolvedSkin): void {
   ctx.stroke();
 }
 
+/**
+ * The tail extends backwards from the hips, which from this camera means it
+ * comes towards the viewer: it hangs down past the body, overlapping it and
+ * the legs, and sways with the run.
+ */
 function drawTail(ctx: CanvasRenderingContext2D, pose: DinoPose, colors: ResolvedSkin): void {
-  // The tail rests to one side so it never collapses into the silhouette.
-  const wag = Math.sin(pose.runPhase) * 0.13;
-  const lift = pose.airborne ? 0.14 : 0;
+  const wag = Math.sin(pose.runPhase) * 0.16;
+  const lift = pose.airborne ? 0.2 : 0;
 
-  // Curls out to the left and up, like a happy raised tail.
+  // Pointing almost straight at the camera, the tail is heavily foreshortened:
+  // short and narrow rather than a long sweep across the body.
   const baseX = 0;
-  const baseY = -(BODY_Y - 0.02);
-  const ctrlX = -0.42;
-  const ctrlY = -(BODY_Y - 0.06 + wag);
-  const tipX = -0.6 + wag * 0.4;
-  const tipY = -(BODY_Y + 0.24 + wag * 1.2 + lift);
+  const baseY = -(BODY_Y - 0.14);
+  const ctrlX = -0.1 + wag * 0.8;
+  const ctrlY = -(BODY_Y - 0.3);
+  const tipX = -0.26 + wag * 0.9;
+  const tipY = -(0.08 + lift);
 
-  const segments = 10;
-  for (let i = segments; i >= 0; i--) {
+  const segments = 9;
+  for (let i = 0; i <= segments; i++) {
     const t = i / segments;
     const mt = 1 - t;
     const px = mt * mt * baseX + 2 * mt * t * ctrlX + t * t * tipX;
     const py = mt * mt * baseY + 2 * mt * t * ctrlY + t * t * tipY;
-    fillCircle(ctx, px, py, lerp(0.21, 0.075, t), t > 0.45 ? colors.bodyDark : colors.body);
+    // The tip is nearest the camera, so it catches the most light.
+    fillCircle(ctx, px, py, lerp(0.15, 0.05, t), t > 0.78 ? colors.bodyLight : colors.body);
 
-    // A few plates riding along the tail.
-    if (i === 4 || i === 6 || i === 8) {
-      const size = lerp(0.1, 0.055, t);
+    if (i === 3 || i === 6) {
+      const size = lerp(0.075, 0.05, t);
       fillPolygon(
         ctx,
         [
-          [px - size, py + size * 0.4],
-          [px - size * 0.3, py - size * 1.3],
-          [px + size * 0.6, py],
+          [px - size, py + size * 0.5],
+          [px, py - size * 1.2],
+          [px + size, py + size * 0.5],
         ],
         colors.spike,
       );
@@ -146,17 +154,24 @@ function drawLegs(ctx: CanvasRenderingContext2D, pose: DinoPose, colors: Resolve
     let footX: number;
     let footY: number;
 
+    // How far the foot is off the ground, 0..1. Running away from the camera
+    // is mostly vertical motion, so the sideways swing stays small.
+    let lift: number;
+
     if (pose.airborne) {
-      // Legs tuck up and slightly apart mid-jump.
-      footX = side * 0.26;
+      // Legs tuck up mid-jump and both soles face the camera.
+      footX = side * 0.24;
       footY = -0.3;
+      lift = 1;
     } else if (pose.duck > 0.5) {
       // Sliding: legs stretch out behind.
       footX = side * 0.34;
       footY = -0.04;
+      lift = 0;
     } else {
-      footX = side * 0.17 + Math.sin(phase) * 0.19;
-      footY = -Math.max(0, Math.sin(phase)) * 0.22;
+      lift = Math.max(0, Math.sin(phase));
+      footX = side * 0.17 + Math.sin(phase) * 0.06;
+      footY = -lift * 0.3;
     }
 
     const hipX = side * 0.16;
@@ -170,9 +185,16 @@ function drawLegs(ctx: CanvasRenderingContext2D, pose: DinoPose, colors: Resolve
     ctx.quadraticCurveTo(hipX + (footX - hipX) * 0.35, hipY + 0.18, footX, footY);
     ctx.stroke();
 
-    // Three-toed foot.
-    fillEllipse(ctx, footX + side * 0.05, footY, 0.15, 0.075, colors.bodyDark);
-    fillEllipse(ctx, footX + side * 0.12, footY - 0.01, 0.055, 0.045, colors.bodyLight);
+    fillEllipse(ctx, footX, footY, 0.145, 0.08, colors.bodyDark);
+
+    // A lifted foot turns its sole towards the camera — the clearest sign the
+    // dino is running away rather than towards us.
+    if (lift > 0.22) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, (lift - 0.22) * 2.6);
+      fillEllipse(ctx, footX, footY - 0.008, 0.1, 0.055, colors.belly);
+      ctx.restore();
+    }
   }
 }
 
@@ -193,8 +215,36 @@ function drawBody(ctx: CanvasRenderingContext2D, bob: number, colors: ResolvedSk
   fillEllipse(ctx, BODY_RX * 0.42, cy - 0.07, BODY_RX * 0.36, BODY_RY * 0.6, colors.bodyLight);
   ctx.restore();
 
-  // Rump patch in the belly colour.
-  fillEllipse(ctx, 0, cy + BODY_RY * 0.55, 0.19, 0.11, colors.belly);
+  drawBackPlates(ctx, cy, colors);
+}
+
+/**
+ * A ridge of plates running down the spine. Seen from behind this sits in the
+ * middle of the body, and it is the main cue that we are looking at the dino's
+ * back rather than its belly.
+ */
+function drawBackPlates(
+  ctx: CanvasRenderingContext2D,
+  bodyCy: number,
+  colors: ResolvedSkin,
+): void {
+  const count = 4;
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1);
+    // Runs from the hips up the back, stopping short of the neck so the plates
+    // are not hidden behind it.
+    const y = bodyCy + BODY_RY * 0.55 - t * BODY_RY * 1.05;
+    const size = lerp(0.135, 0.085, t);
+    fillPolygon(
+      ctx,
+      [
+        [-size, y + size * 0.55],
+        [0, y - size * 0.9],
+        [size, y + size * 0.55],
+      ],
+      colors.spike,
+    );
+  }
 }
 
 function drawArms(
@@ -205,20 +255,22 @@ function drawArms(
 ): void {
   for (const side of [-1, 1]) {
     const phase = pose.runPhase + (side > 0 ? 0 : Math.PI);
-    const swing = pose.airborne ? -0.14 : Math.sin(phase) * 0.08;
-    const shoulderX = side * 0.28;
-    const shoulderY = -BODY_Y - 0.08 - bob;
-    const handX = side * 0.46;
-    const handY = shoulderY + 0.13 + swing;
+    // Tiny arms, kept tucked so they only peek past the flanks. Reaching
+    // forward would read as facing the camera.
+    const swing = pose.airborne ? -0.1 : Math.sin(phase) * 0.06;
+    const shoulderX = side * 0.24;
+    const shoulderY = -BODY_Y - 0.06 - bob;
+    const handX = side * 0.38;
+    const handY = shoulderY + 0.14 + swing;
 
     ctx.strokeStyle = side < 0 ? colors.bodyDark : colors.body;
-    ctx.lineWidth = 0.1;
+    ctx.lineWidth = 0.095;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(shoulderX, shoulderY);
     ctx.lineTo(handX, handY);
     ctx.stroke();
-    fillCircle(ctx, handX, handY, 0.07, colors.bodyLight);
+    fillCircle(ctx, handX, handY, 0.06, colors.bodyDark);
   }
 }
 
