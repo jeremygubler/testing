@@ -18,6 +18,13 @@ npm install
 npm run dev      # Entwicklungsserver auf http://localhost:5173
 npm run build    # Typecheck + Produktions-Build nach dist/
 npm run preview  # gebautes Spiel lokal ansehen
+npm test         # Browser-Tests (Playwright)
+```
+
+Beim ersten Mal muss Playwright noch den Browser holen:
+
+```bash
+npx playwright install chromium
 ```
 
 ## Steuerung
@@ -74,6 +81,45 @@ endet unterhalb der Sprunghöhe.
   Sammeln, Power-Up, Treffer, Game Over). Stummschalten über das Lautsprecher-
   Symbol im Hauptmenü.
 
+## Tests
+
+49 Browser-Tests mit Playwright, die das echte Spiel in Chromium steuern:
+
+```bash
+npm test              # alle Tests headless
+npm run test:headed   # mit sichtbarem Browser zuschauen
+npm run test:ui       # interaktiver Playwright-UI-Modus
+```
+
+| Datei | Deckt ab |
+| --- | --- |
+| `tests/smoke.spec.ts` | Laden ohne Konsolenfehler, Canvas-Auflösung und Skalierung, Lauf startet und schreitet fort |
+| `tests/controls.spec.ts` | Spurwechsel und Begrenzung, Sprung, Ducken, Mid-Air-Slam, Swipe-Gesten, Pause |
+| `tests/collision.spec.ts` | Jedes Hindernis mit der richtigen *und* der falschen Reaktion, Game Over, Neustart |
+| `tests/collectibles.spec.ts` | Ei-Aufnahme, Magnet-Anziehung, alle vier Power-Ups, Doppelsprung, Schild-Rettung |
+| `tests/progression.spec.ts` | `localStorage`-Persistenz, Skin-Kauf, Menü-Navigation, Erfolge |
+
+### Wie die Tests deterministisch bleiben
+
+Das Spiel ist von Natur aus zufällig – ein Test, der auf ein zufällig gespawntes
+Hindernis wartet, wäre unbrauchbar. Deshalb greifen die Tests über einen
+Dev-Hook (`window.dinoDash`, nur unter `import.meta.env.DEV`, im Produktions-Build
+nachweislich entfernt – das prüft `smoke.spec.ts` gegen `dist/`) auf die laufende
+Szene zu: Sie leeren den Pfad, stoppen den Spawner und platzieren genau ein
+Hindernis in definierter Entfernung.
+
+Diese Entfernung wird in **Sekunden Vorlauf** angegeben, nicht in Metern – so
+bleibt ein Test bei geänderter Geschwindigkeit gültig.
+
+Zeitkritische Übergänge wie der 0,15 s kurze Spurwechsel werden **innerhalb der
+Seite** Bild für Bild abgetastet (`sampleAfterKey`), weil ein Round-Trip über den
+Testrunner sie überspringen kann.
+
+Die Suite wurde per Mutationstest gegengeprüft: Wird die Kollisionserkennung
+deaktiviert, fallen exakt die 7 „muss krachen"-Tests und keiner der
+„muss überleben"-Tests. Wird die Duckhöhe entfernt, fallen exakt die 2 Tests,
+die das Ducken abdecken.
+
 ## Architektur
 
 ### Warum kein Framework?
@@ -112,6 +158,8 @@ src/
 ├── scenes/       Menü, Spiel, Dino-Auswahl, Erfolge
 ├── game.ts       Spielschleife, Szenenverwaltung, Speicherstand
 └── main.ts       Canvas-Setup und Skalierung
+
+tests/            Playwright-Browsertests plus gemeinsame Helfer
 ```
 
 Die Trennung folgt der Frage „wie oft ändert sich das?": `core/` und `render/`
