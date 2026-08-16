@@ -591,11 +591,18 @@ func _unit_inspect_lines(u: GameUnit) -> Array:
 		int(h.armor), int(h.magic_resist), int(h.mana_start), int(h.mana_max)], Color("#c9d1d9")))
 	out.append(_line("Ult: %s" % h.ability_name, Color("#9fd0ff")))
 	out.append(_line(h.ability_description, Color("#7f8bb0"), 11))
-	var trait_names: Array[String] = []
+	# Per-trait status: current count on the board, active tier, and its effect.
+	var counts := _board_trait_counts()
 	for t in h.perks:
 		var perk: PerkDef = GameDatabase.get_perk(t)
-		trait_names.append(perk.name if perk != null else t)
-	out.append(_line("Traits: " + ", ".join(trait_names), Color("#9fd0ff")))
+		if perk == null:
+			continue
+		var cnt := int(counts.get(t, 0))
+		var tier := perk.active_tier_count(cnt)
+		var txt := "%s %d" % [perk.name, cnt]
+		if tier > 0:
+			txt += " (%d): %s" % [tier, _format_trait_effect(perk.active_effect(cnt))]
+		out.append(_line(txt, Color("#5ad469") if tier > 0 else Color("#7f8bb0"), 11))
 	var item_names: Array[String] = []
 	for item_id in u.items:
 		var it: ItemDef = GameDatabase.get_item(item_id)
@@ -775,26 +782,58 @@ func _refresh_ui() -> void:
 		_fight_button.disabled = not _in_shop()
 
 
-func _active_traits_text() -> String:
-	# Count distinct heroes per trait on the board.
+# trait_id -> number of DISTINCT heroes on the board owning that trait.
+func _board_trait_counts() -> Dictionary:
 	var distinct: Dictionary = {}
 	for u in game.board_units():
 		for t in u.hero.perks:
 			if not distinct.has(t):
 				distinct[t] = {}
 			distinct[t][u.hero.id] = true
+	var out: Dictionary = {}
+	for t in distinct.keys():
+		out[t] = distinct[t].size()
+	return out
+
+
+func _active_traits_text() -> String:
+	var counts := _board_trait_counts()
 	var parts: Array = []
-	var keys := distinct.keys()
+	var keys := counts.keys()
 	keys.sort()
 	for t in keys:
 		var perk: PerkDef = GameDatabase.get_perk(t)
 		if perk == null:
 			continue
-		var count: int = distinct[t].size()
+		var count: int = int(counts[t])
 		var tier := perk.active_tier_count(count)
 		var marker := "●" if tier > 0 else "○"
 		parts.append("%s %s %d" % [marker, perk.name, count])
 	return "  ".join(parts) if not parts.is_empty() else "(none)"
+
+
+const _TRAIT_KEY_LABELS := {
+	"armor_add": "Armor", "mr_add": "MR", "hp_pct": "HP", "ad_pct": "AD",
+	"attack_speed_pct": "AtkSpd", "ability_power_pct": "AP", "omnivamp_pct": "Omnivamp",
+	"crit_bonus_pct": "Crit", "dodge_pct": "Dodge", "regen_pct": "Regen/s",
+	"burn_dps": "Burn/s", "true_damage_pct": "TrueDmg", "double_strike_chance": "2xStrike",
+	"heal_pct": "Heal", "shield_pct": "Shield", "mana_on_hit_bonus": "Mana/hit",
+	"ramp_as_per_hit": "AS/hit", "summon_hp_pct": "SummonHP",
+}
+const _TRAIT_FLAT_KEYS := ["armor_add", "mr_add", "mana_on_hit_bonus"]
+
+
+func _format_trait_effect(effect: Dictionary) -> String:
+	var parts: Array[String] = []
+	for k in effect.keys():
+		var key := String(k)
+		var label: String = _TRAIT_KEY_LABELS.get(key, key)
+		var v := float(effect[k])
+		if key in _TRAIT_FLAT_KEYS:
+			parts.append("+%d %s" % [int(v), label])
+		else:
+			parts.append("+%d%% %s" % [int(round(v * 100.0)), label])
+	return ", ".join(parts)
 
 
 func _short(trait_id: String) -> String:
