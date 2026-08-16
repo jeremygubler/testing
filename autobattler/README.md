@@ -108,6 +108,11 @@ round**.
 - **Round rewards:** winning a round grants a small gold bonus plus scheduled
   item drops (`rewards` in `game_config.json`) — the in-game source of item
   components. Component choices are drawn from the deterministic RNG stream.
+- **PvE creep rounds (`creeps.json`):** on scheduled rounds (`rounds.creep_rounds`)
+  you fight neutral creeps (own IP — Aether Wisp, Cinder Hound, Stone Golem, Rift
+  Spawn, and a boss Void Maw from `boss_round_threshold`) instead of a PvP-style
+  board. Beating a creep round always drops an item component. Creeps are cost-0
+  and never appear in the shop.
 - **Augments (`augments.json`):** at set rounds you're offered 3 augments and
   pick 1 for a persistent bonus. *Economy* augments boost income / interest cap /
   gold / XP; *combat* augments apply a global stat bundle (HP, AD, AS, armor, MR,

@@ -61,6 +61,12 @@
     "player_damage_per_surviving_star": 2
   },
 
+  "rounds": {
+    "_comment": "creep_rounds are PvE rounds vs neutral creeps; winning one always drops an item component. boss_round_threshold: from this round on, creep rounds include a Void Maw.",
+    "creep_rounds": [1, 5, 9],
+    "boss_round_threshold": 9
+  },
+
   "rewards": {
     "_comment": "Granted after a WON round. round_drops keyed by round number; each drop is {type: gold|component|item, ...}. win_gold_bonus is extra gold for any win.",
     "win_gold_bonus": 1,

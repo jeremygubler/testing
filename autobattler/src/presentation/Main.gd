@@ -757,6 +757,8 @@ func _refresh_ui() -> void:
 	_lbl_status.text = "Round %d   HP %d   Gold %d   Lvl %d (%d/%d XP)   Board %d/%d   Interest +%d   Streak %d" % [
 		game.round_number, game.player_hp, e.gold, e.level, e.xp,
 		e.xp + e.xp_to_next(), game.board_count(), e.board_capacity(), e.interest(), e.streak]
+	if game.is_creep_round():
+		_lbl_status.text += "\n⚔ Creep round — beat the neutrals for guaranteed loot"
 	_lbl_traits.text = "Traits: " + _active_traits_text()
 	if not game.augments.is_empty():
 		_lbl_traits.text += "\nAugments: " + _augments_text()

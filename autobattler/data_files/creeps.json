@@ -1,0 +1,25 @@
+{
+  "_comment": "Neutral PvE 'creep' units fought on creep rounds (rounds.creep_rounds in game_config.json). Same shape as heroes but cost 0 and NOT in the shop pool. Winning a creep round always drops an item component.",
+
+  "creeps": [
+    {"id": "aether_wisp", "name": "Aether Wisp", "cost": 0, "origin": "neutral", "lore": "A drifting mote of raw aether.", "perks": [],
+     "stats": {"hp": 380, "attack_damage": 28, "attack_speed": 0.65, "attack_range": 3, "armor": 10, "magic_resist": 15, "mana_start": 0, "mana_max": 1000, "move_speed": 2.0, "attack_type": "magic"},
+     "ability": {"id": "none", "name": "-", "kind": "none", "power": 0, "radius": 0, "duration": 0, "description": ""}},
+
+    {"id": "cinder_hound", "name": "Cinder Hound", "cost": 0, "origin": "neutral", "lore": "A feral beast wreathed in embers.", "perks": [],
+     "stats": {"hp": 520, "attack_damage": 45, "attack_speed": 0.75, "attack_range": 1, "armor": 20, "magic_resist": 15, "mana_start": 0, "mana_max": 1000, "move_speed": 2.6, "attack_type": "physical"},
+     "ability": {"id": "none", "name": "-", "kind": "none", "power": 0, "radius": 0, "duration": 0, "description": ""}},
+
+    {"id": "stone_golem", "name": "Stone Golem", "cost": 0, "origin": "neutral", "lore": "A lumbering guardian of the bedrock.", "perks": [],
+     "stats": {"hp": 950, "attack_damage": 40, "attack_speed": 0.55, "attack_range": 1, "armor": 45, "magic_resist": 30, "mana_start": 0, "mana_max": 1000, "move_speed": 1.6, "attack_type": "physical"},
+     "ability": {"id": "none", "name": "-", "kind": "none", "power": 0, "radius": 0, "duration": 0, "description": ""}},
+
+    {"id": "rift_spawn", "name": "Rift Spawn", "cost": 0, "origin": "neutral", "lore": "A shard of the Rift given hungry form.", "perks": [],
+     "stats": {"hp": 340, "attack_damage": 55, "attack_speed": 0.85, "attack_range": 1, "armor": 15, "magic_resist": 15, "mana_start": 0, "mana_max": 1000, "move_speed": 2.8, "attack_type": "physical"},
+     "ability": {"id": "none", "name": "-", "kind": "none", "power": 0, "radius": 0, "duration": 0, "description": ""}},
+
+    {"id": "void_maw", "name": "Void Maw", "cost": 0, "origin": "neutral", "lore": "An elder horror that swallows the light.", "perks": [],
+     "stats": {"hp": 1600, "attack_damage": 72, "attack_speed": 0.6, "attack_range": 1, "armor": 35, "magic_resist": 35, "mana_start": 0, "mana_max": 1000, "move_speed": 1.8, "attack_type": "physical"},
+     "ability": {"id": "none", "name": "-", "kind": "none", "power": 0, "radius": 0, "duration": 0, "description": ""}}
+  ]
+}

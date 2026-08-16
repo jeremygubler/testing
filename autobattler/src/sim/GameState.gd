@@ -72,9 +72,22 @@ func begin_next_round() -> Dictionary:
 
 ## Player ends the shop phase and starts the auto-battle against a PvE opponent.
 ## Returns the combat result Dictionary.
+## True if the current round is a PvE creep round (neutral opponents + loot).
+func is_creep_round(r: int = -999) -> bool:
+	var check: int = round_number if r == -999 else r
+	var rc: Array = GameDatabase.cfg("rounds", {}).get("creep_rounds", [])
+	return rc.has(check)
+
+
+func _build_opponent() -> Array:
+	if is_creep_round(round_number):
+		return OpponentFactory.build_creeps(round_number, _rng)
+	return OpponentFactory.build(round_number, _rng)
+
+
 func start_combat() -> Dictionary:
 	_set_phase(Phase.COMBAT)
-	var opponent := OpponentFactory.build(round_number, _rng)
+	var opponent := _build_opponent()
 	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed(), player_combat_mods())
 	var result := engine.run_to_completion()
 	_resolve_combat(result, opponent)
@@ -86,7 +99,7 @@ func start_combat() -> Dictionary:
 ## the engine finishes.
 func begin_combat_engine() -> Dictionary:
 	_set_phase(Phase.COMBAT)
-	var opponent := OpponentFactory.build(round_number, _rng)
+	var opponent := _build_opponent()
 	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed(), player_combat_mods())
 	return {"engine": engine, "opponent": opponent}
 
@@ -126,7 +139,10 @@ func _grant_round_rewards() -> String:
 	var cfg: Dictionary = GameDatabase.cfg("rewards", {})
 	var parts: Array[String] = []
 	var gold := int(cfg.get("win_gold_bonus", 0))
-	var drops: Array = cfg.get("round_drops", {}).get(str(round_number), [])
+	var drops: Array = cfg.get("round_drops", {}).get(str(round_number), []).duplicate()
+	# Creep rounds always drop a component (PvE loot).
+	if is_creep_round(round_number):
+		drops.append({"type": "component"})
 	for drop in drops:
 		match drop.get("type", ""):
 			"gold":

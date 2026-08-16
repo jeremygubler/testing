@@ -32,6 +32,8 @@ func run() -> int:
 	_run("augment_economy", test_augment_economy)
 	_run("augment_combat_mods", test_augment_combat_mods)
 	_run("save_load_roundtrip", test_save_load_roundtrip)
+	_run("creep_round_opponent", test_creep_round_opponent)
+	_run("creep_round_reward", test_creep_round_reward)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -298,3 +300,27 @@ func test_save_load_roundtrip() -> void:
 	_eq(g2.roster.size(), 1, "roster restored")
 	_check(g2.item_inventory.has("belt"), "item inventory restored")
 	_check(g2.augments.has("prosperity"), "augment restored")
+
+
+func test_creep_round_opponent() -> void:
+	var g := GameState.new(5)
+	_check(g.is_creep_round(1), "round 1 is a creep round")
+	_check(not g.is_creep_round(2), "round 2 is not a creep round")
+	var rng := DeterministicRng.new(5)
+	var team := OpponentFactory.build_creeps(1, rng)
+	_check(not team.is_empty(), "creep round builds a non-empty enemy team")
+	var creep_ids := {}
+	for c in GameDatabase.all_creeps():
+		creep_ids[c.id] = true
+	for u in team:
+		_check(creep_ids.has(u.hero.id), "opponent unit is a neutral creep")
+
+
+func test_creep_round_reward() -> void:
+	# Round 5 is a creep round but has no scheduled round_drops -> the creep bonus
+	# is the only item source, so a win must drop exactly one component.
+	var g := GameState.new(5)
+	g.round_number = 5
+	var before := g.item_inventory.size()
+	g._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
+	_eq(g.item_inventory.size(), before + 1, "creep round win drops one component")

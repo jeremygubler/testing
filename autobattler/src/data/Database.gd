@@ -11,6 +11,7 @@ const PERKS_PATH := "res://data_files/perks.json"
 const SKINS_PATH := "res://data_files/skins.json"
 const ITEMS_PATH := "res://data_files/items.json"
 const AUGMENTS_PATH := "res://data_files/augments.json"
+const CREEPS_PATH := "res://data_files/creeps.json"
 const CONFIG_PATH := "res://data_files/game_config.json"
 
 var _heroes: Dictionary = {}       # id -> HeroDef
@@ -22,6 +23,7 @@ var _components: Array = []        # Array[ItemDef] (component items only)
 var _recipes: Dictionary = {}      # "compA+compB" -> completed ItemDef
 var _augments: Dictionary = {}     # id -> AugmentDef
 var augments_config: Dictionary = {}  # offer_rounds, choices_per_offer
+var _creeps: Dictionary = {}       # id -> HeroDef (neutral PvE units)
 var pool_copies: Dictionary = {}   # cost(int) -> copies available in shared pool
 var config: Dictionary = {}        # tunable game constants
 
@@ -39,11 +41,13 @@ func reload() -> void:
 	_components.clear()
 	_recipes.clear()
 	_augments.clear()
+	_creeps.clear()
 	_load_heroes()
 	_load_perks()
 	_load_skins()
 	_load_items()
 	_load_augments()
+	_load_creeps()
 	_load_config()
 
 
@@ -118,6 +122,15 @@ func _load_augments() -> void:
 		_augments[aug.id] = aug
 
 
+func _load_creeps() -> void:
+	var d = _read_json(CREEPS_PATH)
+	if d == null:
+		return
+	for cd in d.get("creeps", []):
+		var creep := HeroDef.from_dict(cd)
+		_creeps[creep.id] = creep
+
+
 func _load_config() -> void:
 	var d = _read_json(CONFIG_PATH)
 	config = d if typeof(d) == TYPE_DICTIONARY else {}
@@ -185,6 +198,14 @@ func get_augment(id: String) -> AugmentDef:
 
 func all_augments() -> Array:
 	return _augments.values()
+
+
+func get_creep(id: String) -> HeroDef:
+	return _creeps.get(id, null)
+
+
+func all_creeps() -> Array:
+	return _creeps.values()
 
 
 ## Config getter with default fallback (so missing config keys never crash).
