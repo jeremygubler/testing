@@ -28,6 +28,7 @@ func run() -> int:
 	_run("trait_activation", test_trait_activation)
 	_run("item_combine", test_item_combine)
 	_run("item_stats_in_combat", test_item_stats_in_combat)
+	_run("round_rewards", test_round_rewards)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -223,3 +224,20 @@ func test_item_stats_in_combat() -> void:
 	var cu_item := CombatUnit.from_game_unit(equipped, 0, Vector2i(0, 4), 1)
 	_approx(cu_item.max_hp - cu_base.max_hp, 450.0, "Titan Heart adds +450 max HP", 0.5)
 	_approx(cu_item.hp, cu_item.max_hp, "unit starts at full (item-boosted) HP", 0.5)
+
+
+func test_round_rewards() -> void:
+	# Round 1 win drops one component + the win gold bonus.
+	var g := GameState.new(3)
+	g.round_number = 1
+	var gold_before := g.economy.gold
+	var items_before := g.item_inventory.size()
+	g._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
+	_eq(g.item_inventory.size(), items_before + 1, "round-1 win drops one component")
+	_check(g.economy.gold >= gold_before + 1, "win grants at least the gold bonus")
+	# A loss drops nothing.
+	var g2 := GameState.new(3)
+	g2.round_number = 1
+	var inv2 := g2.item_inventory.size()
+	g2._resolve_combat({"winner": 1, "surviving_stars": [0, 1]}, [])
+	_eq(g2.item_inventory.size(), inv2, "a loss drops no items")

@@ -105,6 +105,9 @@ round**.
   armor, MR, mana, crit, omnivamp), up to 3 per unit. Click a tray item then a
   unit to equip; a second component that matches a recipe combines in place.
   Selling a unit returns its items to the inventory.
+- **Round rewards:** winning a round grants a small gold bonus plus scheduled
+  item drops (`rewards` in `game_config.json`) — the in-game source of item
+  components. Component choices are drawn from the deterministic RNG stream.
 
 ### Design decisions (locked with the team)
 

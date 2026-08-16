@@ -275,6 +275,9 @@ func _on_combat_resolved(result: Dictionary) -> void:
 	var winner: int = result.get("winner", -1)
 	if winner == 0:
 		_result_overlay = "VICTORY  (streak %d)" % game.economy.streak
+		var reward: String = result.get("rewards", "")
+		if reward != "":
+			_result_overlay += "   +  " + reward
 	elif winner == 1:
 		_result_overlay = "DEFEAT  −%d HP" % result.get("player_damage", 0)
 	else:

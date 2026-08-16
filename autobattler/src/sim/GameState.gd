@@ -103,11 +103,50 @@ func _resolve_combat(result: Dictionary, _opponent: Array) -> void:
 		result["player_damage"] = dmg
 	else:
 		result["player_damage"] = 0
+	if won:
+		result["rewards"] = _grant_round_rewards()
 	combat_resolved.emit(result)
 	if player_hp <= 0:
 		_set_phase(Phase.GAME_OVER)
 	else:
 		_set_phase(Phase.RESULT)
+
+
+## Grant this round's win rewards (gold + item components) from config. Returns a
+## short human-readable summary (e.g. "+1g, Aether Bow") or "" if nothing dropped.
+## Deterministic: component choices come from the game RNG stream.
+func _grant_round_rewards() -> String:
+	var cfg: Dictionary = GameDatabase.cfg("rewards", {})
+	var parts: Array[String] = []
+	var gold := int(cfg.get("win_gold_bonus", 0))
+	var drops: Array = cfg.get("round_drops", {}).get(str(round_number), [])
+	for drop in drops:
+		match drop.get("type", ""):
+			"gold":
+				gold += int(drop.get("amount", 0))
+			"component":
+				var comp := _random_component()
+				if comp != null:
+					item_inventory.append(comp.id)
+					parts.append(comp.name)
+			"item":
+				var item_id := String(drop.get("id", ""))
+				if GameDatabase.get_item(item_id) != null:
+					item_inventory.append(item_id)
+					parts.append(GameDatabase.get_item(item_id).name)
+	if gold > 0:
+		economy.add_gold(gold)
+		parts.insert(0, "+%dg" % gold)
+	if not item_inventory.is_empty():
+		items_changed.emit()
+	return ", ".join(parts)
+
+
+func _random_component() -> ItemDef:
+	var comps: Array = GameDatabase.all_components()
+	if comps.is_empty():
+		return null
+	return comps[_rng.randi_below(comps.size())]
 
 
 func _next_combat_seed() -> int:
