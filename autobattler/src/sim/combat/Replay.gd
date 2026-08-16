@@ -17,10 +17,21 @@ static func capture(team0: Array, team1: Array, seed: int, mods: Dictionary) -> 
 	return {
 		"version": 1,
 		"seed": seed,
+		"content": GameDatabase.content_hash,
 		"team0": _team_data(team0),
 		"team1": _team_data(team1),
 		"mods": mods.duplicate(true),
 	}
+
+
+## True if a record was captured against the balance data currently loaded.
+##
+## A fight is only reproducible under the content it was recorded with, so a
+## mismatch means "cannot judge this record here", NOT "the result was forged".
+## Records from before content hashing (no "content" key) are treated as unknown
+## and therefore not matching.
+static func content_matches(record: Dictionary) -> bool:
+	return String(record.get("content", "")) == GameDatabase.content_hash
 
 
 static func _team_data(team: Array) -> Array:
@@ -59,6 +70,24 @@ static func signature(result: Dictionary) -> String:
 		int(surv[0]), int(surv[1]), int(stars[0]), int(stars[1])]
 
 
-## Re-run a record and confirm it produces the claimed signature.
+## Re-run a record and confirm it produces the claimed signature. Returns false if
+## the record was recorded against different content — see verify_detailed() to
+## tell that case apart from an actual mismatch.
 static func verify(record: Dictionary, claimed_signature: String) -> bool:
-	return signature(run(record)) == claimed_signature
+	return verify_detailed(record, claimed_signature).get("ok", false)
+
+
+## Verification with a reason, so a caller (e.g. a ranked backend) can distinguish
+## "this result was forged" from "this record predates the current balance patch".
+## Returns {ok: bool, reason: String, signature: String}. `reason` is one of
+## "ok", "content_mismatch", "signature_mismatch"; `signature` is the recomputed
+## one ("" when the content did not match and no re-run was attempted).
+static func verify_detailed(record: Dictionary, claimed_signature: String) -> Dictionary:
+	if not content_matches(record):
+		return {"ok": false, "reason": "content_mismatch", "signature": ""}
+	var actual := signature(run(record))
+	return {
+		"ok": actual == claimed_signature,
+		"reason": "ok" if actual == claimed_signature else "signature_mismatch",
+		"signature": actual,
+	}

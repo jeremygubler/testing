@@ -37,6 +37,12 @@ func run() -> int:
 	_run("creep_round_reward", test_creep_round_reward)
 	_run("combat_replay", test_combat_replay)
 	_run("ability_params_loaded", test_ability_params_loaded)
+	_run("save_load_phase", test_save_load_phase)
+	_run("round_rewards_granted_once", test_round_rewards_granted_once)
+	_run("sell_refunds", test_sell_refunds)
+	_run("board_capacity", test_board_capacity)
+	_run("shop_fills_slots_when_tier_empty", test_shop_fills_slots_when_tier_empty)
+	_run("replay_content_hash", test_replay_content_hash)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -152,8 +158,17 @@ func test_pool_take_give() -> void:
 	_eq(p.copies_left(hero.id), before - 1, "take removes one copy")
 	p.give(hero.id, 1)
 	_eq(p.copies_left(hero.id), before, "give restores one copy")
+	# A 2-star sell returns 3 copies...
+	for i in 3:
+		p.take(hero.id)
 	p.give(hero.id, 2)
-	_eq(p.copies_left(hero.id), before + 3, "2-star sell returns 3 copies")
+	_eq(p.copies_left(hero.id), before, "2-star sell returns 3 copies")
+	# ...but the pool never grows past its configured stock. Units can reach a
+	# roster without being drawn from the pool (debug spawns), and returning those
+	# on sell used to inflate the shared pool permanently.
+	p.give(hero.id, 3)
+	_eq(p.copies_left(hero.id), before, "give never exceeds the pool's capacity")
+	_eq(p.capacity(hero.id), before, "capacity matches the starting stock")
 
 
 func test_combine_to_two_star() -> void:
@@ -355,6 +370,167 @@ func test_combat_replay() -> void:
 	_eq(Replay.signature(Replay.run(rec_json)), sig, "replay reproduces after JSON transport")
 	_check(Replay.verify(rec, sig), "verify accepts the true signature")
 	_check(not Replay.verify(rec, "9|9|9,9|9,9"), "verify rejects a tampered signature")
+
+
+func test_save_load_phase() -> void:
+	var g := GameState.new(21)
+	g.start_game()
+	# A run saved after a resolved round must come back in RESULT — not in the shop
+	# phase of that same round, which let the player re-fight it and collect its
+	# rewards again on every relaunch.
+	g._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
+	_eq(g.phase, GameState.Phase.RESULT, "a resolved round ends in RESULT")
+	var restored: Dictionary = JSON.parse_string(JSON.stringify(g.serialize()))
+	var g2 := GameState.new(999)
+	g2.load_from(restored)
+	_eq(g2.phase, GameState.Phase.RESULT, "phase survives the save round-trip")
+
+	# A finished run stays finished (it used to resume playable at 0 HP).
+	var g3 := GameState.new(22)
+	g3.start_game()
+	g3.player_hp = 1
+	g3._resolve_combat({"winner": 1, "surviving_stars": [0, 5]}, [])
+	_eq(g3.phase, GameState.Phase.GAME_OVER, "dropping to 0 HP ends the run")
+	var g4 := GameState.new(999)
+	g4.load_from(JSON.parse_string(JSON.stringify(g3.serialize())))
+	_eq(g4.phase, GameState.Phase.GAME_OVER, "a finished run reloads as finished")
+
+	# Mid-combat engine state is deliberately not serialized, so COMBAT degrades.
+	var mid := g.serialize()
+	mid["phase"] = GameState.Phase.COMBAT
+	var g5 := GameState.new(999)
+	g5.load_from(mid)
+	_eq(g5.phase, GameState.Phase.SHOP, "an unresumable combat save falls back to SHOP")
+
+	# v1 saves carry no phase key and keep the original shop-phase behaviour.
+	var v1 := g.serialize()
+	v1.erase("phase")
+	var g6 := GameState.new(999)
+	g6.load_from(v1)
+	_eq(g6.phase, GameState.Phase.SHOP, "a v1 save without a phase resumes in the shop")
+
+
+func test_round_rewards_granted_once() -> void:
+	# Round 3 drops a component. Re-resolving the same round — e.g. after force
+	# quitting during combat, which leaves the last save in the shop phase — must
+	# not pay out twice, otherwise gold and items are farmable by relaunching.
+	var g := GameState.new(31)
+	g.round_number = 3
+	var before := g.item_inventory.size()
+	g._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
+	_eq(g.item_inventory.size(), before + 1, "the first win drops the round-3 component")
+	var gold_after_first := g.economy.gold
+	g._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
+	_eq(g.item_inventory.size(), before + 1, "re-fighting the same round drops no item")
+	_eq(g.economy.gold, gold_after_first, "re-fighting the same round grants no gold")
+
+	# The guard is part of the save, so it survives the relaunch it protects against.
+	var g2 := GameState.new(999)
+	g2.load_from(JSON.parse_string(JSON.stringify(g.serialize())))
+	var carried := g2.item_inventory.size()
+	g2._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
+	_eq(g2.item_inventory.size(), carried, "the reward guard survives save/load")
+
+	# A later round still pays out normally.
+	g.round_number = 6
+	var before_six := g.item_inventory.size()
+	g._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
+	_eq(g.item_inventory.size(), before_six + 1, "the next round still drops its component")
+
+
+func test_sell_refunds() -> void:
+	var g := GameState.new(11)
+	var hero: HeroDef = GameDatabase.heroes_of_cost(1)[0]
+	_check(g.debug_add_unit(hero.id), "debug unit added")
+	var u: GameUnit = g.roster[0]
+	g.grant_item("blade")
+	_check(g.assign_item(u, "blade"), "item equipped")
+	var gold_before := g.economy.gold
+	_check(g.sell(u), "sell succeeds")
+	_eq(g.economy.gold, gold_before + hero.cost, "a 1-star sell refunds its cost")
+	_check(g.item_inventory.has("blade"), "a sold unit returns its items to the inventory")
+	_eq(g.roster.size(), 0, "a sold unit leaves the roster")
+	# debug_add_unit never took from the pool, so returning the copy must not push
+	# the pool above its configured stock.
+	_eq(g.pool.copies_left(hero.id), g.pool.capacity(hero.id),
+		"selling a pool-free unit does not inflate the pool")
+
+
+func test_board_capacity() -> void:
+	var g := GameState.new(12)
+	var hero: HeroDef = GameDatabase.heroes_of_cost(1)[0]
+	g.debug_add_unit(hero.id)
+	g.debug_add_unit(hero.id)
+	_eq(g.economy.board_capacity(), 1, "level 1 allows a single board unit")
+	_check(g.place_on_board(g.roster[0], Vector2i(0, 0)), "first placement fits the capacity")
+	_check(not g.place_on_board(g.roster[1], Vector2i(1, 0)),
+		"placement beyond the level's capacity is rejected")
+	_eq(g.board_count(), 1, "the board holds only the allowed unit")
+	# Moving an already-placed unit is not a new placement and stays allowed.
+	_check(g.place_on_board(g.roster[0], Vector2i(2, 2)), "moving a placed unit is allowed")
+	_eq(g.board_count(), 1, "moving does not change the board count")
+
+
+func test_shop_fills_slots_when_tier_empty() -> void:
+	# Contract: a slot stays empty only when the level can offer nothing at all.
+	#
+	# Drain every tier except cost 1, then roll at level 9, whose odds put just 9%
+	# on the surviving tier. Rejection sampling had to land on that 9% within its
+	# 8 retries — it missed roughly 47% of the time and returned an empty slot
+	# despite a full cost-1 pool. Renormalizing makes the surviving tier certain.
+	var pool := HeroPool.new()
+	for cost in [2, 3, 4, 5]:
+		for hero in GameDatabase.heroes_of_cost(cost):
+			while pool.take(hero.id):
+				pass
+		_eq(pool.copies_left_of_cost(cost), 0, "cost-%d tier drained" % cost)
+	_check(pool.copies_left_of_cost(1) > 0, "cost-1 tier still stocked")
+
+	var shop := Shop.new(pool, DeterministicRng.new(4242))
+	var empty := 0
+	var from_drained_tier := 0
+	# Several rolls, so the assertion does not hinge on one lucky draw.
+	for _roll in 20:
+		shop.roll(9)  # level-9 odds: [9, 20, 25, 35, 11]
+		for offer in shop.offers:
+			if offer == null:
+				empty += 1
+			elif offer.cost != 1:
+				from_drained_tier += 1
+	_eq(empty, 0, "no empty slot while a tier still has stock")
+	_eq(from_drained_tier, 0, "a drained tier is never offered")
+
+	# When the level genuinely has nothing to offer, an empty slot is correct.
+	for hero in GameDatabase.heroes_of_cost(1):
+		while pool.take(hero.id):
+			pass
+	shop.roll(9)
+	for offer in shop.offers:
+		_check(offer == null, "a fully drained pool yields empty slots")
+
+
+func test_replay_content_hash() -> void:
+	var rec := Replay.capture(_mirror_team(), _mirror_team(), 4242, {})
+	_check(String(rec.get("content", "")) != "", "a record carries a content hash")
+	_check(Replay.content_matches(rec), "a fresh record matches the loaded content")
+	var sig := Replay.signature(Replay.run(rec))
+	var good := Replay.verify_detailed(rec, sig)
+	_check(good.get("ok", false), "verify accepts the true signature")
+	_eq(good.get("reason", ""), "ok", "a good record reports reason 'ok'")
+
+	# A record captured under different balance data legitimately replays to a
+	# different result. That must read as "cannot judge here", not as a forgery.
+	var stale := rec.duplicate(true)
+	stale["content"] = "deadbeefdeadbeef"
+	var mismatch := Replay.verify_detailed(stale, sig)
+	_check(not mismatch.get("ok", true), "a stale-content record does not verify")
+	_eq(mismatch.get("reason", ""), "content_mismatch",
+		"patched content is reported as a content mismatch, not as cheating")
+
+	# An actually forged signature stays distinguishable from that case.
+	var forged := Replay.verify_detailed(rec, "9|9|9,9|9,9")
+	_check(not forged.get("ok", true), "verify rejects a tampered signature")
+	_eq(forged.get("reason", ""), "signature_mismatch", "a forged result is reported as such")
 
 
 func test_creep_round_reward() -> void:

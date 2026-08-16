@@ -1,6 +1,9 @@
 # Godot 4 auto-generated / import artifacts
 .godot/
 .import/
+# Per-asset import metadata: CI rebuilds these with a fresh `--import` pass, so
+# they are regenerated rather than tracked.
+*.import
 export.cfg
 export_presets.cfg
 *.translation

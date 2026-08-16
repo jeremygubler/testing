@@ -119,18 +119,32 @@ round**.
   omnivamp, start-shield) to all your units each fight, passed into the
   `CombatEngine` alongside trait effects. Offers are deterministic per seed.
 - **Deterministic replays / ranked-ready:** `Replay.capture()` records a fight's
-  inputs (seed + both teams + player mods) as a JSON-safe record; `Replay.run()`
-  reproduces the exact fight anywhere, and `Replay.verify(record, signature)`
-  re-runs it to confirm a claimed outcome. That's the anti-cheat primitive for a
-  future ranked mode — a client submits {record, result signature}, a server
-  re-runs and checks. `GameState` captures `last_replay`/`last_match_signature`
-  each fight.
+  inputs (seed + both teams + player mods + a **content hash**) as a JSON-safe
+  record; `Replay.run()` reproduces the exact fight anywhere, and
+  `Replay.verify(record, signature)` re-runs it to confirm a claimed outcome.
+  That's the anti-cheat primitive for a future ranked mode — a client submits
+  {record, result signature}, a server re-runs and checks. `GameState` captures
+  `last_replay`/`last_match_signature` each fight.
+  A fight's result is a function of the balance data as well as the seed, so the
+  record carries `GameDatabase.content_hash` (a digest of the combat-relevant
+  `data_files/`, cosmetics excluded). `Replay.verify_detailed()` reports
+  `content_mismatch` separately from `signature_mismatch`, so a record predating a
+  balance patch reads as "cannot judge here" rather than as a forged result. The
+  hash is a compatibility tag, not a security boundary — a real backend verifies
+  against its own trusted content.
 - **Save/resume:** `GameState.serialize()`/`load_from()` snapshot the whole run
-  (roster, items, augments, economy, pool, and RNG state). The presentation layer
-  persists it through the `ISaveService` interface and auto-saves each phase, so
-  a run resumes exactly on next launch — and the identical logic maps onto a
-  console save backend later. (Hover the inspector shows unit/item details; F6
-  clears the save.)
+  (roster, items, augments, economy, pool, RNG state, and the **round phase**).
+  The presentation layer persists it through the `ISaveService` interface and
+  auto-saves each phase, so a run resumes exactly on next launch — and the
+  identical logic maps onto a console save backend later. (Hover the inspector
+  shows unit/item details; F6 clears the save.)
+  Restoring the phase is a correctness matter, not cosmetics: a run saved after a
+  won round used to reload into the *shop* phase of that same round, so relaunching
+  re-fought it and paid its rewards again. Rounds therefore also pay out at most
+  once (`_rewards_granted_round`, serialized), which additionally covers force-quitting
+  mid-combat. A finished run (`GAME_OVER`) is discarded on launch instead of
+  resuming at 0 HP. Saves are versioned (`SAVE_VERSION`); v1 saves lack a phase and
+  keep the original shop-phase behaviour.
 
 ### Design decisions (locked with the team)
 
@@ -185,8 +199,11 @@ godot --headless --path autobattler -s res://tools/balance.gd
 ```
 
 The tests cover RNG reproducibility, economy math (interest cap, streaks,
-leveling), star scaling, pool/combine rules, trait activation, and — critically —
-that identical seeds produce identical combat outcomes.
+leveling), star scaling, pool/combine rules (including that the shared pool never
+grows past its configured stock), trait activation, save/load round-trips
+(including the round phase and the once-only round rewards), sell refunds, board
+capacity, shop rolls against a drained cost tier, replay content-hash handling,
+and — critically — that identical seeds produce identical combat outcomes.
 
 ---
 

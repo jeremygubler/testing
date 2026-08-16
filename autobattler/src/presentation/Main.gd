@@ -68,10 +68,15 @@ func _ready() -> void:
 	# Resume a saved run if one exists, else start fresh. Persistence goes through
 	# the ISaveService interface (desktop: local file; Switch: platform save later).
 	var save_svc := PlatformServices.save
-	if save_svc.has("run"):
-		game.load_from(save_svc.load_data("run", {}))
-	else:
+	var saved: Dictionary = save_svc.load_data("run", {}) if save_svc.has("run") else {}
+	if saved.is_empty() or int(saved.get("phase", GameState.Phase.SHOP)) == GameState.Phase.GAME_OVER:
+		# An already-finished run must never resume — the player would come back at
+		# 0 HP and keep going. Drop it and start a fresh run instead.
+		if not saved.is_empty():
+			save_svc.erase("run")
 		game.start_game()
+	else:
+		game.load_from(saved)
 	_refresh_ui()
 	queue_redraw()
 

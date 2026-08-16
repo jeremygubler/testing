@@ -44,16 +44,21 @@ func roll(level: int) -> void:
 
 
 func _roll_one(odds: PackedFloat32Array) -> HeroDef:
-	# Pick a cost tier by odds, but skip tiers with no copies left; retry a few times.
-	for _attempt in 8:
-		var tier_index := _rng.weighted_index(odds)  # 0..4 -> cost 1..5
-		if tier_index < 0:
-			return null
-		var cost := tier_index + 1
-		if _pool.copies_left_of_cost(cost) <= 0:
-			continue
-		return _pick_hero_of_cost(cost)
-	return null
+	# Zero out the tiers the shared pool can no longer supply, then draw once from
+	# what remains — i.e. renormalize over the available tiers.
+	#
+	# This replaces rejection sampling (draw, skip if exhausted, retry up to 8x).
+	# Both converge to the same distribution, but the retry loop could exhaust its
+	# attempts and leave the slot empty while stock was still available, and it
+	# consumed a variable number of RNG draws per slot. One draw per slot keeps the
+	# stream position predictable, which matters for save/replay reasoning.
+	var available := PackedFloat32Array()
+	for i in odds.size():
+		available.append(odds[i] if _pool.copies_left_of_cost(i + 1) > 0 else 0.0)
+	var tier_index := _rng.weighted_index(available)  # 0..4 -> cost 1..5
+	if tier_index < 0:
+		return null  # every tier this level can offer is exhausted
+	return _pick_hero_of_cost(tier_index + 1)
 
 
 func _pick_hero_of_cost(cost: int) -> HeroDef:
