@@ -32,6 +32,7 @@ var ability_power: float
 var ability_radius: int
 var ability_duration: float
 var ability_description: String
+var ability_params: Dictionary = {}      # per-kind tunable magnitudes (data-driven)
 
 
 static func from_dict(d: Dictionary) -> HeroDef:
@@ -62,6 +63,7 @@ static func from_dict(d: Dictionary) -> HeroDef:
 	h.ability_radius = int(a.get("radius", 0))
 	h.ability_duration = float(a.get("duration", 0.0))
 	h.ability_description = a.get("description", "")
+	h.ability_params = a.get("params", {}).duplicate(true)
 	return h
 
 

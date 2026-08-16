@@ -213,9 +213,24 @@ def build_heroes():
                 "radius": 1 if kind == "nova" else 0,
                 "duration": 4.0 if kind in ("empower", "shield") else 0.0,
                 "description": f"{name} {ABILITY_TEXT[kind]}",
+                # Per-kind tunable magnitudes (data-driven so balancing is a JSON
+                # edit, not an engine change). Defaults reproduce prior behavior.
+                "params": _ability_params(kind),
             },
         })
     return heroes
+
+
+def _ability_params(kind):
+    return {
+        "burst":   {"burst_factor": 1.0},
+        "nova":    {"aoe_factor": 0.7},
+        "heal":    {"heal_factor": 1.0},
+        "shield":  {"shield_factor": 1.0},
+        "empower": {"ad_pct": 0.4, "star_ad_pct": 0.1, "as_add": 0.4},
+        "execute": {"factor": 1.5, "lowhp_mult": 2.0, "lowhp_threshold": 0.5},
+        "summon":  {"minion_hp_factor": 3.0, "minion_ad_factor": 0.5},
+    }.get(kind, {})
 
 
 def _ability_name(name, kind):

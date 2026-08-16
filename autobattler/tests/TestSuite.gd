@@ -36,6 +36,7 @@ func run() -> int:
 	_run("creep_round_opponent", test_creep_round_opponent)
 	_run("creep_round_reward", test_creep_round_reward)
 	_run("combat_replay", test_combat_replay)
+	_run("ability_params_loaded", test_ability_params_loaded)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -331,6 +332,17 @@ func test_creep_round_opponent() -> void:
 		creep_ids[c.id] = true
 	for u in team:
 		_check(creep_ids.has(u.hero.id), "opponent unit is a neutral creep")
+
+
+func test_ability_params_loaded() -> void:
+	# Ability magnitudes are data-driven (heroes.json), not hardcoded.
+	var nova_hero: HeroDef = GameDatabase.get_hero("pyra")  # arcanist / nova
+	_check(nova_hero != null, "pyra exists")
+	_approx(float(nova_hero.ability_params.get("aoe_factor", -1.0)), 0.7,
+		"nova aoe_factor loaded from data", 0.001)
+	var emp: HeroDef = GameDatabase.get_hero("ignarok")  # berserker / empower
+	_check(emp != null, "ignarok exists")
+	_check(emp.ability_params.has("ad_pct"), "empower params loaded from data")
 
 
 func test_combat_replay() -> void:

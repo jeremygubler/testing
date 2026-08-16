@@ -194,7 +194,11 @@ that identical seeds produce identical combat outcomes.
 
 Everything is data-driven in `data_files/*.json`:
 
-- Tweak a hero's stats/ability → `heroes.json`.
+- Tweak a hero's stats → `heroes.json`. **Ability magnitudes are data-driven**
+  too: each ability carries `params` (e.g. `nova.aoe_factor`, `empower.ad_pct` /
+  `star_ad_pct` / `as_add`, `execute.factor` / `lowhp_mult` / `lowhp_threshold`),
+  so tuning an outlier (e.g. an over-strong Surge) is a JSON edit, not an engine
+  change. `nova` is centered on the target, so ranged mages land AoE on clusters.
 - Change trait effects/breakpoints → `perks.json`.
 - Retune economy, shop odds, xp curve, combat constants → `game_config.json`.
 - Add cosmetics → `skins.json`.

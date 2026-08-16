@@ -36,7 +36,10 @@
         "power": 65,
         "radius": 0,
         "duration": 0.0,
-        "description": "Cinderos unleashes a focused aether bolt at the current target for heavy magic damage."
+        "description": "Cinderos unleashes a focused aether bolt at the current target for heavy magic damage.",
+        "params": {
+          "burst_factor": 1.0
+        }
       }
     },
     {
@@ -68,7 +71,10 @@
         "power": 65,
         "radius": 0,
         "duration": 0.0,
-        "description": "Nerida channels restorative aether, healing the most wounded ally."
+        "description": "Nerida channels restorative aether, healing the most wounded ally.",
+        "params": {
+          "heal_factor": 1.0
+        }
       }
     },
     {
@@ -100,7 +106,10 @@
         "power": 65,
         "radius": 0,
         "duration": 4.0,
-        "description": "Gravik raises an aether ward, shielding itself from incoming damage."
+        "description": "Gravik raises an aether ward, shielding itself from incoming damage.",
+        "params": {
+          "shield_factor": 1.0
+        }
       }
     },
     {
@@ -132,7 +141,12 @@
         "power": 65,
         "radius": 0,
         "duration": 4.0,
-        "description": "Cirrus enters a surge, sharply raising its attack damage and speed for a time."
+        "description": "Cirrus enters a surge, sharply raising its attack damage and speed for a time.",
+        "params": {
+          "ad_pct": 0.4,
+          "star_ad_pct": 0.1,
+          "as_add": 0.4
+        }
       }
     },
     {
@@ -164,7 +178,10 @@
         "power": 65,
         "radius": 0,
         "duration": 4.0,
-        "description": "Mosswick raises an aether ward, shielding itself from incoming damage."
+        "description": "Mosswick raises an aether ward, shielding itself from incoming damage.",
+        "params": {
+          "shield_factor": 1.0
+        }
       }
     },
     {
@@ -196,7 +213,12 @@
         "power": 65,
         "radius": 0,
         "duration": 0.0,
-        "description": "Vesper strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+        "description": "Vesper strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+        "params": {
+          "factor": 1.5,
+          "lowhp_mult": 2.0,
+          "lowhp_threshold": 0.5
+        }
       }
     },
     {
@@ -228,7 +250,10 @@
         "power": 65,
         "radius": 0,
         "duration": 4.0,
-        "description": "Lucen raises an aether ward, shielding itself from incoming damage."
+        "description": "Lucen raises an aether ward, shielding itself from incoming damage.",
+        "params": {
+          "shield_factor": 1.0
+        }
       }
     },
     {
@@ -260,7 +285,12 @@
         "power": 65,
         "radius": 0,
         "duration": 4.0,
-        "description": "Tik enters a surge, sharply raising its attack damage and speed for a time."
+        "description": "Tik enters a surge, sharply raising its attack damage and speed for a time.",
+        "params": {
+          "ad_pct": 0.4,
+          "star_ad_pct": 0.1,
+          "as_add": 0.4
+        }
       }
     },
     {
@@ -292,7 +322,12 @@
         "power": 90,
         "radius": 0,
         "duration": 4.0,
-        "description": "Ashvin enters a surge, sharply raising its attack damage and speed for a time."
+        "description": "Ashvin enters a surge, sharply raising its attack damage and speed for a time.",
+        "params": {
+          "ad_pct": 0.4,
+          "star_ad_pct": 0.1,
+          "as_add": 0.4
+        }
       }
     },
     {
@@ -324,7 +359,10 @@
         "power": 90,
         "radius": 1,
         "duration": 0.0,
-        "description": "Coralis erupts in an aether nova, dealing magic damage to all enemies nearby."
+        "description": "Coralis erupts in an aether nova, dealing magic damage to all enemies nearby.",
+        "params": {
+          "aoe_factor": 0.7
+        }
       }
     },
     {
@@ -356,7 +394,10 @@
         "power": 90,
         "radius": 0,
         "duration": 4.0,
-        "description": "Boulderon raises an aether ward, shielding itself from incoming damage."
+        "description": "Boulderon raises an aether ward, shielding itself from incoming damage.",
+        "params": {
+          "shield_factor": 1.0
+        }
       }
     },
     {
@@ -388,7 +429,12 @@
         "power": 90,
         "radius": 0,
         "duration": 4.0,
-        "description": "Galewind enters a surge, sharply raising its attack damage and speed for a time."
+        "description": "Galewind enters a surge, sharply raising its attack damage and speed for a time.",
+        "params": {
+          "ad_pct": 0.4,
+          "star_ad_pct": 0.1,
+          "as_add": 0.4
+        }
       }
     },
     {
@@ -420,7 +466,11 @@
         "power": 90,
         "radius": 0,
         "duration": 0.0,
-        "description": "Bramblewick conjures an aether construct to fight alongside it."
+        "description": "Bramblewick conjures an aether construct to fight alongside it.",
+        "params": {
+          "minion_hp_factor": 3.0,
+          "minion_ad_factor": 0.5
+        }
       }
     },
     {
@@ -452,7 +502,10 @@
         "power": 90,
         "radius": 0,
         "duration": 0.0,
-        "description": "Nyx unleashes a focused aether bolt at the current target for heavy magic damage."
+        "description": "Nyx unleashes a focused aether bolt at the current target for heavy magic damage.",
+        "params": {
+          "burst_factor": 1.0
+        }
       }
     },
     {
@@ -484,7 +537,10 @@
         "power": 90,
         "radius": 0,
         "duration": 0.0,
-        "description": "Solara channels restorative aether, healing the most wounded ally."
+        "description": "Solara channels restorative aether, healing the most wounded ally.",
+        "params": {
+          "heal_factor": 1.0
+        }
       }
     },
     {
@@ -516,7 +572,10 @@
         "power": 90,
         "radius": 0,
         "duration": 0.0,
-        "description": "Rimeheart unleashes a focused aether bolt at the current target for heavy magic damage."
+        "description": "Rimeheart unleashes a focused aether bolt at the current target for heavy magic damage.",
+        "params": {
+          "burst_factor": 1.0
+        }
       }
     },
     {
@@ -548,7 +607,10 @@
         "power": 115,
         "radius": 1,
         "duration": 0.0,
-        "description": "Pyra erupts in an aether nova, dealing magic damage to all enemies nearby."
+        "description": "Pyra erupts in an aether nova, dealing magic damage to all enemies nearby.",
+        "params": {
+          "aoe_factor": 0.7
+        }
       }
     },
     {
@@ -580,7 +642,10 @@
         "power": 115,
         "radius": 0,
         "duration": 4.0,
-        "description": "Marould raises an aether ward, shielding itself from incoming damage."
+        "description": "Marould raises an aether ward, shielding itself from incoming damage.",
+        "params": {
+          "shield_factor": 1.0
+        }
       }
     },
     {
@@ -612,7 +677,12 @@
         "power": 115,
         "radius": 0,
         "duration": 4.0,
-        "description": "Cragmaw enters a surge, sharply raising its attack damage and speed for a time."
+        "description": "Cragmaw enters a surge, sharply raising its attack damage and speed for a time.",
+        "params": {
+          "ad_pct": 0.4,
+          "star_ad_pct": 0.1,
+          "as_add": 0.4
+        }
       }
     },
     {
@@ -644,7 +714,10 @@
         "power": 115,
         "radius": 0,
         "duration": 0.0,
-        "description": "Zephyra unleashes a focused aether bolt at the current target for heavy magic damage."
+        "description": "Zephyra unleashes a focused aether bolt at the current target for heavy magic damage.",
+        "params": {
+          "burst_factor": 1.0
+        }
       }
     },
     {
@@ -676,7 +749,10 @@
         "power": 115,
         "radius": 0,
         "duration": 0.0,
-        "description": "Sylvara channels restorative aether, healing the most wounded ally."
+        "description": "Sylvara channels restorative aether, healing the most wounded ally.",
+        "params": {
+          "heal_factor": 1.0
+        }
       }
     },
     {
@@ -708,7 +784,12 @@
         "power": 115,
         "radius": 0,
         "duration": 0.0,
-        "description": "Umbros strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+        "description": "Umbros strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+        "params": {
+          "factor": 1.5,
+          "lowhp_mult": 2.0,
+          "lowhp_threshold": 0.5
+        }
       }
     },
     {
@@ -740,7 +821,11 @@
         "power": 115,
         "radius": 0,
         "duration": 0.0,
-        "description": "Gearwright conjures an aether construct to fight alongside it."
+        "description": "Gearwright conjures an aether construct to fight alongside it.",
+        "params": {
+          "minion_hp_factor": 3.0,
+          "minion_ad_factor": 0.5
+        }
       }
     },
     {
@@ -772,7 +857,10 @@
         "power": 115,
         "radius": 1,
         "duration": 0.0,
-        "description": "Glacius erupts in an aether nova, dealing magic damage to all enemies nearby."
+        "description": "Glacius erupts in an aether nova, dealing magic damage to all enemies nearby.",
+        "params": {
+          "aoe_factor": 0.7
+        }
       }
     },
     {
@@ -804,7 +892,10 @@
         "power": 140,
         "radius": 1,
         "duration": 0.0,
-        "description": "Emberlyn erupts in an aether nova, dealing magic damage to all enemies nearby."
+        "description": "Emberlyn erupts in an aether nova, dealing magic damage to all enemies nearby.",
+        "params": {
+          "aoe_factor": 0.7
+        }
       }
     },
     {
@@ -836,7 +927,10 @@
         "power": 140,
         "radius": 0,
         "duration": 0.0,
-        "description": "Tidus unleashes a focused aether bolt at the current target for heavy magic damage."
+        "description": "Tidus unleashes a focused aether bolt at the current target for heavy magic damage.",
+        "params": {
+          "burst_factor": 1.0
+        }
       }
     },
     {
@@ -868,7 +962,10 @@
         "power": 140,
         "radius": 0,
         "duration": 4.0,
-        "description": "Terran raises an aether ward, shielding itself from incoming damage."
+        "description": "Terran raises an aether ward, shielding itself from incoming damage.",
+        "params": {
+          "shield_factor": 1.0
+        }
       }
     },
     {
@@ -900,7 +997,12 @@
         "power": 140,
         "radius": 0,
         "duration": 0.0,
-        "description": "Skarn strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+        "description": "Skarn strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+        "params": {
+          "factor": 1.5,
+          "lowhp_mult": 2.0,
+          "lowhp_threshold": 0.5
+        }
       }
     },
     {
@@ -932,7 +1034,10 @@
         "power": 140,
         "radius": 0,
         "duration": 0.0,
-        "description": "Thornwood channels restorative aether, healing the most wounded ally."
+        "description": "Thornwood channels restorative aether, healing the most wounded ally.",
+        "params": {
+          "heal_factor": 1.0
+        }
       }
     },
     {
@@ -964,7 +1069,12 @@
         "power": 140,
         "radius": 0,
         "duration": 4.0,
-        "description": "Cogsworth enters a surge, sharply raising its attack damage and speed for a time."
+        "description": "Cogsworth enters a surge, sharply raising its attack damage and speed for a time.",
+        "params": {
+          "ad_pct": 0.4,
+          "star_ad_pct": 0.1,
+          "as_add": 0.4
+        }
       }
     },
     {
@@ -996,7 +1106,10 @@
         "power": 140,
         "radius": 1,
         "duration": 0.0,
-        "description": "Icevein erupts in an aether nova, dealing magic damage to all enemies nearby."
+        "description": "Icevein erupts in an aether nova, dealing magic damage to all enemies nearby.",
+        "params": {
+          "aoe_factor": 0.7
+        }
       }
     },
     {
@@ -1028,7 +1141,12 @@
         "power": 140,
         "radius": 0,
         "duration": 0.0,
-        "description": "Nullis strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+        "description": "Nullis strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+        "params": {
+          "factor": 1.5,
+          "lowhp_mult": 2.0,
+          "lowhp_threshold": 0.5
+        }
       }
     },
     {
@@ -1060,7 +1178,12 @@
         "power": 165,
         "radius": 0,
         "duration": 4.0,
-        "description": "Ignarok enters a surge, sharply raising its attack damage and speed for a time."
+        "description": "Ignarok enters a surge, sharply raising its attack damage and speed for a time.",
+        "params": {
+          "ad_pct": 0.4,
+          "star_ad_pct": 0.1,
+          "as_add": 0.4
+        }
       }
     },
     {
@@ -1092,7 +1215,10 @@
         "power": 165,
         "radius": 1,
         "duration": 0.0,
-        "description": "Abyssia erupts in an aether nova, dealing magic damage to all enemies nearby."
+        "description": "Abyssia erupts in an aether nova, dealing magic damage to all enemies nearby.",
+        "params": {
+          "aoe_factor": 0.7
+        }
       }
     },
     {
@@ -1124,7 +1250,10 @@
         "power": 165,
         "radius": 0,
         "duration": 0.0,
-        "description": "Kaelen channels restorative aether, healing the most wounded ally."
+        "description": "Kaelen channels restorative aether, healing the most wounded ally.",
+        "params": {
+          "heal_factor": 1.0
+        }
       }
     },
     {
@@ -1156,7 +1285,11 @@
         "power": 165,
         "radius": 0,
         "duration": 0.0,
-        "description": "Automa conjures an aether construct to fight alongside it."
+        "description": "Automa conjures an aether construct to fight alongside it.",
+        "params": {
+          "minion_hp_factor": 3.0,
+          "minion_ad_factor": 0.5
+        }
       }
     },
     {
@@ -1188,7 +1321,10 @@
         "power": 165,
         "radius": 0,
         "duration": 0.0,
-        "description": "Frostine unleashes a focused aether bolt at the current target for heavy magic damage."
+        "description": "Frostine unleashes a focused aether bolt at the current target for heavy magic damage.",
+        "params": {
+          "burst_factor": 1.0
+        }
       }
     },
     {
@@ -1220,7 +1356,12 @@
         "power": 165,
         "radius": 0,
         "duration": 0.0,
-        "description": "Riftmaw strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+        "description": "Riftmaw strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+        "params": {
+          "factor": 1.5,
+          "lowhp_mult": 2.0,
+          "lowhp_threshold": 0.5
+        }
       }
     },
     {
@@ -1252,7 +1393,12 @@
         "power": 165,
         "radius": 0,
         "duration": 4.0,
-        "description": "Nimbuscar enters a surge, sharply raising its attack damage and speed for a time."
+        "description": "Nimbuscar enters a surge, sharply raising its attack damage and speed for a time.",
+        "params": {
+          "ad_pct": 0.4,
+          "star_ad_pct": 0.1,
+          "as_add": 0.4
+        }
       }
     },
     {
@@ -1284,7 +1430,11 @@
         "power": 165,
         "radius": 0,
         "duration": 0.0,
-        "description": "Verdania conjures an aether construct to fight alongside it."
+        "description": "Verdania conjures an aether construct to fight alongside it.",
+        "params": {
+          "minion_hp_factor": 3.0,
+          "minion_ad_factor": 0.5
+        }
       }
     }
   ]

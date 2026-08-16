@@ -32,6 +32,7 @@ var ability_kind: String
 var ability_power: float
 var ability_radius: int
 var ability_duration: float
+var ability_params: Dictionary = {}   # per-kind tunable magnitudes (data-driven)
 
 # Trait-derived combat modifiers (set by TraitSystem before the fight).
 var burn_dps: float = 0.0            # % of target max hp per second, on-hit
@@ -92,6 +93,7 @@ static func from_game_unit(gu: GameUnit, unit_team: int, position: Vector2i, uni
 	c.ability_power = gu.hero.ability_power * HeroDef.star_multiplier(gu.star)
 	c.ability_radius = gu.hero.ability_radius
 	c.ability_duration = gu.hero.ability_duration
+	c.ability_params = gu.hero.ability_params
 	c._apply_items(gu.items)
 	return c
 
