@@ -1,0 +1,59 @@
+name: Deploy to GitHub Pages
+
+# Publishes the game so it can be played from a link, with nothing to install.
+#
+# One-time setup: in the repository settings under Pages, set the source to
+# "GitHub Actions". Until that is done the deploy step fails with a 404.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deployments at once, but let a newer one queue behind the
+# running deploy rather than cancelling it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dino-dash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dino-dash/package-lock.json
+
+      - run: npm ci
+
+      # `base: './'` in vite.config.ts keeps asset paths relative, so the build
+      # works under the /<repo>/ sub-path Pages serves from.
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dino-dash/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

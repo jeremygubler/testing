@@ -1,0 +1,171 @@
+import { VIEW } from '../core/config';
+import type { Action, Scene } from '../core/types';
+import { drawDino } from '../assets/dino';
+import { getSkin } from '../assets/skins';
+import type { Game } from '../game';
+import { drawBackground } from '../render/background';
+import { BIOMES } from '../render/biome';
+import { drawText, fillCircle, fillRoundRect } from '../render/draw';
+import { drawEggIcon, formatNumber } from '../render/hud';
+import { drawPath } from '../render/path';
+import { drawButton, drawPanel, hitButton, INK, type Button } from '../render/ui';
+import { audio } from '../systems/audio';
+import { AchievementsScene } from './achievementsScene';
+import { GameScene } from './gameScene';
+import { SkinsScene } from './skinsScene';
+import { StatsScene } from './statsScene';
+import { UpgradesScene } from './upgradesScene';
+
+const MUTE_BUTTON = { x: VIEW.W - 58, y: 22, r: 24 };
+
+/** Menus always show the daytime look, whatever biome the last run ended in. */
+export const MENU_BIOME = BIOMES[0];
+
+export class MenuScene implements Scene {
+  private buttons: Button[] = [];
+  /** Keeps the backdrop scrolling gently behind the menu. */
+  private scroll = 0;
+  private bounce = 0;
+
+  constructor(private game: Game) {}
+
+  enter(): void {
+    this.buildButtons();
+  }
+
+  private buildButtons(): void {
+    const x = 552;
+    const w = 336;
+    this.buttons = [
+      { id: 'play', x, y: 196, w, h: 62, label: 'Spielen', color: '#6fcf97' },
+      { id: 'skins', x, y: 268, w, h: 46, label: 'Dinos', color: '#ff9fb0' },
+      { id: 'upgrades', x, y: 324, w, h: 46, label: 'Power-Ups', color: '#ffa94d' },
+      { id: 'achievements', x, y: 380, w, h: 46, label: 'Erfolge', color: '#b8a6d9' },
+      { id: 'stats', x, y: 436, w, h: 46, label: 'Statistik', color: '#7bb8f0' },
+    ];
+  }
+
+  onAction(action: Action): void {
+    if (action === 'confirm' || action === 'jump') this.start();
+  }
+
+  onTap(x: number, y: number): void {
+    const dx = x - MUTE_BUTTON.x;
+    const dy = y - MUTE_BUTTON.y;
+    if (dx * dx + dy * dy < MUTE_BUTTON.r * MUTE_BUTTON.r) {
+      this.game.save.muted = !this.game.save.muted;
+      audio.setMuted(this.game.save.muted);
+      this.game.persist();
+      audio.play('button');
+      return;
+    }
+
+    const button = hitButton(this.buttons, x, y);
+    if (!button) return;
+    audio.play('button');
+
+    if (button.id === 'play') this.start();
+    else if (button.id === 'skins') this.game.setScene(new SkinsScene(this.game));
+    else if (button.id === 'upgrades') this.game.setScene(new UpgradesScene(this.game));
+    else if (button.id === 'achievements') this.game.setScene(new AchievementsScene(this.game));
+    else if (button.id === 'stats') this.game.setScene(new StatsScene(this.game));
+  }
+
+  private start(): void {
+    this.game.setScene(new GameScene(this.game));
+  }
+
+  update(dt: number): void {
+    this.scroll += dt * 9;
+    this.bounce += dt * 6;
+  }
+
+  draw(ctx: CanvasRenderingContext2D): void {
+    drawBackground(ctx, this.scroll, this.game.time, MENU_BIOME);
+    drawPath(ctx, this.scroll, MENU_BIOME);
+
+    this.drawTitle(ctx);
+    this.drawMascot(ctx);
+    for (const button of this.buttons) drawButton(ctx, button);
+    this.drawStats(ctx);
+    this.drawMuteButton(ctx);
+  }
+
+  private drawTitle(ctx: CanvasRenderingContext2D): void {
+    const wobble = Math.sin(this.game.time * 1.6) * 4;
+    ctx.save();
+    ctx.translate(VIEW.W / 2, 104 + wobble);
+    drawText(ctx, 'DINO DASH', 0, 0, {
+      size: 74,
+      color: '#ffd766',
+      outline: '#4a3559',
+      outlineWidth: 11,
+    });
+    drawText(ctx, 'Renn, kleiner Dino, renn!', 0, 52, {
+      size: 20,
+      color: '#ffffff',
+      outline: '#4a3559',
+      outlineWidth: 5,
+    });
+    ctx.restore();
+  }
+
+  private drawMascot(ctx: CanvasRenderingContext2D): void {
+    const skin = getSkin(this.game.save.selectedSkin);
+    const hop = Math.max(0, Math.sin(this.bounce)) * 16;
+    drawDino(ctx, 286, 476 - hop, 132, {
+      runPhase: this.bounce * 1.6,
+      duck: 0,
+      airborne: hop > 6,
+      lean: Math.sin(this.game.time * 0.9) * 0.25,
+      spin: 0,
+      time: this.game.time,
+    }, skin, 476);
+  }
+
+  /** Compact strip: the full breakdown lives on the statistics screen. */
+  private drawStats(ctx: CanvasRenderingContext2D): void {
+    const save = this.game.save;
+    const x = 552;
+    const w = 336;
+    const y = 500;
+    const h = 46;
+    drawPanel(ctx, x, y, w, h, 20);
+
+    drawText(ctx, 'Rekord', x + 20, y + h / 2, {
+      size: 14,
+      align: 'left',
+      color: '#8a7a9a',
+      weight: 'normal',
+    });
+    drawText(ctx, formatNumber(save.highScore), x + 78, y + h / 2, {
+      size: 18,
+      align: 'left',
+      color: INK,
+    });
+
+    drawEggIcon(ctx, x + w - 92, y + h / 2 - 1, 11);
+    drawText(ctx, formatNumber(save.eggs), x + w - 74, y + h / 2, {
+      size: 18,
+      align: 'left',
+      color: '#e0a92e',
+    });
+  }
+
+  private drawMuteButton(ctx: CanvasRenderingContext2D): void {
+    fillCircle(ctx, MUTE_BUTTON.x, MUTE_BUTTON.y + 12, MUTE_BUTTON.r, 'rgba(255, 250, 242, 0.9)');
+    drawText(ctx, this.game.save.muted ? '🔇' : '🔊', MUTE_BUTTON.x, MUTE_BUTTON.y + 12, {
+      size: 22,
+    });
+  }
+}
+
+/** Shared helper so the sub-menus get a consistent back button. */
+export function backButton(): Button {
+  return { id: 'back', x: 32, y: VIEW.H - 66, w: 150, h: 46, label: '← Zurück', color: '#b8a6d9' };
+}
+
+/** Translucent scrim used behind the sub-menu panels. */
+export function drawScrim(ctx: CanvasRenderingContext2D): void {
+  fillRoundRect(ctx, 0, 0, VIEW.W, VIEW.H, 0, 'rgba(45, 27, 61, 0.45)');
+}
