@@ -49,6 +49,10 @@ const TRAY_W := 210.0
 const TRAY_ROW := 26.0
 var _sel_item_idx: int = -1   # index into game.item_inventory, or -1
 
+# Hover inspector: whatever the cursor is over (a unit, or a tray item).
+var _inspect_unit: GameUnit = null
+var _inspect_item_id: String = ""
+
 
 func _ready() -> void:
 	game = GameState.new(0x0A17E4C1)  # fixed seed => reproducible session
@@ -105,6 +109,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				if comp != null:
 					game.grant_item(comp.id)
 				return
+
+	# Update the hover inspector (what the cursor is over).
+	if event is InputEventMouseMotion:
+		_update_inspection(get_global_mouse_position())
 
 	# Compute the placement hex under the mouse and hand the raw event to the
 	# platform input service, which translates it into semantic signals.
@@ -358,6 +366,26 @@ func _bench_unit_at(index: int) -> GameUnit:
 	return null
 
 
+func _update_inspection(p: Vector2) -> void:
+	var prev_u := _inspect_unit
+	var prev_i := _inspect_item_id
+	_inspect_unit = null
+	_inspect_item_id = ""
+	var tidx := _pixel_to_tray_index(p)
+	if tidx >= 0 and tidx < game.item_inventory.size():
+		_inspect_item_id = game.item_inventory[tidx]
+	else:
+		var bidx := _pixel_to_bench_index(p)
+		if bidx >= 0:
+			_inspect_unit = _bench_unit_at(bidx)
+		else:
+			var hex := _pixel_to_placement_hex(p)
+			if hex.x >= 0:
+				_inspect_unit = _unit_at_board(hex)
+	if _inspect_unit != prev_u or _inspect_item_id != prev_i:
+		queue_redraw()
+
+
 # --- Rendering ---------------------------------------------------------------
 
 func _draw() -> void:
@@ -370,6 +398,7 @@ func _draw() -> void:
 	_draw_attack_fx()
 	if not (_playing or game.phase == GameState.Phase.COMBAT):
 		_draw_item_tray()
+		_draw_inspector()
 	if _result_overlay != "":
 		_draw_center_banner(_result_overlay)
 
@@ -503,6 +532,105 @@ func _draw_center_banner(text: String) -> void:
 	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color("#ffe066"))
 
 
+# --- Hover inspector ---------------------------------------------------------
+
+func _draw_inspector() -> void:
+	var lines: Array = []
+	if _inspect_unit != null:
+		lines = _unit_inspect_lines(_inspect_unit)
+	elif _inspect_item_id != "":
+		lines = _item_inspect_lines(_inspect_item_id)
+	if lines.is_empty():
+		return
+	var font := ThemeDB.fallback_font
+	var origin := Vector2(1008, 300)
+	var pad := 10.0
+	var line_h := 20.0
+	var box_w := 264.0
+	var box_h := pad * 2 + line_h * lines.size()
+	draw_rect(Rect2(origin, Vector2(box_w, box_h)), Color(0.05, 0.07, 0.12, 0.92))
+	draw_rect(Rect2(origin, Vector2(box_w, box_h)), Color(1, 1, 1, 0.15), false, 1.5)
+	for i in lines.size():
+		var entry: Dictionary = lines[i]
+		var pos := origin + Vector2(pad, pad + line_h * (i + 0.75))
+		draw_string(font, pos, entry.get("text", ""), HORIZONTAL_ALIGNMENT_LEFT, box_w - pad * 2,
+			int(entry.get("size", 13)), entry.get("color", Color.WHITE))
+
+
+func _line(text: String, color := Color.WHITE, size := 13) -> Dictionary:
+	return {"text": text, "color": color, "size": size}
+
+
+func _unit_inspect_lines(u: GameUnit) -> Array:
+	var h := u.hero
+	var out: Array = []
+	out.append(_line("%s   %s   %dg" % [h.name, _stars(u.star), h.cost], Color("#ffe066"), 15))
+	out.append(_line("HP %d    AD %d    AS %.2f    Rng %d" % [
+		int(u.max_hp()), int(u.attack_damage()), h.attack_speed, h.attack_range], Color("#c9d1d9")))
+	out.append(_line("Armor %d    MR %d    Mana %d/%d" % [
+		int(h.armor), int(h.magic_resist), int(h.mana_start), int(h.mana_max)], Color("#c9d1d9")))
+	out.append(_line("Ult: %s" % h.ability_name, Color("#9fd0ff")))
+	out.append(_line(h.ability_description, Color("#7f8bb0"), 11))
+	var trait_names: Array[String] = []
+	for t in h.perks:
+		var perk: PerkDef = GameDatabase.get_perk(t)
+		trait_names.append(perk.name if perk != null else t)
+	out.append(_line("Traits: " + ", ".join(trait_names), Color("#9fd0ff")))
+	var item_names: Array[String] = []
+	for item_id in u.items:
+		var it: ItemDef = GameDatabase.get_item(item_id)
+		item_names.append(it.name if it != null else item_id)
+	out.append(_line("Items: " + ("-" if item_names.is_empty() else ", ".join(item_names)),
+		Color("#ffd24a")))
+	return out
+
+
+func _item_inspect_lines(item_id: String) -> Array:
+	var it: ItemDef = GameDatabase.get_item(item_id)
+	if it == null:
+		return []
+	var out: Array = []
+	out.append(_line("%s   [%s]" % [it.name, it.kind], Color("#ffe066"), 15))
+	out.append(_line("Stats: " + _format_stats(it.stats), Color("#c9d1d9")))
+	if it.is_component():
+		var builds: Array[String] = []
+		for other in GameDatabase.all_items():
+			if other.kind == "completed" and other.recipe.has(it.id):
+				builds.append(other.name)
+		if not builds.is_empty():
+			out.append(_line("Builds: " + ", ".join(builds), Color("#7f8bb0"), 11))
+	return out
+
+
+func _format_stats(stats: Dictionary) -> String:
+	var parts: Array[String] = []
+	for k in stats.keys():
+		parts.append(_stat_label(String(k), float(stats[k])))
+	return ", ".join(parts)
+
+
+const _STAT_LABELS := {
+	"hp": "HP", "ad": "AD", "ability_power": "AP", "as_pct": "Atk Spd",
+	"armor": "Armor", "mr": "MR", "mana_start": "Mana", "crit": "Crit",
+	"omnivamp": "Omnivamp",
+}
+const _PCT_STATS := ["as_pct", "crit", "omnivamp"]
+
+
+func _stat_label(key: String, value: float) -> String:
+	var label: String = _STAT_LABELS.get(key, key)
+	if key in _PCT_STATS:
+		return "%s +%d%%" % [label, int(round(value * 100.0))]
+	return "%s +%d" % [label, int(value)]
+
+
+func _stars(n: int) -> String:
+	var s := ""
+	for i in n:
+		s += "★"
+	return s
+
+
 # --- HUD ---------------------------------------------------------------------
 
 func _build_hud() -> void:
@@ -531,7 +659,7 @@ func _build_hud() -> void:
 	vb.add_child(_lbl_traits)
 
 	var help := Label.new()
-	help.text = "[D] reroll (2g)   [F] buy XP (4g)   [Space] fight   Right-click: sell\nClick shop to buy · click unit then a hex to place · click bench to move\nItems: click a tray item then a unit (2 components combine). Debug: F1 gold · F2 unit · F4 item"
+	help.text = "[D] reroll (2g)   [F] buy XP (4g)   [Space] fight   Right-click: sell\nClick shop to buy · click unit then a hex to place · click bench to move · hover to inspect\nItems: click a tray item then a unit (2 components combine). Debug: F1 gold · F2 unit · F4 item"
 	help.add_theme_color_override("font_color", Color("#7f8bb0"))
 	help.add_theme_font_size_override("font_size", 11)
 	vb.add_child(help)
