@@ -34,8 +34,13 @@ jobs:
           chmod +x godot
           ./godot --version
 
-      - name: Clean any Godot cache (force fresh compile from source)
-        run: rm -rf autobattler/.godot
+      - name: Fresh import (build global class cache from source)
+        run: |
+          rm -rf autobattler/.godot
+          # First pass registers class_name globals; second resolves cross-script
+          # type references (autoload method return types, etc.).
+          timeout 300 ./godot --headless --path autobattler --import || true
+          timeout 300 ./godot --headless --path autobattler --import || true
 
       - name: Parse-check all scripts
         run: ./godot --headless --path autobattler -s res://tools/parse_check.gd
