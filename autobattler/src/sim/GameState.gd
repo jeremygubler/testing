@@ -16,6 +16,8 @@ signal hp_changed(hp: int)
 signal round_changed(round_number: int)
 signal combat_resolved(result: Dictionary)
 signal items_changed()
+signal augments_offered(choices: Array)   # Array[String] of augment ids
+signal augment_chosen(augment_id: String)
 
 var phase: int = Phase.SHOP
 var round_number: int = 0
@@ -26,7 +28,11 @@ var shop: Shop
 
 var roster: Array = []          # Array[GameUnit] (bench + board)
 var item_inventory: Array[String] = []  # unassigned item ids the player holds
+var augments: Array[String] = []        # chosen augment ids
+var pending_augments: Array[String] = []  # augment ids currently offered (choose one)
 var last_result: Dictionary = {}
+
+var _augment_offered_round: int = -1     # last round an offer was made (avoid repeats)
 
 var _rng: DeterministicRng
 var _combat_rng: DeterministicRng
@@ -59,6 +65,7 @@ func begin_next_round() -> Dictionary:
 	var income := economy.grant_round_income()
 	last_result = {}
 	shop.roll(economy.level)  # free roll at the start of each round
+	_maybe_offer_augments()
 	_set_phase(Phase.SHOP)
 	return income
 
@@ -68,7 +75,7 @@ func begin_next_round() -> Dictionary:
 func start_combat() -> Dictionary:
 	_set_phase(Phase.COMBAT)
 	var opponent := OpponentFactory.build(round_number, _rng)
-	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed())
+	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed(), player_combat_mods())
 	var result := engine.run_to_completion()
 	_resolve_combat(result, opponent)
 	return result
@@ -80,7 +87,7 @@ func start_combat() -> Dictionary:
 func begin_combat_engine() -> Dictionary:
 	_set_phase(Phase.COMBAT)
 	var opponent := OpponentFactory.build(round_number, _rng)
-	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed())
+	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed(), player_combat_mods())
 	return {"engine": engine, "opponent": opponent}
 
 
@@ -367,6 +374,73 @@ func move_to_bench(unit: GameUnit) -> bool:
 	unit.bench_index = idx
 	roster_changed.emit()
 	return true
+
+
+# --- Augments ----------------------------------------------------------------
+
+## If this round is an augment-offer round (and one hasn't been offered yet),
+## pick N distinct random augments the player doesn't already own and offer them.
+func _maybe_offer_augments() -> void:
+	if _augment_offered_round == round_number:
+		return
+	var acfg: Dictionary = GameDatabase.augments_config
+	var offer_rounds: Array = acfg.get("offer_rounds", [])
+	if not offer_rounds.has(round_number):
+		return
+	var n: int = int(acfg.get("choices_per_offer", 3))
+	var available: Array = []
+	for aug in GameDatabase.all_augments():
+		if not augments.has(aug.id):
+			available.append(aug.id)
+	_rng.shuffle(available)
+	pending_augments = []
+	for i in mini(n, available.size()):
+		pending_augments.append(String(available[i]))
+	_augment_offered_round = round_number
+	if not pending_augments.is_empty():
+		augments_offered.emit(pending_augments)
+
+
+## Choose one of the pending augments. Applies its effects and clears the offer.
+func choose_augment(augment_id: String) -> bool:
+	if not pending_augments.has(augment_id):
+		return false
+	var aug: AugmentDef = GameDatabase.get_augment(augment_id)
+	if aug == null:
+		return false
+	augments.append(augment_id)
+	pending_augments = []
+	_apply_augment_effects(aug)
+	augment_chosen.emit(augment_id)
+	return true
+
+
+func _apply_augment_effects(aug: AugmentDef) -> void:
+	if aug.kind != "economy":
+		return  # combat effects are applied at combat build via player_combat_mods()
+	var e: Dictionary = aug.effects
+	economy.bonus_income += int(e.get("income_bonus", 0))
+	economy.bonus_interest_cap += int(e.get("interest_cap_bonus", 0))
+	economy.bonus_xp_per_round += int(e.get("xp_per_round_bonus", 0))
+	var gold_now := int(e.get("gold_now", 0))
+	if gold_now > 0:
+		economy.add_gold(gold_now)
+	var xp_now := int(e.get("xp_now", 0))
+	if xp_now > 0:
+		economy.add_xp(xp_now)
+
+
+## Aggregate combat-augment effects into a single global-modifier bundle passed to
+## the CombatEngine for the player's team.
+func player_combat_mods() -> Dictionary:
+	var mods: Dictionary = {}
+	for aug_id in augments:
+		var aug: AugmentDef = GameDatabase.get_augment(aug_id)
+		if aug == null or not aug.is_combat():
+			continue
+		for key in aug.effects.keys():
+			mods[key] = float(mods.get(key, 0.0)) + float(aug.effects[key])
+	return mods
 
 
 # --- Star combine ------------------------------------------------------------

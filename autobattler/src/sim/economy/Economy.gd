@@ -13,6 +13,11 @@ var level: int = 1
 var xp: int = 0
 var streak: int = 0            # >0 win streak, <0 loss streak, 0 none
 
+# Persistent bonuses (e.g. from augments), added on top of config values.
+var bonus_income: int = 0
+var bonus_interest_cap: int = 0
+var bonus_xp_per_round: int = 0
+
 var _cfg_eco: Dictionary
 var _cfg_lvl: Dictionary
 
@@ -51,7 +56,7 @@ func spend(amount: int) -> bool:
 ## Interest: 1 gold per `interest_per_gold` banked, capped at `interest_cap`.
 func interest() -> int:
 	var per := int(_cfg_eco.get("interest_per_gold", 10))
-	var cap := int(_cfg_eco.get("interest_cap", 5))
+	var cap := int(_cfg_eco.get("interest_cap", 5)) + bonus_interest_cap
 	if per <= 0:
 		return 0
 	return min(cap, gold / per)
@@ -70,12 +75,12 @@ func streak_bonus() -> int:
 ## Full round income = base + interest + streak bonus. Also grants passive XP.
 ## Returns a breakdown Dictionary for UI/logging.
 func grant_round_income() -> Dictionary:
-	var base := int(_cfg_eco.get("base_income", 5))
+	var base := int(_cfg_eco.get("base_income", 5)) + bonus_income
 	var inter := interest()
 	var strk := streak_bonus()
 	var total := base + inter + strk
 	add_gold(total)
-	var passive_xp := int(_cfg_eco.get("passive_xp_per_round", 2))
+	var passive_xp := int(_cfg_eco.get("passive_xp_per_round", 2)) + bonus_xp_per_round
 	add_xp(passive_xp)
 	return {"base": base, "interest": inter, "streak": strk, "total": total, "passive_xp": passive_xp}
 

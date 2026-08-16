@@ -29,6 +29,8 @@ func run() -> int:
 	_run("item_combine", test_item_combine)
 	_run("item_stats_in_combat", test_item_stats_in_combat)
 	_run("round_rewards", test_round_rewards)
+	_run("augment_economy", test_augment_economy)
+	_run("augment_combat_mods", test_augment_combat_mods)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -241,3 +243,31 @@ func test_round_rewards() -> void:
 	var inv2 := g2.item_inventory.size()
 	g2._resolve_combat({"winner": 1, "surviving_stars": [0, 1]}, [])
 	_eq(g2.item_inventory.size(), inv2, "a loss drops no items")
+
+
+func test_augment_economy() -> void:
+	var g := GameState.new(4)
+	g.pending_augments = ["prosperity"]  # +2 income
+	_check(g.choose_augment("prosperity"), "choose economy augment")
+	_eq(g.economy.bonus_income, 2, "prosperity adds +2 income bonus")
+	# base income now includes the bonus.
+	var before := g.economy.gold
+	g.economy.grant_round_income()
+	_check(g.economy.gold >= before + 5 + 2, "income reflects the +2 bonus")
+	_check(g.pending_augments.is_empty(), "offer cleared after choosing")
+
+
+func test_augment_combat_mods() -> void:
+	var g := GameState.new(4)
+	g.pending_augments = ["vigor"]  # +15% hp to all units
+	_check(g.choose_augment("vigor"), "choose combat augment")
+	var mods := g.player_combat_mods()
+	_approx(float(mods.get("hp_pct", 0.0)), 0.15, "vigor yields +15% hp mod", 0.001)
+	# The modifier scales a unit's max HP at combat build.
+	var hero: HeroDef = GameDatabase.get_hero("gravik")
+	var gu := GameUnit.new(7000, hero, 1)
+	gu.board_pos = Vector2i(0, 0)
+	var base_hp := gu.max_hp()
+	var eng := CombatEngine.new([gu], [], 1, mods)
+	_check(eng.units.size() == 1, "player unit present")
+	_approx(eng.units[0].max_hp, base_hp * 1.15, "vigor scales unit max HP by 1.15", 1.0)

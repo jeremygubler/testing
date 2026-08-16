@@ -1,0 +1,21 @@
+{
+  "_comment": "Augments: offered (3 choices) at offer_rounds; pick one for a persistent bonus. kind 'economy' effects apply to the player economy; kind 'combat' effects apply to ALL of the player's units each fight. Edit freely.",
+
+  "offer_rounds": [2, 4, 6],
+  "choices_per_offer": 3,
+
+  "combat_effect_keys": ["hp_pct", "ad_pct", "as_pct", "armor_add", "mr_add", "omnivamp", "start_shield_pct"],
+  "economy_effect_keys": ["income_bonus", "interest_cap_bonus", "gold_now", "xp_per_round_bonus"],
+
+  "augments": [
+    {"id": "prosperity",  "name": "Prosperity",   "tier": "gold",     "kind": "economy", "description": "+2 gold income each round.",              "effects": {"income_bonus": 2}},
+    {"id": "hoarder",     "name": "Hoarder",       "tier": "gold",     "kind": "economy", "description": "Interest cap +2 (bank up to 70 gold).",   "effects": {"interest_cap_bonus": 2}},
+    {"id": "windfall",    "name": "Windfall",      "tier": "silver",   "kind": "economy", "description": "Gain 8 gold immediately.",                "effects": {"gold_now": 8}},
+    {"id": "scholar",     "name": "Scholar",       "tier": "silver",   "kind": "economy", "description": "+2 XP each round.",                       "effects": {"xp_per_round_bonus": 2}},
+    {"id": "vigor",       "name": "Vigor",         "tier": "gold",     "kind": "combat",  "description": "+15% HP to all your units.",              "effects": {"hp_pct": 0.15}},
+    {"id": "onslaught",   "name": "Onslaught",     "tier": "gold",     "kind": "combat",  "description": "+12% Attack Damage and +10% Attack Speed to all your units.", "effects": {"ad_pct": 0.12, "as_pct": 0.10}},
+    {"id": "aegis",       "name": "Aegis",         "tier": "silver",   "kind": "combat",  "description": "+20 Armor and +20 Magic Resist to all your units.", "effects": {"armor_add": 20, "mr_add": 20}},
+    {"id": "wardstorm",   "name": "Wardstorm",     "tier": "prismatic","kind": "combat",  "description": "All your units start combat with a shield worth 15% of their max HP.", "effects": {"start_shield_pct": 0.15}},
+    {"id": "vampirism",   "name": "Vampirism",     "tier": "gold",     "kind": "combat",  "description": "All your units gain 12% omnivamp (heal for a share of damage dealt).", "effects": {"omnivamp": 0.12}}
+  ]
+}

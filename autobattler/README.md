@@ -108,6 +108,11 @@ round**.
 - **Round rewards:** winning a round grants a small gold bonus plus scheduled
   item drops (`rewards` in `game_config.json`) — the in-game source of item
   components. Component choices are drawn from the deterministic RNG stream.
+- **Augments (`augments.json`):** at set rounds you're offered 3 augments and
+  pick 1 for a persistent bonus. *Economy* augments boost income / interest cap /
+  gold / XP; *combat* augments apply a global stat bundle (HP, AD, AS, armor, MR,
+  omnivamp, start-shield) to all your units each fight, passed into the
+  `CombatEngine` alongside trait effects. Offers are deterministic per seed.
 
 ### Design decisions (locked with the team)
 

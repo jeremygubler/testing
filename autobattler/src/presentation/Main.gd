@@ -36,6 +36,7 @@ var _result_overlay := ""
 # UI references.
 var _hud: CanvasLayer
 var _cosmetics: CanvasLayer
+var _augments: CanvasLayer
 var _lbl_status: Label
 var _lbl_traits: Label
 var _shop_buttons: Array = []
@@ -56,6 +57,9 @@ func _ready() -> void:
 	_build_hud()
 	_cosmetics = preload("res://src/presentation/CosmeticsPanel.gd").new()
 	add_child(_cosmetics)
+	_augments = preload("res://src/presentation/AugmentPanel.gd").new()
+	add_child(_augments)
+	_augments.setup(game)
 	game.start_game()
 	_refresh_ui()
 	queue_redraw()
@@ -70,6 +74,7 @@ func _connect_game_signals() -> void:
 	game.economy.gold_changed.connect(func(_g): _refresh_ui())
 	game.economy.level_changed.connect(func(_l, _x, _n): _refresh_ui())
 	game.items_changed.connect(func(): _sel_item_idx = -1; queue_redraw())
+	game.augment_chosen.connect(func(_id): _refresh_ui())
 
 
 func _connect_input() -> void:
@@ -598,6 +603,8 @@ func _refresh_ui() -> void:
 		game.round_number, game.player_hp, e.gold, e.level, e.xp,
 		e.xp + e.xp_to_next(), game.board_count(), e.board_capacity(), e.interest(), e.streak]
 	_lbl_traits.text = "Traits: " + _active_traits_text()
+	if not game.augments.is_empty():
+		_lbl_traits.text += "\nAugments: " + _augments_text()
 
 	for i in _shop_buttons.size():
 		var b: Button = _shop_buttons[i]
@@ -645,3 +652,11 @@ func _active_traits_text() -> String:
 func _short(trait_id: String) -> String:
 	var p: PerkDef = GameDatabase.get_perk(trait_id)
 	return p.name if p != null else trait_id
+
+
+func _augments_text() -> String:
+	var names: Array[String] = []
+	for aug_id in game.augments:
+		var aug: AugmentDef = GameDatabase.get_augment(aug_id)
+		names.append(aug.name if aug != null else aug_id)
+	return ", ".join(names)

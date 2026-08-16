@@ -10,6 +10,7 @@ const HEROES_PATH := "res://data_files/heroes.json"
 const PERKS_PATH := "res://data_files/perks.json"
 const SKINS_PATH := "res://data_files/skins.json"
 const ITEMS_PATH := "res://data_files/items.json"
+const AUGMENTS_PATH := "res://data_files/augments.json"
 const CONFIG_PATH := "res://data_files/game_config.json"
 
 var _heroes: Dictionary = {}       # id -> HeroDef
@@ -19,6 +20,8 @@ var _skins: Dictionary = {}        # id -> SkinDef
 var _items: Dictionary = {}        # id -> ItemDef
 var _components: Array = []        # Array[ItemDef] (component items only)
 var _recipes: Dictionary = {}      # "compA+compB" -> completed ItemDef
+var _augments: Dictionary = {}     # id -> AugmentDef
+var augments_config: Dictionary = {}  # offer_rounds, choices_per_offer
 var pool_copies: Dictionary = {}   # cost(int) -> copies available in shared pool
 var config: Dictionary = {}        # tunable game constants
 
@@ -35,10 +38,12 @@ func reload() -> void:
 	_items.clear()
 	_components.clear()
 	_recipes.clear()
+	_augments.clear()
 	_load_heroes()
 	_load_perks()
 	_load_skins()
 	_load_items()
+	_load_augments()
 	_load_config()
 
 
@@ -100,6 +105,19 @@ func _load_items() -> void:
 			_recipes[ItemDef.recipe_key(item.recipe[0], item.recipe[1])] = item
 
 
+func _load_augments() -> void:
+	var d = _read_json(AUGMENTS_PATH)
+	if d == null:
+		return
+	augments_config = {
+		"offer_rounds": d.get("offer_rounds", []),
+		"choices_per_offer": int(d.get("choices_per_offer", 3)),
+	}
+	for ad in d.get("augments", []):
+		var aug := AugmentDef.from_dict(ad)
+		_augments[aug.id] = aug
+
+
 func _load_config() -> void:
 	var d = _read_json(CONFIG_PATH)
 	config = d if typeof(d) == TYPE_DICTIONARY else {}
@@ -159,6 +177,14 @@ func all_components() -> Array:
 ## has no recipe.
 func recipe_result(comp_a: String, comp_b: String) -> ItemDef:
 	return _recipes.get(ItemDef.recipe_key(comp_a, comp_b), null)
+
+
+func get_augment(id: String) -> AugmentDef:
+	return _augments.get(id, null)
+
+
+func all_augments() -> Array:
+	return _augments.values()
 
 
 ## Config getter with default fallback (so missing config keys never crash).
