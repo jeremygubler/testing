@@ -73,6 +73,8 @@ func _diagnose_rng() -> void:
 	var e := (c ^ (c << 5)) & 0xFFFFFFFF
 	print("DIAG manual42: a=%d b=%d c=%d e=%d" % [a, b, c, e])
 	print("DIAG shifts: (42<<13)=%d (42>>1)=%d (0xFFFFFFFF)=%d" % [42 << 13, 42 >> 1, 0xFFFFFFFF])
+	var m: int = 42 * 0x2C1B3C6D
+	print("DIAG mult: 42*0x2C1B3C6D=%d masked=%d (python expects 31077305826 / 1012534754)" % [m, m & 0xFFFFFFFF])
 
 
 # --- Tests -------------------------------------------------------------------

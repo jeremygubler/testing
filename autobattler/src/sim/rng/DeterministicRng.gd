@@ -30,18 +30,20 @@ func _init(seed_value: int = 0) -> void:
 
 
 ## Reseed the stream. Same seed -> same sequence, deterministically.
-## The seed is run through an integer avalanche (a Murmur-style finalizer) first,
-## so that adjacent seeds (e.g. 42 and 43) map to wildly different starting states
-## and therefore diverge from the very first output. Every intermediate stays in
-## the positive < 2^63 range, so there is no overflow.
+## We mix the seed with a couple of xorshift-style rounds (shifts + XOR only,
+## NO multiplication — GDScript's int multiply proved unreliable in the runtime)
+## so that adjacent seeds diverge from the first output, then warm up a few steps.
 func seed(seed_value: int) -> void:
 	var s: int = seed_value & _MASK32
-	s = (s ^ (s >> 15)) & _MASK32
-	s = (s * 0x2C1B3C6D) & _MASK32
-	s = (s ^ (s >> 12)) & _MASK32
-	s = (s * 0x297A2D39) & _MASK32
-	s = (s ^ (s >> 15)) & _MASK32
+	# Shift/XOR avalanche (no multiply). Constants chosen for good bit diffusion.
+	s = (s ^ 0x9E3779B9) & _MASK32
+	s = (s ^ (s << 13)) & _MASK32
+	s = s ^ (s >> 7)
+	s = (s ^ (s << 17)) & _MASK32
 	_state = s if s != 0 else _NONZERO
+	# Warm up so nearby seeds are fully decorrelated by the first public output.
+	_next32()
+	_next32()
 
 
 ## Core step: advance the state and return a 32-bit value (1 .. 2^32-1).
