@@ -21,7 +21,7 @@ extends RefCounted
 ## mode wanting stronger statistical guarantees, vendor a better generator behind
 ## this same API.
 
-const RNG_VERSION: int = 4  # bump on algorithm changes; used to detect stale caches
+const RNG_VERSION: int = 5  # bump on algorithm changes; used to detect stale caches
 const _MOD: int = 2147483647       # 2^31 - 1 (modulus)
 const _MULT: int = 16807           # 7^5 (Park-Miller multiplier)
 const _MAX: int = 2147483646       # _MOD - 1
@@ -30,13 +30,18 @@ var _state: int = 1
 
 
 func _init(seed_value: int = 0) -> void:
-	seed(seed_value)
+	reseed(seed_value)
 
 
 ## Reseed the stream. Same seed -> same sequence, deterministically.
 ## Maps the seed into [1, 2^31-2] and warms up two steps so adjacent seeds
 ## diverge before the first public output.
-func seed(seed_value: int) -> void:
+##
+## IMPORTANT: this must NOT be named `seed()` — that collides with the
+## @GlobalScope `seed()` function, and the call in _init would bind to the global
+## instead of this method (leaving the generator at its default state, so every
+## instance produced an identical stream regardless of the requested seed).
+func reseed(seed_value: int) -> void:
 	var s: int = seed_value % _MAX
 	if s < 0:
 		s += _MAX
