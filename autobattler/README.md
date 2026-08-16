@@ -179,6 +179,9 @@ godot --headless --path autobattler -s res://tests/TestRunner.gd
 
 # Combat + cosmetics sandbox (prints a reproducible fight + store demo)
 godot --headless --path autobattler -s res://tools/sandbox.gd
+
+# Balance harness (per-hero DPS vs a training dummy, sorted + per-cost averages)
+godot --headless --path autobattler -s res://tools/balance.gd
 ```
 
 The tests cover RNG reproducibility, economy math (interest cap, streaks,

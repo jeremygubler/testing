@@ -50,3 +50,6 @@ jobs:
 
       - name: Combat + cosmetics sandbox smoke test
         run: ./godot --headless --path autobattler -s res://tools/sandbox.gd
+
+      - name: Balance harness smoke test
+        run: ./godot --headless --path autobattler -s res://tools/balance.gd
