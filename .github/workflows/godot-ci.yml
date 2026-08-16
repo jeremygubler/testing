@@ -53,3 +53,20 @@ jobs:
 
       - name: Balance harness smoke test
         run: ./godot --headless --path autobattler -s res://tools/balance.gd
+
+      # Cross-process determinism guard. The in-process tests cannot catch a draw
+      # that falls through to Godot's global (entropy-seeded) generator: within one
+      # process such a stream still looks stable enough to fool a same-seed check.
+      # Running the engagement harness in two separate processes and diffing the
+      # output does catch it — that class of bug made every shop roll, star roll
+      # and crit/dodge roll non-deterministic while the whole suite stayed green.
+      - name: Determinism across processes (engagement harness run twice)
+        run: |
+          set -e
+          ./godot --headless --path autobattler -s res://tools/engagement.gd > run1.txt
+          ./godot --headless --path autobattler -s res://tools/engagement.gd > run2.txt
+          if ! diff -u run1.txt run2.txt; then
+            echo "::error::Simulation is not reproducible across processes"
+            exit 1
+          fi
+          cat run1.txt

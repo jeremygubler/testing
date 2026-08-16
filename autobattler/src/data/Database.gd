@@ -27,6 +27,9 @@ var _creeps: Dictionary = {}       # id -> HeroDef (neutral PvE units)
 var pool_copies: Dictionary = {}   # cost(int) -> copies available in shared pool
 var config: Dictionary = {}        # tunable game constants
 
+## Fingerprint of the loaded balance data (see _compute_content_hash).
+var content_hash: String = ""
+
 
 func _ready() -> void:
 	reload()
@@ -49,6 +52,7 @@ func reload() -> void:
 	_load_augments()
 	_load_creeps()
 	_load_config()
+	_compute_content_hash()
 
 
 func _read_json(path: String) -> Variant:
@@ -134,6 +138,31 @@ func _load_creeps() -> void:
 func _load_config() -> void:
 	var d = _read_json(CONFIG_PATH)
 	config = d if typeof(d) == TYPE_DICTIONARY else {}
+
+
+## Hash the content files that influence combat outcomes.
+##
+## A fight's result is a function of (seed, teams, mods, *this content*). Replay
+## records carry the hash so re-running an old record against patched balance data
+## is reported as a content mismatch instead of a failed verification — otherwise
+## every balance patch would make honest historical replays look like cheating.
+##
+## skins.json is deliberately excluded: cosmetics never affect a simulation.
+##
+## This is a compatibility tag, not a security primitive — a ranked backend
+## verifies against its own trusted content, never against a client's claim.
+func _compute_content_hash() -> void:
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	for path in [HEROES_PATH, PERKS_PATH, ITEMS_PATH, AUGMENTS_PATH, CREEPS_PATH, CONFIG_PATH]:
+		if not FileAccess.file_exists(path):
+			continue
+		var f := FileAccess.open(path, FileAccess.READ)
+		if f == null:
+			continue
+		ctx.update(f.get_buffer(f.get_length()))
+		f.close()
+	content_hash = ctx.finish().hex_encode().substr(0, 16)
 
 
 # --- Accessors ---------------------------------------------------------------

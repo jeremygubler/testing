@@ -78,19 +78,41 @@ func randi_range(a: int, b: int) -> int:
 	return a + (_step() % (b - a + 1))
 
 
-## Float in [0, 1).
-func randf() -> float:
+## Float in [0, 1). THE canonical float draw — every internal caller must use this
+## name, never `randf()`.
+##
+## `randf`, `randf_range` and `randi_range` are also @GlobalScope function names.
+## An unqualified call to one of them from inside this class binds to the GLOBAL
+## function, not to the method defined here — the same trap already documented for
+## `seed()` above. The global generator is seeded from entropy at startup, so such
+## a call silently returns a process-random value and never advances `_state`.
+##
+## That is not a hypothetical: `chance()`, `randf_range()` and `weighted_index()`
+## all used to call `randf()` this way, which made every crit/dodge/double-strike
+## roll, every shop roll and all opponent generation non-deterministic across
+## processes — while the integer paths stayed correct, so the determinism tests
+## (which never exercised a float draw) kept passing.
+##
+## Keeping the canonical implementation under a name @GlobalScope does not define
+## removes the hazard rather than relying on everyone remembering to write
+## `self.randf()`.
+func next_float() -> float:
 	return float(_step()) / float(_MOD)
+
+
+## Float in [0, 1). Public alias; external callers may use either name.
+func randf() -> float:
+	return next_float()
 
 
 ## Float in [a, b).
 func randf_range(a: float, b: float) -> float:
-	return a + (b - a) * randf()
+	return a + (b - a) * next_float()
 
 
 ## Returns true with probability p (0..1).
 func chance(p: float) -> bool:
-	return randf() < p
+	return next_float() < p
 
 
 ## Weighted pick: returns an index into `weights` proportional to weight.
@@ -101,7 +123,7 @@ func weighted_index(weights: PackedFloat32Array) -> int:
 		total += w
 	if total <= 0.0:
 		return -1
-	var roll: float = randf() * total
+	var roll: float = next_float() * total
 	var acc: float = 0.0
 	for i in weights.size():
 		acc += weights[i]

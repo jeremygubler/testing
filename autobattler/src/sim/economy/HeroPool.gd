@@ -15,8 +15,7 @@ func _init() -> void:
 func reset() -> void:
 	_remaining.clear()
 	for hero in GameDatabase.all_heroes():
-		var copies := int(GameDatabase.pool_copies.get(hero.cost, 1))
-		_remaining[hero.id] = copies
+		_remaining[hero.id] = capacity(hero.id)
 
 
 func copies_left(hero_id: String) -> int:
@@ -39,11 +38,25 @@ func take(hero_id: String) -> bool:
 	return true
 
 
+## Maximum copies of a hero the pool may ever hold (its starting stock).
+func capacity(hero_id: String) -> int:
+	var hero: HeroDef = GameDatabase.get_hero(hero_id)
+	if hero == null:
+		return 0
+	return int(GameDatabase.pool_copies.get(hero.cost, 1))
+
+
 ## Return copies to the pool when a hero is sold (star level = number of 1-star
 ## copies represented: 1-star=1, 2-star=3, 3-star=9).
+##
+## Clamped to the hero's starting stock: units can enter a roster without ever
+## being taken from the pool (debug spawns, and later any granted/summoned unit),
+## and returning those on sell would inflate the shared pool above its configured
+## size, making that hero permanently easier to roll for everyone.
 func give(hero_id: String, star: int = 1) -> void:
 	var count := int(pow(3, star - 1))
-	_remaining[hero_id] = _remaining.get(hero_id, 0) + count
+	var cap := capacity(hero_id)
+	_remaining[hero_id] = mini(cap, _remaining.get(hero_id, 0) + count)
 
 
 func snapshot() -> Dictionary:

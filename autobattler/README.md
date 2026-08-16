@@ -50,9 +50,25 @@ the other way around.
 ### Determinism
 
 `CombatEngine` runs a fixed tickrate (30/s) and draws all randomness from a
-seedable `DeterministicRng` (xorshift128+). Same seed + same inputs ⇒ identical
-fight, every time and on every platform. This is what makes balance regression
-tests possible today and server-side ranked validation possible later.
+seedable `DeterministicRng`. Same seed + same inputs ⇒ identical fight, every time
+and on every platform. This is what makes balance regression tests possible today
+and server-side ranked validation possible later.
+
+**One trap is worth knowing about before touching `DeterministicRng`:** `randf`,
+`randf_range` and `randi_range` are also `@GlobalScope` function names. An
+unqualified call to one of those from *inside* the class binds to the global
+function — Godot's entropy-seeded generator — rather than to the method next to
+it. The call then returns a process-random value and never advances `_state`,
+which is exactly how `chance()`, `randf_range()` and `weighted_index()` silently
+made every crit/dodge roll, shop roll and opponent board non-reproducible while
+the integer-only tests stayed green. The canonical float draw therefore lives
+under a name `@GlobalScope` does not define (`next_float()`), and all internal
+callers use it. The same hazard is why reseeding is called `reseed()`, not
+`seed()`.
+
+Because no in-process test can see this (one process's global stream looks stable
+enough to pass a same-seed check), CI also runs the engagement harness twice in
+separate processes and diffs the output.
 
 ### Folder structure
 
@@ -89,6 +105,13 @@ autobattler/
 Round loop: **shop / buy → position on hex board → auto-combat → result → next
 round**.
 
+- **Movement:** units path to the nearest hex from which they can attack their
+  target via a breadth-first search over free hexes (`CombatEngine._path_step`),
+  so they walk *around* allies and chokepoints. The search expands neighbours in
+  `HexGrid.neighbors()`'s fixed order, so it stays deterministic. When no attack
+  position is reachable at all, the unit still closes as far as the board allows
+  rather than freezing.
+
 - **Economy** (all in `game_config.json`): base income 5, **interest 10 % of
   banked gold capped at 5 (max at 50 gold)**, win/loss streak bonuses, reroll 2
   gold, buy XP 4 gold.
@@ -119,18 +142,32 @@ round**.
   omnivamp, start-shield) to all your units each fight, passed into the
   `CombatEngine` alongside trait effects. Offers are deterministic per seed.
 - **Deterministic replays / ranked-ready:** `Replay.capture()` records a fight's
-  inputs (seed + both teams + player mods) as a JSON-safe record; `Replay.run()`
-  reproduces the exact fight anywhere, and `Replay.verify(record, signature)`
-  re-runs it to confirm a claimed outcome. That's the anti-cheat primitive for a
-  future ranked mode — a client submits {record, result signature}, a server
-  re-runs and checks. `GameState` captures `last_replay`/`last_match_signature`
-  each fight.
+  inputs (seed + both teams + player mods + a **content hash**) as a JSON-safe
+  record; `Replay.run()` reproduces the exact fight anywhere, and
+  `Replay.verify(record, signature)` re-runs it to confirm a claimed outcome.
+  That's the anti-cheat primitive for a future ranked mode — a client submits
+  {record, result signature}, a server re-runs and checks. `GameState` captures
+  `last_replay`/`last_match_signature` each fight.
+  A fight's result is a function of the balance data as well as the seed, so the
+  record carries `GameDatabase.content_hash` (a digest of the combat-relevant
+  `data_files/`, cosmetics excluded). `Replay.verify_detailed()` reports
+  `content_mismatch` separately from `signature_mismatch`, so a record predating a
+  balance patch reads as "cannot judge here" rather than as a forged result. The
+  hash is a compatibility tag, not a security boundary — a real backend verifies
+  against its own trusted content.
 - **Save/resume:** `GameState.serialize()`/`load_from()` snapshot the whole run
-  (roster, items, augments, economy, pool, and RNG state). The presentation layer
-  persists it through the `ISaveService` interface and auto-saves each phase, so
-  a run resumes exactly on next launch — and the identical logic maps onto a
-  console save backend later. (Hover the inspector shows unit/item details; F6
-  clears the save.)
+  (roster, items, augments, economy, pool, RNG state, and the **round phase**).
+  The presentation layer persists it through the `ISaveService` interface and
+  auto-saves each phase, so a run resumes exactly on next launch — and the
+  identical logic maps onto a console save backend later. (Hover the inspector
+  shows unit/item details; F6 clears the save.)
+  Restoring the phase is a correctness matter, not cosmetics: a run saved after a
+  won round used to reload into the *shop* phase of that same round, so relaunching
+  re-fought it and paid its rewards again. Rounds therefore also pay out at most
+  once (`_rewards_granted_round`, serialized), which additionally covers force-quitting
+  mid-combat. A finished run (`GAME_OVER`) is discarded on launch instead of
+  resuming at 0 HP. Saves are versioned (`SAVE_VERSION`); v1 saves lack a phase and
+  keep the original shop-phase behaviour.
 
 ### Design decisions (locked with the team)
 
@@ -182,11 +219,25 @@ godot --headless --path autobattler -s res://tools/sandbox.gd
 
 # Balance harness (per-hero DPS vs a training dummy, sorted + per-cost averages)
 godot --headless --path autobattler -s res://tools/balance.gd
+
+# Engagement harness (do fights actually resolve? timeout rate + travel time)
+godot --headless --path autobattler -s res://tools/engagement.gd
 ```
 
+Where the balance harness asks *how hard does a hero hit*, the engagement harness
+asks *do fights converge*: it runs 360 fixed-seed fights and reports how many are
+still alive at the 30s cap (and therefore decided on remaining HP rather than
+fought out), the mean fight length, and the unit-ticks spent closing on a target.
+That last number is the movement cost of a fight — it is what shows whether a
+pathfinding change is worth anything. Its output is byte-identical between runs,
+which is what makes it usable as the cross-process determinism guard in CI.
+
 The tests cover RNG reproducibility, economy math (interest cap, streaks,
-leveling), star scaling, pool/combine rules, trait activation, and — critically —
-that identical seeds produce identical combat outcomes.
+leveling), star scaling, pool/combine rules (including that the shared pool never
+grows past its configured stock), trait activation, save/load round-trips
+(including the round phase and the once-only round rewards), sell refunds, board
+capacity, shop rolls against a drained cost tier, replay content-hash handling,
+and — critically — that identical seeds produce identical combat outcomes.
 
 ---
 

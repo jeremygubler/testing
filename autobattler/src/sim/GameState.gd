@@ -10,6 +10,10 @@ enum Phase { SHOP, COMBAT, RESULT, GAME_OVER }
 
 const BENCH_SIZE := 9
 
+## Bumped whenever the save layout changes. v1 saves carry no "phase" key and are
+## restored into the shop phase (the v1 behaviour).
+const SAVE_VERSION := 2
+
 signal phase_changed(phase: Phase)
 signal roster_changed()
 signal hp_changed(hp: int)
@@ -35,6 +39,7 @@ var last_replay: Dictionary = {}         # deterministic record of the last figh
 var last_match_signature: String = ""    # canonical outcome signature of the last fight
 
 var _augment_offered_round: int = -1     # last round an offer was made (avoid repeats)
+var _rewards_granted_round: int = -1     # last round whose win rewards were paid out
 
 var _rng: DeterministicRng
 var _combat_rng: DeterministicRng
@@ -154,6 +159,12 @@ func _resolve_combat(result: Dictionary, _opponent: Array) -> void:
 ## short human-readable summary (e.g. "+1g, Aether Bow") or "" if nothing dropped.
 ## Deterministic: component choices come from the game RNG stream.
 func _grant_round_rewards() -> String:
+	# A round pays out at most once. Without this, force-quitting during combat and
+	# relaunching would re-fight the round and drop its loot again — an unbounded
+	# gold/item farm. The counter is serialized, so it survives the reload too.
+	if _rewards_granted_round == round_number:
+		return ""
+	_rewards_granted_round = round_number
 	var cfg: Dictionary = GameDatabase.cfg("rewards", {})
 	var parts: Array[String] = []
 	var gold := int(cfg.get("win_gold_bonus", 0))
@@ -487,9 +498,10 @@ func serialize() -> Dictionary:
 	for u in roster:
 		units.append(u.to_dict())
 	return {
-		"version": 1,
+		"version": SAVE_VERSION,
 		"seed": _seed,
 		"round": round_number,
+		"phase": phase,
 		"hp": player_hp,
 		"uid": _uid,
 		"economy": {
@@ -504,6 +516,7 @@ func serialize() -> Dictionary:
 		"augments": augments.duplicate(),
 		"pending_augments": pending_augments.duplicate(),
 		"augment_offered_round": _augment_offered_round,
+		"rewards_granted_round": _rewards_granted_round,
 		"shop_offers": shop.offer_ids(),
 		"pool": pool.snapshot(),
 		"rng": _rng.get_state(),
@@ -546,20 +559,38 @@ func load_from(data: Dictionary) -> void:
 	for a in data.get("pending_augments", []):
 		pending_augments.append(String(a))
 	_augment_offered_round = int(data.get("augment_offered_round", -1))
+	_rewards_granted_round = int(data.get("rewards_granted_round", -1))
 
 	shop.set_offers(data.get("shop_offers", []))
 	pool.restore(data.get("pool", {}))
 	_rng.set_state(data.get("rng", _rng.get_state()))
 	_combat_rng.set_state(data.get("combat_rng", _combat_rng.get_state()))
 
-	# Refresh UI and resume in the shop phase.
+	# Refresh UI, then resume in the phase the run was saved in.
 	round_changed.emit(round_number)
 	hp_changed.emit(player_hp)
 	roster_changed.emit()
 	items_changed.emit()
 	economy.gold_changed.emit(economy.gold)
 	economy.level_changed.emit(economy.level, economy.xp, economy.xp_to_next())
-	_set_phase(Phase.SHOP)
+	_set_phase(_restored_phase(data))
+
+
+## The phase a save resumes into.
+##
+## Restoring this matters for more than cosmetics: a run saved after a won round
+## used to come back in the SHOP phase of that same round, letting the player
+## re-fight it and collect its rewards again on every relaunch.
+##
+## v1 saves carry no "phase" key and keep the old shop-phase behaviour. COMBAT is
+## never resumable — the engine's mid-fight state is deliberately not serialized —
+## so it degrades to the shop phase of the same round (`_rewards_granted_round`
+## still prevents that round's loot from dropping twice).
+static func _restored_phase(data: Dictionary) -> int:
+	var p := int(data.get("phase", Phase.SHOP))
+	if p == Phase.COMBAT or p < Phase.SHOP or p > Phase.GAME_OVER:
+		return Phase.SHOP
+	return p
 
 
 # --- Star combine ------------------------------------------------------------

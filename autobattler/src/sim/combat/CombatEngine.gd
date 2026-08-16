@@ -206,9 +206,9 @@ func _move_toward(u: CombatUnit, target: CombatUnit) -> void:
 	u.move_accum += u.move_speed * _dt
 	while u.move_accum >= 1.0:
 		u.move_accum -= 1.0
-		var step_pos := _best_step(u.pos, target.pos)
+		var step_pos := _path_step(u, target)
 		if step_pos == u.pos:
-			break  # blocked; wait
+			break  # boxed in; wait for the board to open up
 		_occupancy.erase(u.pos)
 		u.pos = step_pos
 		_occupancy[u.pos] = u.slot
@@ -218,17 +218,49 @@ func _move_toward(u: CombatUnit, target: CombatUnit) -> void:
 			break
 
 
-func _best_step(from_pos: Vector2i, to_pos: Vector2i) -> Vector2i:
-	var best := from_pos
-	var best_dist := HexGrid.distance(from_pos, to_pos)
-	for n in HexGrid.neighbors(from_pos.x, from_pos.y):
-		if _occupancy.has(n):
-			continue
-		var d := HexGrid.distance(n, to_pos)
-		if d < best_dist:
-			best_dist = d
-			best = n
-	return best
+## The next hex `u` should move into to reach a position from which it can attack
+## `target`. Returns `u.pos` when the unit is completely boxed in.
+##
+## Breadth-first search over unoccupied hexes, which replaces the previous greedy
+## gradient descent. Greedy movement only ever accepted a neighbour strictly
+## closer to the target, so a unit standing behind an ally or a chokepoint had no
+## legal move and simply stopped — units got stuck on contact instead of walking
+## around each other, which is the main reason fights ran into the 30s cap and
+## were decided on remaining HP rather than actually being fought out.
+##
+## Determinism: hexes are expanded in HexGrid.neighbors()'s fixed order and the
+## first path found wins, so a given board state always yields the same step. The
+## search is bounded by the board (7x8), so it is cheap enough to run per step.
+func _path_step(u: CombatUnit, target: CombatUnit) -> Vector2i:
+	var from_pos := u.pos
+	var target_pos := target.pos
+
+	# first_step[hex] = the first move of the shortest path reaching that hex, so
+	# the answer needs no separate backtracking pass.
+	var first_step := {from_pos: from_pos}
+	var frontier: Array[Vector2i] = [from_pos]
+	var head := 0
+
+	# Fallback for when no attack position is reachable at all: still close the
+	# distance as much as the blocked board allows, rather than standing still.
+	var best_approach := from_pos
+	var best_approach_dist := HexGrid.distance(from_pos, target_pos)
+
+	while head < frontier.size():
+		var cur: Vector2i = frontier[head]
+		head += 1
+		for n in HexGrid.neighbors(cur.x, cur.y):
+			if first_step.has(n) or _occupancy.has(n):
+				continue
+			first_step[n] = n if cur == from_pos else first_step[cur]
+			frontier.append(n)
+			var d := HexGrid.distance(n, target_pos)
+			if d <= u.attack_range:
+				return first_step[n]  # nearest reachable spot that can attack
+			if d < best_approach_dist:
+				best_approach_dist = d
+				best_approach = first_step[n]
+	return best_approach
 
 
 # --- Attacks & damage --------------------------------------------------------
