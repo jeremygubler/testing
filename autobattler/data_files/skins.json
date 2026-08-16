@@ -1,0 +1,167 @@
+{
+  "skins": [
+    {
+      "id": "skin_abyssia_voidqueen",
+      "type": "hero",
+      "hero_id": "abyssia",
+      "name": "Abyssia, Void Sovereign",
+      "rarity": "legendary",
+      "price_tier": "legendary",
+      "assets": {
+        "sprite": "res://assets/skins/abyssia/voidqueen.png",
+        "tint": "#ffb347"
+      }
+    },
+    {
+      "id": "skin_abyssia_tidewrought",
+      "type": "hero",
+      "hero_id": "abyssia",
+      "name": "Abyssia, Tidewrought",
+      "rarity": "epic",
+      "price_tier": "epic",
+      "assets": {
+        "sprite": "res://assets/skins/abyssia/tidewrought.png",
+        "tint": "#b061ff"
+      }
+    },
+    {
+      "id": "skin_ignarok_magmalord",
+      "type": "hero",
+      "hero_id": "ignarok",
+      "name": "Ignarok, Magma Lord",
+      "rarity": "legendary",
+      "price_tier": "legendary",
+      "assets": {
+        "sprite": "res://assets/skins/ignarok/magmalord.png",
+        "tint": "#ffb347"
+      }
+    },
+    {
+      "id": "skin_kaelen_dawnwarden",
+      "type": "hero",
+      "hero_id": "kaelen",
+      "name": "Kaelen, Dawn Warden",
+      "rarity": "epic",
+      "price_tier": "epic",
+      "assets": {
+        "sprite": "res://assets/skins/kaelen/dawnwarden.png",
+        "tint": "#b061ff"
+      }
+    },
+    {
+      "id": "skin_riftmaw_nullblade",
+      "type": "hero",
+      "hero_id": "riftmaw",
+      "name": "Riftmaw, Nullblade",
+      "rarity": "epic",
+      "price_tier": "epic",
+      "assets": {
+        "sprite": "res://assets/skins/riftmaw/nullblade.png",
+        "tint": "#b061ff"
+      }
+    },
+    {
+      "id": "skin_frostine_aurora",
+      "type": "hero",
+      "hero_id": "frostine",
+      "name": "Frostine, Aurora",
+      "rarity": "rare",
+      "price_tier": "rare",
+      "assets": {
+        "sprite": "res://assets/skins/frostine/aurora.png",
+        "tint": "#4ea1ff"
+      }
+    },
+    {
+      "id": "skin_pyra_emberdancer",
+      "type": "hero",
+      "hero_id": "pyra",
+      "name": "Pyra, Ember Dancer",
+      "rarity": "rare",
+      "price_tier": "rare",
+      "assets": {
+        "sprite": "res://assets/skins/pyra/emberdancer.png",
+        "tint": "#4ea1ff"
+      }
+    },
+    {
+      "id": "skin_nerida_coralmaiden",
+      "type": "hero",
+      "hero_id": "nerida",
+      "name": "Nerida, Coral Maiden",
+      "rarity": "common",
+      "price_tier": "common",
+      "assets": {
+        "sprite": "res://assets/skins/nerida/coralmaiden.png",
+        "tint": "#c9d1d9"
+      }
+    },
+    {
+      "id": "skin_gravik_obsidian",
+      "type": "hero",
+      "hero_id": "gravik",
+      "name": "Gravik, Obsidian",
+      "rarity": "common",
+      "price_tier": "common",
+      "assets": {
+        "sprite": "res://assets/skins/gravik/obsidian.png",
+        "tint": "#c9d1d9"
+      }
+    },
+    {
+      "id": "board_cinderreach",
+      "type": "board",
+      "hero_id": "",
+      "name": "Cinderreach Arena",
+      "rarity": "rare",
+      "price_tier": "rare",
+      "assets": {
+        "background": "res://assets/boards/board_cinderreach.png"
+      }
+    },
+    {
+      "id": "board_sunkenspire",
+      "type": "board",
+      "hero_id": "",
+      "name": "Sunken Spire Arena",
+      "rarity": "epic",
+      "price_tier": "epic",
+      "assets": {
+        "background": "res://assets/boards/board_sunkenspire.png"
+      }
+    },
+    {
+      "id": "board_dawnspire",
+      "type": "board",
+      "hero_id": "",
+      "name": "Dawn Spire Arena",
+      "rarity": "legendary",
+      "price_tier": "legendary",
+      "assets": {
+        "background": "res://assets/boards/board_dawnspire.png"
+      }
+    },
+    {
+      "id": "fx_gold",
+      "type": "effect",
+      "hero_id": "",
+      "name": "Gilded Impacts",
+      "rarity": "epic",
+      "price_tier": "epic",
+      "assets": {
+        "palette": "res://assets/fx/fx_gold.tres"
+      }
+    },
+    {
+      "id": "fx_void",
+      "type": "effect",
+      "hero_id": "",
+      "name": "Void Rifts",
+      "rarity": "legendary",
+      "price_tier": "legendary",
+      "assets": {
+        "palette": "res://assets/fx/fx_void.tres"
+      }
+    }
+  ]
+}

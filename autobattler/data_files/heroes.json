@@ -1,0 +1,1291 @@
+{
+  "pool_copies": {
+    "1": 29,
+    "2": 22,
+    "3": 18,
+    "4": 12,
+    "5": 10
+  },
+  "heroes": [
+    {
+      "id": "cinderos",
+      "name": "Cinderos",
+      "cost": 1,
+      "origin": "emberkin",
+      "lore": "Born of the volcanic Cinderreach; their aether burns hot. Cinderos unleashes a focused aether bolt at the current target for heavy magic damage.",
+      "perks": [
+        "emberkin",
+        "blademaster"
+      ],
+      "stats": {
+        "hp": 550,
+        "attack_damage": 52,
+        "attack_speed": 0.75,
+        "attack_range": 1,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 10,
+        "mana_max": 60,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "cinderos_ult",
+        "name": "Cinderos's Aether Lance",
+        "kind": "burst",
+        "power": 65,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Cinderos unleashes a focused aether bolt at the current target for heavy magic damage."
+      }
+    },
+    {
+      "id": "nerida",
+      "name": "Nerida",
+      "cost": 1,
+      "origin": "tidecaller",
+      "lore": "Keepers of the Sunken Spires who bend the deep currents. Nerida channels restorative aether, healing the most wounded ally.",
+      "perks": [
+        "tidecaller",
+        "warden"
+      ],
+      "stats": {
+        "hp": 550,
+        "attack_damage": 29,
+        "attack_speed": 0.6,
+        "attack_range": 3,
+        "armor": 30,
+        "magic_resist": 30,
+        "mana_start": 40,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "nerida_ult",
+        "name": "Nerida's Mending Tide",
+        "kind": "heal",
+        "power": 65,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Nerida channels restorative aether, healing the most wounded ally."
+      }
+    },
+    {
+      "id": "gravik",
+      "name": "Gravik",
+      "cost": 1,
+      "origin": "stoneborn",
+      "lore": "Living mountain-folk quarried from the Bedrock Vaults. Gravik raises an aether ward, shielding itself from incoming damage.",
+      "perks": [
+        "stoneborn",
+        "vanguard"
+      ],
+      "stats": {
+        "hp": 800,
+        "attack_damage": 36,
+        "attack_speed": 0.55,
+        "attack_range": 1,
+        "armor": 45,
+        "magic_resist": 45,
+        "mana_start": 0,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "gravik_ult",
+        "name": "Gravik's Bulwark Ward",
+        "kind": "shield",
+        "power": 65,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Gravik raises an aether ward, shielding itself from incoming damage."
+      }
+    },
+    {
+      "id": "cirrus",
+      "name": "Cirrus",
+      "cost": 1,
+      "origin": "stormwing",
+      "lore": "Sky-nomads riding the thunderheads above the Shatterlands. Cirrus enters a surge, sharply raising its attack damage and speed for a time.",
+      "perks": [
+        "stormwing",
+        "ranger"
+      ],
+      "stats": {
+        "hp": 470,
+        "attack_damage": 50,
+        "attack_speed": 0.75,
+        "attack_range": 4,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 0,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "cirrus_ult",
+        "name": "Cirrus's Surge",
+        "kind": "empower",
+        "power": 65,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Cirrus enters a surge, sharply raising its attack damage and speed for a time."
+      }
+    },
+    {
+      "id": "mosswick",
+      "name": "Mosswick",
+      "cost": 1,
+      "origin": "verdant",
+      "lore": "The overgrown remnant of the World-Root, part plant, part soul. Mosswick raises an aether ward, shielding itself from incoming damage.",
+      "perks": [
+        "verdant",
+        "sentinel"
+      ],
+      "stats": {
+        "hp": 850,
+        "attack_damage": 34,
+        "attack_speed": 0.55,
+        "attack_range": 1,
+        "armor": 55,
+        "magic_resist": 40,
+        "mana_start": 0,
+        "mana_max": 90,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "mosswick_ult",
+        "name": "Mosswick's Bulwark Ward",
+        "kind": "shield",
+        "power": 65,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Mosswick raises an aether ward, shielding itself from incoming damage."
+      }
+    },
+    {
+      "id": "vesper",
+      "name": "Vesper",
+      "cost": 1,
+      "origin": "umbral",
+      "lore": "Dwellers of the Nightseam who drink the light around them. Vesper strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+      "perks": [
+        "umbral",
+        "assassin"
+      ],
+      "stats": {
+        "hp": 500,
+        "attack_damage": 54,
+        "attack_speed": 0.7,
+        "attack_range": 1,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 0,
+        "mana_max": 80,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "vesper_ult",
+        "name": "Vesper's Culling Strike",
+        "kind": "execute",
+        "power": 65,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Vesper strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+      }
+    },
+    {
+      "id": "lucen",
+      "name": "Lucen",
+      "cost": 1,
+      "origin": "lumen",
+      "lore": "Radiants sworn to the Dawn Spire and its unbroken beacon. Lucen raises an aether ward, shielding itself from incoming damage.",
+      "perks": [
+        "lumen",
+        "vanguard"
+      ],
+      "stats": {
+        "hp": 800,
+        "attack_damage": 36,
+        "attack_speed": 0.55,
+        "attack_range": 1,
+        "armor": 45,
+        "magic_resist": 45,
+        "mana_start": 0,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "lucen_ult",
+        "name": "Lucen's Bulwark Ward",
+        "kind": "shield",
+        "power": 65,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Lucen raises an aether ward, shielding itself from incoming damage."
+      }
+    },
+    {
+      "id": "tik",
+      "name": "Tik",
+      "cost": 1,
+      "origin": "clockwork",
+      "lore": "Aether-driven automatons of the lost Gearwright dynasty. Tik enters a surge, sharply raising its attack damage and speed for a time.",
+      "perks": [
+        "clockwork",
+        "skirmisher"
+      ],
+      "stats": {
+        "hp": 520,
+        "attack_damage": 47,
+        "attack_speed": 0.72,
+        "attack_range": 1,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 10,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "tik_ult",
+        "name": "Tik's Surge",
+        "kind": "empower",
+        "power": 65,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Tik enters a surge, sharply raising its attack damage and speed for a time."
+      }
+    },
+    {
+      "id": "ashvin",
+      "name": "Ashvin",
+      "cost": 2,
+      "origin": "emberkin",
+      "lore": "Born of the volcanic Cinderreach; their aether burns hot. Ashvin enters a surge, sharply raising its attack damage and speed for a time.",
+      "perks": [
+        "emberkin",
+        "berserker"
+      ],
+      "stats": {
+        "hp": 680,
+        "attack_damage": 55,
+        "attack_speed": 0.85,
+        "attack_range": 1,
+        "armor": 30,
+        "magic_resist": 30,
+        "mana_start": 10,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "ashvin_ult",
+        "name": "Ashvin's Surge",
+        "kind": "empower",
+        "power": 90,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Ashvin enters a surge, sharply raising its attack damage and speed for a time."
+      }
+    },
+    {
+      "id": "coralis",
+      "name": "Coralis",
+      "cost": 2,
+      "origin": "tidecaller",
+      "lore": "Keepers of the Sunken Spires who bend the deep currents. Coralis erupts in an aether nova, dealing magic damage to all enemies nearby.",
+      "perks": [
+        "tidecaller",
+        "arcanist"
+      ],
+      "stats": {
+        "hp": 520,
+        "attack_damage": 29,
+        "attack_speed": 0.6,
+        "attack_range": 3,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 30,
+        "mana_max": 110,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "coralis_ult",
+        "name": "Coralis's Rift Nova",
+        "kind": "nova",
+        "power": 90,
+        "radius": 1,
+        "duration": 0.0,
+        "description": "Coralis erupts in an aether nova, dealing magic damage to all enemies nearby."
+      }
+    },
+    {
+      "id": "boulderon",
+      "name": "Boulderon",
+      "cost": 2,
+      "origin": "stoneborn",
+      "lore": "Living mountain-folk quarried from the Bedrock Vaults. Boulderon raises an aether ward, shielding itself from incoming damage.",
+      "perks": [
+        "stoneborn",
+        "sentinel"
+      ],
+      "stats": {
+        "hp": 1010,
+        "attack_damage": 39,
+        "attack_speed": 0.55,
+        "attack_range": 1,
+        "armor": 55,
+        "magic_resist": 40,
+        "mana_start": 0,
+        "mana_max": 90,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "boulderon_ult",
+        "name": "Boulderon's Bulwark Ward",
+        "kind": "shield",
+        "power": 90,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Boulderon raises an aether ward, shielding itself from incoming damage."
+      }
+    },
+    {
+      "id": "galewind",
+      "name": "Galewind",
+      "cost": 2,
+      "origin": "stormwing",
+      "lore": "Sky-nomads riding the thunderheads above the Shatterlands. Galewind enters a surge, sharply raising its attack damage and speed for a time.",
+      "perks": [
+        "stormwing",
+        "skirmisher"
+      ],
+      "stats": {
+        "hp": 620,
+        "attack_damage": 55,
+        "attack_speed": 0.72,
+        "attack_range": 1,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 10,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "galewind_ult",
+        "name": "Galewind's Surge",
+        "kind": "empower",
+        "power": 90,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Galewind enters a surge, sharply raising its attack damage and speed for a time."
+      }
+    },
+    {
+      "id": "bramblewick",
+      "name": "Bramblewick",
+      "cost": 2,
+      "origin": "verdant",
+      "lore": "The overgrown remnant of the World-Root, part plant, part soul. Bramblewick conjures an aether construct to fight alongside it.",
+      "perks": [
+        "verdant",
+        "summoner"
+      ],
+      "stats": {
+        "hp": 580,
+        "attack_damage": 36,
+        "attack_speed": 0.65,
+        "attack_range": 3,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 30,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "bramblewick_ult",
+        "name": "Bramblewick's Conjure Construct",
+        "kind": "summon",
+        "power": 90,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Bramblewick conjures an aether construct to fight alongside it."
+      }
+    },
+    {
+      "id": "nyx",
+      "name": "Nyx",
+      "cost": 2,
+      "origin": "umbral",
+      "lore": "Dwellers of the Nightseam who drink the light around them. Nyx unleashes a focused aether bolt at the current target for heavy magic damage.",
+      "perks": [
+        "umbral",
+        "blademaster"
+      ],
+      "stats": {
+        "hp": 650,
+        "attack_damage": 60,
+        "attack_speed": 0.75,
+        "attack_range": 1,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 10,
+        "mana_max": 60,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "nyx_ult",
+        "name": "Nyx's Aether Lance",
+        "kind": "burst",
+        "power": 90,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Nyx unleashes a focused aether bolt at the current target for heavy magic damage."
+      }
+    },
+    {
+      "id": "solara",
+      "name": "Solara",
+      "cost": 2,
+      "origin": "lumen",
+      "lore": "Radiants sworn to the Dawn Spire and its unbroken beacon. Solara channels restorative aether, healing the most wounded ally.",
+      "perks": [
+        "lumen",
+        "warden"
+      ],
+      "stats": {
+        "hp": 650,
+        "attack_damage": 34,
+        "attack_speed": 0.6,
+        "attack_range": 3,
+        "armor": 30,
+        "magic_resist": 30,
+        "mana_start": 40,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "solara_ult",
+        "name": "Solara's Mending Tide",
+        "kind": "heal",
+        "power": 90,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Solara channels restorative aether, healing the most wounded ally."
+      }
+    },
+    {
+      "id": "rimeheart",
+      "name": "Rimeheart",
+      "cost": 2,
+      "origin": "frostborn",
+      "lore": "Exiles of the Rimewaste, hearts slowed to a glacial calm. Rimeheart unleashes a focused aether bolt at the current target for heavy magic damage.",
+      "perks": [
+        "frostborn",
+        "ranger"
+      ],
+      "stats": {
+        "hp": 550,
+        "attack_damage": 57,
+        "attack_speed": 0.75,
+        "attack_range": 4,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 0,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "rimeheart_ult",
+        "name": "Rimeheart's Aether Lance",
+        "kind": "burst",
+        "power": 90,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Rimeheart unleashes a focused aether bolt at the current target for heavy magic damage."
+      }
+    },
+    {
+      "id": "pyra",
+      "name": "Pyra",
+      "cost": 3,
+      "origin": "emberkin",
+      "lore": "Born of the volcanic Cinderreach; their aether burns hot. Pyra erupts in an aether nova, dealing magic damage to all enemies nearby.",
+      "perks": [
+        "emberkin",
+        "arcanist"
+      ],
+      "stats": {
+        "hp": 600,
+        "attack_damage": 34,
+        "attack_speed": 0.6,
+        "attack_range": 3,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 30,
+        "mana_max": 110,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "pyra_ult",
+        "name": "Pyra's Rift Nova",
+        "kind": "nova",
+        "power": 115,
+        "radius": 1,
+        "duration": 0.0,
+        "description": "Pyra erupts in an aether nova, dealing magic damage to all enemies nearby."
+      }
+    },
+    {
+      "id": "marould",
+      "name": "Marould",
+      "cost": 3,
+      "origin": "tidecaller",
+      "lore": "Keepers of the Sunken Spires who bend the deep currents. Marould raises an aether ward, shielding itself from incoming damage.",
+      "perks": [
+        "tidecaller",
+        "vanguard"
+      ],
+      "stats": {
+        "hp": 1090,
+        "attack_damage": 50,
+        "attack_speed": 0.55,
+        "attack_range": 1,
+        "armor": 45,
+        "magic_resist": 45,
+        "mana_start": 0,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "marould_ult",
+        "name": "Marould's Bulwark Ward",
+        "kind": "shield",
+        "power": 115,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Marould raises an aether ward, shielding itself from incoming damage."
+      }
+    },
+    {
+      "id": "cragmaw",
+      "name": "Cragmaw",
+      "cost": 3,
+      "origin": "stoneborn",
+      "lore": "Living mountain-folk quarried from the Bedrock Vaults. Cragmaw enters a surge, sharply raising its attack damage and speed for a time.",
+      "perks": [
+        "stoneborn",
+        "berserker"
+      ],
+      "stats": {
+        "hp": 790,
+        "attack_damage": 65,
+        "attack_speed": 0.85,
+        "attack_range": 1,
+        "armor": 30,
+        "magic_resist": 30,
+        "mana_start": 10,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "cragmaw_ult",
+        "name": "Cragmaw's Surge",
+        "kind": "empower",
+        "power": 115,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Cragmaw enters a surge, sharply raising its attack damage and speed for a time."
+      }
+    },
+    {
+      "id": "zephyra",
+      "name": "Zephyra",
+      "cost": 3,
+      "origin": "stormwing",
+      "lore": "Sky-nomads riding the thunderheads above the Shatterlands. Zephyra unleashes a focused aether bolt at the current target for heavy magic damage.",
+      "perks": [
+        "stormwing",
+        "ranger"
+      ],
+      "stats": {
+        "hp": 640,
+        "attack_damage": 68,
+        "attack_speed": 0.75,
+        "attack_range": 4,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 0,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "zephyra_ult",
+        "name": "Zephyra's Aether Lance",
+        "kind": "burst",
+        "power": 115,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Zephyra unleashes a focused aether bolt at the current target for heavy magic damage."
+      }
+    },
+    {
+      "id": "sylvara",
+      "name": "Sylvara",
+      "cost": 3,
+      "origin": "verdant",
+      "lore": "The overgrown remnant of the World-Root, part plant, part soul. Sylvara channels restorative aether, healing the most wounded ally.",
+      "perks": [
+        "verdant",
+        "warden"
+      ],
+      "stats": {
+        "hp": 750,
+        "attack_damage": 40,
+        "attack_speed": 0.6,
+        "attack_range": 3,
+        "armor": 30,
+        "magic_resist": 30,
+        "mana_start": 40,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "sylvara_ult",
+        "name": "Sylvara's Mending Tide",
+        "kind": "heal",
+        "power": 115,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Sylvara channels restorative aether, healing the most wounded ally."
+      }
+    },
+    {
+      "id": "umbros",
+      "name": "Umbros",
+      "cost": 3,
+      "origin": "umbral",
+      "lore": "Dwellers of the Nightseam who drink the light around them. Umbros strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+      "perks": [
+        "umbral",
+        "assassin"
+      ],
+      "stats": {
+        "hp": 680,
+        "attack_damage": 74,
+        "attack_speed": 0.7,
+        "attack_range": 1,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 0,
+        "mana_max": 80,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "umbros_ult",
+        "name": "Umbros's Culling Strike",
+        "kind": "execute",
+        "power": 115,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Umbros strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+      }
+    },
+    {
+      "id": "gearwright",
+      "name": "Gearwright",
+      "cost": 3,
+      "origin": "clockwork",
+      "lore": "Aether-driven automatons of the lost Gearwright dynasty. Gearwright conjures an aether construct to fight alongside it.",
+      "perks": [
+        "clockwork",
+        "summoner"
+      ],
+      "stats": {
+        "hp": 680,
+        "attack_damage": 43,
+        "attack_speed": 0.65,
+        "attack_range": 3,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 30,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "gearwright_ult",
+        "name": "Gearwright's Conjure Construct",
+        "kind": "summon",
+        "power": 115,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Gearwright conjures an aether construct to fight alongside it."
+      }
+    },
+    {
+      "id": "glacius",
+      "name": "Glacius",
+      "cost": 3,
+      "origin": "frostborn",
+      "lore": "Exiles of the Rimewaste, hearts slowed to a glacial calm. Glacius erupts in an aether nova, dealing magic damage to all enemies nearby.",
+      "perks": [
+        "frostborn",
+        "vanguard"
+      ],
+      "stats": {
+        "hp": 1090,
+        "attack_damage": 50,
+        "attack_speed": 0.55,
+        "attack_range": 1,
+        "armor": 45,
+        "magic_resist": 45,
+        "mana_start": 0,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "glacius_ult",
+        "name": "Glacius's Rift Nova",
+        "kind": "nova",
+        "power": 115,
+        "radius": 1,
+        "duration": 0.0,
+        "description": "Glacius erupts in an aether nova, dealing magic damage to all enemies nearby."
+      }
+    },
+    {
+      "id": "emberlyn",
+      "name": "Emberlyn",
+      "cost": 4,
+      "origin": "emberkin",
+      "lore": "Born of the volcanic Cinderreach; their aether burns hot. Emberlyn erupts in an aether nova, dealing magic damage to all enemies nearby.",
+      "perks": [
+        "emberkin",
+        "arcanist"
+      ],
+      "stats": {
+        "hp": 720,
+        "attack_damage": 41,
+        "attack_speed": 0.6,
+        "attack_range": 3,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 30,
+        "mana_max": 110,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "emberlyn_ult",
+        "name": "Emberlyn's Rift Nova",
+        "kind": "nova",
+        "power": 140,
+        "radius": 1,
+        "duration": 0.0,
+        "description": "Emberlyn erupts in an aether nova, dealing magic damage to all enemies nearby."
+      }
+    },
+    {
+      "id": "tidus",
+      "name": "Tidus",
+      "cost": 4,
+      "origin": "tidecaller",
+      "lore": "Keepers of the Sunken Spires who bend the deep currents. Tidus unleashes a focused aether bolt at the current target for heavy magic damage.",
+      "perks": [
+        "tidecaller",
+        "blademaster"
+      ],
+      "stats": {
+        "hp": 900,
+        "attack_damage": 85,
+        "attack_speed": 0.75,
+        "attack_range": 1,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 10,
+        "mana_max": 60,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "tidus_ult",
+        "name": "Tidus's Aether Lance",
+        "kind": "burst",
+        "power": 140,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Tidus unleashes a focused aether bolt at the current target for heavy magic damage."
+      }
+    },
+    {
+      "id": "terran",
+      "name": "Terran",
+      "cost": 4,
+      "origin": "stoneborn",
+      "lore": "Living mountain-folk quarried from the Bedrock Vaults. Terran raises an aether ward, shielding itself from incoming damage.",
+      "perks": [
+        "stoneborn",
+        "vanguard"
+      ],
+      "stats": {
+        "hp": 1300,
+        "attack_damage": 59,
+        "attack_speed": 0.55,
+        "attack_range": 1,
+        "armor": 45,
+        "magic_resist": 45,
+        "mana_start": 0,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "terran_ult",
+        "name": "Terran's Bulwark Ward",
+        "kind": "shield",
+        "power": 140,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Terran raises an aether ward, shielding itself from incoming damage."
+      }
+    },
+    {
+      "id": "skarn",
+      "name": "Skarn",
+      "cost": 4,
+      "origin": "stormwing",
+      "lore": "Sky-nomads riding the thunderheads above the Shatterlands. Skarn strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+      "perks": [
+        "stormwing",
+        "assassin"
+      ],
+      "stats": {
+        "hp": 810,
+        "attack_damage": 89,
+        "attack_speed": 0.7,
+        "attack_range": 1,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 0,
+        "mana_max": 80,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "skarn_ult",
+        "name": "Skarn's Culling Strike",
+        "kind": "execute",
+        "power": 140,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Skarn strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+      }
+    },
+    {
+      "id": "thornwood",
+      "name": "Thornwood",
+      "cost": 4,
+      "origin": "verdant",
+      "lore": "The overgrown remnant of the World-Root, part plant, part soul. Thornwood channels restorative aether, healing the most wounded ally.",
+      "perks": [
+        "verdant",
+        "sentinel"
+      ],
+      "stats": {
+        "hp": 1400,
+        "attack_damage": 56,
+        "attack_speed": 0.55,
+        "attack_range": 1,
+        "armor": 55,
+        "magic_resist": 40,
+        "mana_start": 0,
+        "mana_max": 90,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "thornwood_ult",
+        "name": "Thornwood's Mending Tide",
+        "kind": "heal",
+        "power": 140,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Thornwood channels restorative aether, healing the most wounded ally."
+      }
+    },
+    {
+      "id": "cogsworth",
+      "name": "Cogsworth",
+      "cost": 4,
+      "origin": "clockwork",
+      "lore": "Aether-driven automatons of the lost Gearwright dynasty. Cogsworth enters a surge, sharply raising its attack damage and speed for a time.",
+      "perks": [
+        "clockwork",
+        "ranger"
+      ],
+      "stats": {
+        "hp": 760,
+        "attack_damage": 81,
+        "attack_speed": 0.75,
+        "attack_range": 4,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 0,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "cogsworth_ult",
+        "name": "Cogsworth's Surge",
+        "kind": "empower",
+        "power": 140,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Cogsworth enters a surge, sharply raising its attack damage and speed for a time."
+      }
+    },
+    {
+      "id": "icevein",
+      "name": "Icevein",
+      "cost": 4,
+      "origin": "frostborn",
+      "lore": "Exiles of the Rimewaste, hearts slowed to a glacial calm. Icevein erupts in an aether nova, dealing magic damage to all enemies nearby.",
+      "perks": [
+        "frostborn",
+        "arcanist"
+      ],
+      "stats": {
+        "hp": 720,
+        "attack_damage": 41,
+        "attack_speed": 0.6,
+        "attack_range": 3,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 30,
+        "mana_max": 110,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "icevein_ult",
+        "name": "Icevein's Rift Nova",
+        "kind": "nova",
+        "power": 140,
+        "radius": 1,
+        "duration": 0.0,
+        "description": "Icevein erupts in an aether nova, dealing magic damage to all enemies nearby."
+      }
+    },
+    {
+      "id": "nullis",
+      "name": "Nullis",
+      "cost": 4,
+      "origin": "voidtouched",
+      "lore": "Marked by the Rift; reality frays where they walk. Nullis strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+      "perks": [
+        "voidtouched",
+        "skirmisher"
+      ],
+      "stats": {
+        "hp": 860,
+        "attack_damage": 78,
+        "attack_speed": 0.72,
+        "attack_range": 1,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 10,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "nullis_ult",
+        "name": "Nullis's Culling Strike",
+        "kind": "execute",
+        "power": 140,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Nullis strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+      }
+    },
+    {
+      "id": "ignarok",
+      "name": "Ignarok",
+      "cost": 5,
+      "origin": "emberkin",
+      "lore": "Born of the volcanic Cinderreach; their aether burns hot. Ignarok enters a surge, sharply raising its attack damage and speed for a time.",
+      "perks": [
+        "emberkin",
+        "berserker"
+      ],
+      "stats": {
+        "hp": 1160,
+        "attack_damage": 94,
+        "attack_speed": 0.85,
+        "attack_range": 1,
+        "armor": 30,
+        "magic_resist": 30,
+        "mana_start": 10,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "ignarok_ult",
+        "name": "Ignarok's Surge",
+        "kind": "empower",
+        "power": 165,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Ignarok enters a surge, sharply raising its attack damage and speed for a time."
+      }
+    },
+    {
+      "id": "abyssia",
+      "name": "Abyssia",
+      "cost": 5,
+      "origin": "voidtouched",
+      "lore": "Marked by the Rift; reality frays where they walk. Abyssia erupts in an aether nova, dealing magic damage to all enemies nearby.",
+      "perks": [
+        "voidtouched",
+        "arcanist"
+      ],
+      "stats": {
+        "hp": 880,
+        "attack_damage": 50,
+        "attack_speed": 0.6,
+        "attack_range": 3,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 30,
+        "mana_max": 110,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "abyssia_ult",
+        "name": "Abyssia's Rift Nova",
+        "kind": "nova",
+        "power": 165,
+        "radius": 1,
+        "duration": 0.0,
+        "description": "Abyssia erupts in an aether nova, dealing magic damage to all enemies nearby."
+      }
+    },
+    {
+      "id": "kaelen",
+      "name": "Kaelen",
+      "cost": 5,
+      "origin": "lumen",
+      "lore": "Radiants sworn to the Dawn Spire and its unbroken beacon. Kaelen channels restorative aether, healing the most wounded ally.",
+      "perks": [
+        "lumen",
+        "warden"
+      ],
+      "stats": {
+        "hp": 1100,
+        "attack_damage": 58,
+        "attack_speed": 0.6,
+        "attack_range": 3,
+        "armor": 30,
+        "magic_resist": 30,
+        "mana_start": 40,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "kaelen_ult",
+        "name": "Kaelen's Mending Tide",
+        "kind": "heal",
+        "power": 165,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Kaelen channels restorative aether, healing the most wounded ally."
+      }
+    },
+    {
+      "id": "automa",
+      "name": "Automa",
+      "cost": 5,
+      "origin": "clockwork",
+      "lore": "Aether-driven automatons of the lost Gearwright dynasty. Automa conjures an aether construct to fight alongside it.",
+      "perks": [
+        "clockwork",
+        "vanguard"
+      ],
+      "stats": {
+        "hp": 1600,
+        "attack_damage": 72,
+        "attack_speed": 0.55,
+        "attack_range": 1,
+        "armor": 45,
+        "magic_resist": 45,
+        "mana_start": 0,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "automa_ult",
+        "name": "Automa's Conjure Construct",
+        "kind": "summon",
+        "power": 165,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Automa conjures an aether construct to fight alongside it."
+      }
+    },
+    {
+      "id": "frostine",
+      "name": "Frostine",
+      "cost": 5,
+      "origin": "frostborn",
+      "lore": "Exiles of the Rimewaste, hearts slowed to a glacial calm. Frostine unleashes a focused aether bolt at the current target for heavy magic damage.",
+      "perks": [
+        "frostborn",
+        "ranger"
+      ],
+      "stats": {
+        "hp": 940,
+        "attack_damage": 99,
+        "attack_speed": 0.75,
+        "attack_range": 4,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 0,
+        "mana_max": 70,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "frostine_ult",
+        "name": "Frostine's Aether Lance",
+        "kind": "burst",
+        "power": 165,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Frostine unleashes a focused aether bolt at the current target for heavy magic damage."
+      }
+    },
+    {
+      "id": "riftmaw",
+      "name": "Riftmaw",
+      "cost": 5,
+      "origin": "voidtouched",
+      "lore": "Marked by the Rift; reality frays where they walk. Riftmaw strikes with lethal intent, dealing massive damage that scales up against low-health foes.",
+      "perks": [
+        "voidtouched",
+        "assassin"
+      ],
+      "stats": {
+        "hp": 990,
+        "attack_damage": 108,
+        "attack_speed": 0.7,
+        "attack_range": 1,
+        "armor": 20,
+        "magic_resist": 20,
+        "mana_start": 0,
+        "mana_max": 80,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "riftmaw_ult",
+        "name": "Riftmaw's Culling Strike",
+        "kind": "execute",
+        "power": 165,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Riftmaw strikes with lethal intent, dealing massive damage that scales up against low-health foes."
+      }
+    },
+    {
+      "id": "nimbuscar",
+      "name": "Nimbuscar",
+      "cost": 5,
+      "origin": "stormwing",
+      "lore": "Sky-nomads riding the thunderheads above the Shatterlands. Nimbuscar enters a surge, sharply raising its attack damage and speed for a time.",
+      "perks": [
+        "stormwing",
+        "blademaster"
+      ],
+      "stats": {
+        "hp": 1100,
+        "attack_damage": 103,
+        "attack_speed": 0.75,
+        "attack_range": 1,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 10,
+        "mana_max": 60,
+        "move_speed": 2.0,
+        "attack_type": "physical"
+      },
+      "ability": {
+        "id": "nimbuscar_ult",
+        "name": "Nimbuscar's Surge",
+        "kind": "empower",
+        "power": 165,
+        "radius": 0,
+        "duration": 4.0,
+        "description": "Nimbuscar enters a surge, sharply raising its attack damage and speed for a time."
+      }
+    },
+    {
+      "id": "verdania",
+      "name": "Verdania",
+      "cost": 5,
+      "origin": "verdant",
+      "lore": "The overgrown remnant of the World-Root, part plant, part soul. Verdania conjures an aether construct to fight alongside it.",
+      "perks": [
+        "verdant",
+        "summoner"
+      ],
+      "stats": {
+        "hp": 990,
+        "attack_damage": 63,
+        "attack_speed": 0.65,
+        "attack_range": 3,
+        "armor": 25,
+        "magic_resist": 25,
+        "mana_start": 30,
+        "mana_max": 100,
+        "move_speed": 2.0,
+        "attack_type": "magic"
+      },
+      "ability": {
+        "id": "verdania_ult",
+        "name": "Verdania's Conjure Construct",
+        "kind": "summon",
+        "power": 165,
+        "radius": 0,
+        "duration": 0.0,
+        "description": "Verdania conjures an aether construct to fight alongside it."
+      }
+    }
+  ]
+}

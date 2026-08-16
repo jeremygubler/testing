@@ -1,0 +1,52 @@
+name: Godot CI
+
+# Validates the Aetherclash auto-battler: parse-checks every script and runs the
+# deterministic simulation tests headlessly. Runs on pushes/PRs that touch the
+# project.
+
+on:
+  push:
+    paths:
+      - "autobattler/**"
+      - ".github/workflows/godot-ci.yml"
+  pull_request:
+    paths:
+      - "autobattler/**"
+      - ".github/workflows/godot-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: "4.3-stable"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot ${{ env.GODOT_VERSION }} (headless)
+        run: |
+          set -e
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          echo "Downloading $url"
+          curl -fL -o godot.zip "$url"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}_linux.x86_64" godot
+          chmod +x godot
+          ./godot --version
+
+      - name: Fresh import (build global class cache from source)
+        run: |
+          rm -rf autobattler/.godot
+          # First pass registers class_name globals; second resolves cross-script
+          # type references (autoload method return types, etc.).
+          timeout 300 ./godot --headless --path autobattler --import || true
+          timeout 300 ./godot --headless --path autobattler --import || true
+
+      - name: Parse-check all scripts
+        run: ./godot --headless --path autobattler -s res://tools/parse_check.gd
+
+      - name: Run deterministic simulation tests
+        run: ./godot --headless --path autobattler -s res://tests/TestRunner.gd
+
+      - name: Combat + cosmetics sandbox smoke test
+        run: ./godot --headless --path autobattler -s res://tools/sandbox.gd

@@ -1,0 +1,63 @@
+{
+  "_comment": "Central tunable balance config. Edit freely; loaded by GameDatabase.",
+
+  "player": {
+    "starting_hp": 100,
+    "starting_gold": 2,
+    "starting_level": 1
+  },
+
+  "economy": {
+    "base_income": 5,
+    "interest_per_gold": 10,
+    "interest_cap": 5,
+    "reroll_cost": 2,
+    "buy_xp_cost": 4,
+    "buy_xp_amount": 4,
+    "passive_xp_per_round": 2,
+    "sell_refund_full_first_copy": true,
+    "streak_gold": [
+      {"min_abs_streak": 2, "gold": 1},
+      {"min_abs_streak": 4, "gold": 2},
+      {"min_abs_streak": 6, "gold": 3}
+    ]
+  },
+
+  "shop": {
+    "size": 5,
+    "odds_by_level": {
+      "1": [100, 0, 0, 0, 0],
+      "2": [100, 0, 0, 0, 0],
+      "3": [75, 25, 0, 0, 0],
+      "4": [55, 30, 15, 0, 0],
+      "5": [45, 33, 20, 2, 0],
+      "6": [30, 40, 25, 5, 0],
+      "7": [19, 35, 35, 10, 1],
+      "8": [16, 25, 35, 20, 4],
+      "9": [9, 20, 25, 35, 11]
+    }
+  },
+
+  "leveling": {
+    "max_level": 9,
+    "xp_to_reach_level": {
+      "1": 0, "2": 2, "3": 6, "4": 10, "5": 20,
+      "6": 36, "7": 56, "8": 80, "9": 100
+    },
+    "board_units_by_level": {
+      "1": 1, "2": 2, "3": 3, "4": 4, "5": 5,
+      "6": 6, "7": 7, "8": 8, "9": 9
+    }
+  },
+
+  "combat": {
+    "tick_rate": 30,
+    "max_duration_sec": 30.0,
+    "mana_per_attack": 10,
+    "mana_per_damage_taken_factor": 0.05,
+    "crit_base_chance": 0.0,
+    "crit_multiplier": 1.5,
+    "player_damage_base": 3,
+    "player_damage_per_surviving_star": 2
+  }
+}
