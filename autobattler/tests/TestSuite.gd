@@ -60,7 +60,9 @@ func _approx(a: float, b: float, msg: String, eps := 0.0001) -> void:
 # --- Diagnostics -------------------------------------------------------------
 
 func _diagnose_rng() -> void:
-	print("DIAG RNG_VERSION=%d (expect 3)" % DeterministicRng.RNG_VERSION)
+	print("DIAG RNG_VERSION=%d (expect 4)" % DeterministicRng.RNG_VERSION)
+	var big: int = (2654435731 << 13) & 0xFFFFFFFF
+	print("DIAG bigshift (2654435731<<13)&0xFFFFFFFF=%d (expect 4013056000)" % big)
 	var r42 := DeterministicRng.new(42)
 	var r43 := DeterministicRng.new(43)
 	print("DIAG state42=%s state43=%s" % [str(r42.get_state()), str(r43.get_state())])

@@ -1,29 +1,32 @@
 class_name DeterministicRng
 extends RefCounted
 
-## Deterministic, seedable random number generator (xorshift32).
+## Deterministic, seedable random number generator (Park-Miller MINSTD LCG).
 ##
 ## The ONLY source of randomness allowed inside src/sim/. Never call the global
 ## randi()/randf() or time-based seeds there, or determinism (and reproducible
 ## balance tests / replays) breaks.
 ##
-## Why a hand-rolled xorshift32 rather than Godot's RandomNumberGenerator or a
-## 64-bit generator:
-##  * Godot's RandomNumberGenerator did not give reproducible same-seed sequences
-##    across freshly constructed instances in our headless CI, so we don't depend
-##    on its state-reset semantics.
-##  * A 64-bit xorshift needs clean two's-complement overflow + logical shifts,
-##    which GDScript's signed ints don't reliably provide.
-## xorshift32 keeps every intermediate value in the positive < 2^53 range
-## (x << 13 of a 32-bit value is at most ~2^45), so there is no integer overflow
-## and no sign-extension on right shifts. That makes it identical on every
-## platform and Godot version — exactly what a deterministic sim needs.
+## Why MINSTD and not a bit-twiddling xorshift: in the target Godot runtime,
+## bitwise shifts/AND on large operands (intermediate values above ~2^31) did not
+## behave like exact 64-bit integer math, which silently broke hand-rolled xorshift
+## generators (adjacent seeds collapsed to the same state). MINSTD uses only
+## integer multiply + modulo, and every intermediate stays below 2^53
+## ((2^31-2) * 16807 ~= 3.6e13), which the runtime handles exactly. That makes the
+## stream reproducible on every platform/version — exactly what a deterministic
+## sim needs.
+##
+## Quality note: MINSTD is a classic, modest-quality PRNG. It is entirely adequate
+## for shop rolls, combat RNG, and reproducible tests. For a future ranked/netcode
+## mode wanting stronger statistical guarantees, vendor a better generator behind
+## this same API.
 
-const RNG_VERSION: int = 3  # bump on algorithm changes; used to detect stale caches
-const _MASK32: int = 0xFFFFFFFF
-const _NONZERO: int = 0x9E3779B9  # fallback state (never allow zero)
+const RNG_VERSION: int = 4  # bump on algorithm changes; used to detect stale caches
+const _MOD: int = 2147483647       # 2^31 - 1 (modulus)
+const _MULT: int = 16807           # 7^5 (Park-Miller multiplier)
+const _MAX: int = 2147483646       # _MOD - 1
 
-var _state: int = _NONZERO
+var _state: int = 1
 
 
 func _init(seed_value: int = 0) -> void:
@@ -31,57 +34,48 @@ func _init(seed_value: int = 0) -> void:
 
 
 ## Reseed the stream. Same seed -> same sequence, deterministically.
-## We mix the seed with a couple of xorshift-style rounds (shifts + XOR only,
-## NO multiplication — GDScript's int multiply proved unreliable in the runtime)
-## so that adjacent seeds diverge from the first output, then warm up a few steps.
+## Maps the seed into [1, 2^31-2] and warms up two steps so adjacent seeds
+## diverge before the first public output.
 func seed(seed_value: int) -> void:
-	var s: int = seed_value & _MASK32
-	# Shift/XOR avalanche (no multiply). Constants chosen for good bit diffusion.
-	s = (s ^ 0x9E3779B9) & _MASK32
-	s = (s ^ (s << 13)) & _MASK32
-	s = s ^ (s >> 7)
-	s = (s ^ (s << 17)) & _MASK32
-	_state = s if s != 0 else _NONZERO
-	# Warm up so nearby seeds are fully decorrelated by the first public output.
-	_next32()
-	_next32()
+	var s: int = seed_value % _MAX
+	if s < 0:
+		s += _MAX
+	_state = 1 + s
+	_step()
+	_step()
 
 
-## Core step: advance the state and return a 32-bit value (1 .. 2^32-1).
-func _next32() -> int:
-	var x: int = _state
-	x = (x ^ (x << 13)) & _MASK32
-	x = x ^ (x >> 17)              # x is a masked non-negative int -> logical shift
-	x = (x ^ (x << 5)) & _MASK32
-	_state = x
-	return x
+## Core LCG step: state = (state * 16807) mod (2^31-1). Product < 2^53.
+func _step() -> int:
+	_state = (_state * _MULT) % _MOD
+	return _state
 
 
-## Raw non-negative 32-bit integer.
+## Raw positive integer in [1, 2^31-2].
 func next_raw() -> int:
-	return _next32()
+	return _step()
 
 
 ## Non-negative integer (alias kept for API compatibility).
 func next_u63() -> int:
-	return _next32()
+	return _step()
 
 
 ## Integer in [0, n). n must be > 0.
 func randi_below(n: int) -> int:
 	assert(n > 0, "randi_below requires n > 0")
-	return _next32() % n
+	return _step() % n
 
 
 ## Integer in [a, b] inclusive.
 func randi_range(a: int, b: int) -> int:
 	assert(b >= a)
-	return a + (_next32() % (b - a + 1))
+	return a + (_step() % (b - a + 1))
 
 
 ## Float in [0, 1).
 func randf() -> float:
-	return float(_next32()) / 4294967296.0  # 2^32
+	return float(_step()) / float(_MOD)
 
 
 ## Float in [a, b).
@@ -126,6 +120,7 @@ func get_state() -> Array[int]:
 
 
 func set_state(state: Array) -> void:
-	_state = int(state[0]) & _MASK32
-	if _state == 0:
-		_state = _NONZERO
+	var v: int = int(state[0])
+	if v < 1 or v >= _MOD:
+		v = 1
+	_state = v
