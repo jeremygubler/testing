@@ -32,6 +32,7 @@ func run() -> int:
 	_run("augment_economy", test_augment_economy)
 	_run("augment_combat_mods", test_augment_combat_mods)
 	_run("save_load_roundtrip", test_save_load_roundtrip)
+	_run("augment_offer", test_augment_offer)
 	_run("creep_round_opponent", test_creep_round_opponent)
 	_run("creep_round_reward", test_creep_round_reward)
 
@@ -300,6 +301,20 @@ func test_save_load_roundtrip() -> void:
 	_eq(g2.roster.size(), 1, "roster restored")
 	_check(g2.item_inventory.has("belt"), "item inventory restored")
 	_check(g2.augments.has("prosperity"), "augment restored")
+
+
+func test_augment_offer() -> void:
+	# Offer rounds come from JSON (numbers may parse as float) — the offer must
+	# still trigger. Round 2 is an offer round; round 3 is not.
+	var g := GameState.new(8)
+	g.round_number = 2
+	g._maybe_offer_augments()
+	_check(not g.pending_augments.is_empty(), "augments offered on an offer round")
+	_eq(g.pending_augments.size(), 3, "three augments offered")
+	var g2 := GameState.new(8)
+	g2.round_number = 3
+	g2._maybe_offer_augments()
+	_check(g2.pending_augments.is_empty(), "no augments on a non-offer round")
 
 
 func test_creep_round_opponent() -> void:

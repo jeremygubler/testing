@@ -76,7 +76,16 @@ func begin_next_round() -> Dictionary:
 func is_creep_round(r: int = -999) -> bool:
 	var check: int = round_number if r == -999 else r
 	var rc: Array = GameDatabase.cfg("rounds", {}).get("creep_rounds", [])
-	return rc.has(check)
+	return _int_array_has(rc, check)
+
+
+## Membership test that tolerates JSON numbers parsed as float (Array.has(int)
+## would miss a float-valued list element).
+static func _int_array_has(arr: Array, value: int) -> bool:
+	for x in arr:
+		if int(x) == value:
+			return true
+	return false
 
 
 func _build_opponent() -> Array:
@@ -401,7 +410,7 @@ func _maybe_offer_augments() -> void:
 		return
 	var acfg: Dictionary = GameDatabase.augments_config
 	var offer_rounds: Array = acfg.get("offer_rounds", [])
-	if not offer_rounds.has(round_number):
+	if not _int_array_has(offer_rounds, round_number):
 		return
 	var n: int = int(acfg.get("choices_per_offer", 3))
 	var available: Array = []
