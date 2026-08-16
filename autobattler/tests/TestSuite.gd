@@ -13,7 +13,6 @@ var _current := ""
 ## Runs all tests, prints a summary, and returns the number of failures.
 func run() -> int:
 	GameDatabase.reload()
-	_diagnose_rng()
 
 	_run("rng_deterministic", test_rng_deterministic)
 	_run("rng_ranges", test_rng_ranges)
@@ -55,27 +54,6 @@ func _eq(a, b, msg: String) -> void:
 
 func _approx(a: float, b: float, msg: String, eps := 0.0001) -> void:
 	_check(absf(a - b) <= eps, "%s (got %f, expected %f)" % [msg, a, b])
-
-
-# --- Diagnostics -------------------------------------------------------------
-
-func _diagnose_rng() -> void:
-	print("DIAG RNG_VERSION=%d (expect 5)" % DeterministicRng.RNG_VERSION)
-	var r42 := DeterministicRng.new(42)
-	var r43 := DeterministicRng.new(43)
-	print("DIAG state42=%s state43=%s" % [str(r42.get_state()), str(r43.get_state())])
-	var f42 := r42.next_raw()
-	var f43 := r43.next_raw()
-	print("DIAG first42=%d first43=%d equal=%s" % [f42, f43, str(f42 == f43)])
-	# Manual single-step from raw seed to see the primitive ops in the runtime.
-	var a := 42
-	var b := (a ^ (a << 13)) & 0xFFFFFFFF
-	var c := b ^ (b >> 17)
-	var e := (c ^ (c << 5)) & 0xFFFFFFFF
-	print("DIAG manual42: a=%d b=%d c=%d e=%d" % [a, b, c, e])
-	print("DIAG shifts: (42<<13)=%d (42>>1)=%d (0xFFFFFFFF)=%d" % [42 << 13, 42 >> 1, 0xFFFFFFFF])
-	var m: int = 42 * 0x2C1B3C6D
-	print("DIAG mult: 42*0x2C1B3C6D=%d masked=%d (python expects 31077305826 / 1012534754)" % [m, m & 0xFFFFFFFF])
 
 
 # --- Tests -------------------------------------------------------------------
