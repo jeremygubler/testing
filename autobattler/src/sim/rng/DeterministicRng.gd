@@ -26,10 +26,10 @@ func _init(seed_value: int = 0) -> void:
 
 
 ## Reseed the stream. Same seed -> same sequence, deterministically.
+## Assigning `seed` resets the generator's state deterministically from the seed
+## (Godot guarantees a reproducible sequence per seed); do NOT also poke `state`.
 func seed(seed_value: int) -> void:
 	_rng.seed = seed_value
-	# Reset the PCG state so the sequence restarts from the seed.
-	_rng.state = _rng.seed
 
 
 ## Raw non-negative 32-bit integer (0 .. 2^32-1).
