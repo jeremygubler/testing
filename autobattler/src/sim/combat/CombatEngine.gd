@@ -32,7 +32,10 @@ var _cfg: Dictionary
 
 ## teams: Array of two Arrays of GameUnit (team 0 = player, team 1 = enemy).
 ## Only board units (is_on_board) participate.
-func _init(team0: Array, team1: Array, seed_value: int) -> void:
+## player_mods: optional global stat modifiers (e.g. from augments) applied to
+## every team-0 unit after traits. Keys: hp_pct, ad_pct, as_pct, armor_add,
+## mr_add, omnivamp, start_shield_pct.
+func _init(team0: Array, team1: Array, seed_value: int, player_mods: Dictionary = {}) -> void:
 	_rng = DeterministicRng.new(seed_value)
 	_cfg = GameDatabase.cfg("combat", {})
 	var tick_rate := int(_cfg.get("tick_rate", 30))
@@ -43,6 +46,33 @@ func _init(team0: Array, team1: Array, seed_value: int) -> void:
 	# Apply traits per team after all units exist.
 	TraitSystem.apply(_team_units(0))
 	TraitSystem.apply(_team_units(1))
+	# Apply player-global modifiers (augments) to the player's team.
+	if not player_mods.is_empty():
+		_apply_global_mods(_team_units(0), player_mods)
+
+
+## Apply a flat/percent global modifier bundle to a set of units (augments).
+func _apply_global_mods(team_units: Array, mods: Dictionary) -> void:
+	var hp_pct := float(mods.get("hp_pct", 0.0))
+	var ad_pct := float(mods.get("ad_pct", 0.0))
+	var as_pct := float(mods.get("as_pct", 0.0))
+	var armor_add := float(mods.get("armor_add", 0.0))
+	var mr_add := float(mods.get("mr_add", 0.0))
+	var omnivamp := float(mods.get("omnivamp", 0.0))
+	var shield_pct := float(mods.get("start_shield_pct", 0.0))
+	for u in team_units:
+		if hp_pct != 0.0:
+			u.max_hp *= (1.0 + hp_pct)
+			u.hp = u.max_hp
+		if ad_pct != 0.0:
+			u.attack_damage *= (1.0 + ad_pct)
+		if as_pct != 0.0:
+			u.attack_speed *= (1.0 + as_pct)
+		u.armor += armor_add
+		u.magic_resist += mr_add
+		u.omnivamp_pct += omnivamp
+		if shield_pct != 0.0:
+			u.shield += u.max_hp * shield_pct
 
 
 func _spawn_team(team: Array, team_id: int, mirror: bool) -> void:
@@ -250,6 +280,9 @@ func _deal_damage(attacker: CombatUnit, defender: CombatUnit, raw: float, dmg_ty
 			mitigated = typed_portion
 	var final_damage := mitigated + true_portion
 	var hp_damage := defender.take_final_damage(final_damage)
+	# Surface damage for presentation (floating numbers); observational only.
+	if hp_damage > 0.0:
+		events.append({"type": "damage", "target": defender.slot, "amount": hp_damage, "dtype": dmg_type})
 	# Defender gains mana from damage taken.
 	if defender.alive:
 		defender.mana = minf(defender.mana_max, defender.mana

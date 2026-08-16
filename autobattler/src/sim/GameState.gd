@@ -15,6 +15,9 @@ signal roster_changed()
 signal hp_changed(hp: int)
 signal round_changed(round_number: int)
 signal combat_resolved(result: Dictionary)
+signal items_changed()
+signal augments_offered(choices: Array)   # Array[String] of augment ids
+signal augment_chosen(augment_id: String)
 
 var phase: int = Phase.SHOP
 var round_number: int = 0
@@ -24,7 +27,14 @@ var pool: HeroPool
 var shop: Shop
 
 var roster: Array = []          # Array[GameUnit] (bench + board)
+var item_inventory: Array[String] = []  # unassigned item ids the player holds
+var augments: Array[String] = []        # chosen augment ids
+var pending_augments: Array[String] = []  # augment ids currently offered (choose one)
 var last_result: Dictionary = {}
+var last_replay: Dictionary = {}         # deterministic record of the last fight
+var last_match_signature: String = ""    # canonical outcome signature of the last fight
+
+var _augment_offered_round: int = -1     # last round an offer was made (avoid repeats)
 
 var _rng: DeterministicRng
 var _combat_rng: DeterministicRng
@@ -57,16 +67,42 @@ func begin_next_round() -> Dictionary:
 	var income := economy.grant_round_income()
 	last_result = {}
 	shop.roll(economy.level)  # free roll at the start of each round
+	_maybe_offer_augments()
 	_set_phase(Phase.SHOP)
 	return income
 
 
 ## Player ends the shop phase and starts the auto-battle against a PvE opponent.
 ## Returns the combat result Dictionary.
+## True if the current round is a PvE creep round (neutral opponents + loot).
+func is_creep_round(r: int = -999) -> bool:
+	var check: int = round_number if r == -999 else r
+	var rc: Array = GameDatabase.cfg("rounds", {}).get("creep_rounds", [])
+	return _int_array_has(rc, check)
+
+
+## Membership test that tolerates JSON numbers parsed as float (Array.has(int)
+## would miss a float-valued list element).
+static func _int_array_has(arr: Array, value: int) -> bool:
+	for x in arr:
+		if int(x) == value:
+			return true
+	return false
+
+
+func _build_opponent() -> Array:
+	if is_creep_round(round_number):
+		return OpponentFactory.build_creeps(round_number, _rng)
+	return OpponentFactory.build(round_number, _rng)
+
+
 func start_combat() -> Dictionary:
 	_set_phase(Phase.COMBAT)
-	var opponent := OpponentFactory.build(round_number, _rng)
-	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed())
+	var opponent := _build_opponent()
+	var seed := _next_combat_seed()
+	var mods := player_combat_mods()
+	last_replay = Replay.capture(board_units(), opponent, seed, mods)
+	var engine := CombatEngine.new(board_units(), opponent, seed, mods)
 	var result := engine.run_to_completion()
 	_resolve_combat(result, opponent)
 	return result
@@ -77,8 +113,11 @@ func start_combat() -> Dictionary:
 ## the engine finishes.
 func begin_combat_engine() -> Dictionary:
 	_set_phase(Phase.COMBAT)
-	var opponent := OpponentFactory.build(round_number, _rng)
-	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed())
+	var opponent := _build_opponent()
+	var seed := _next_combat_seed()
+	var mods := player_combat_mods()
+	last_replay = Replay.capture(board_units(), opponent, seed, mods)
+	var engine := CombatEngine.new(board_units(), opponent, seed, mods)
 	return {"engine": engine, "opponent": opponent}
 
 
@@ -88,6 +127,7 @@ func resolve_combat(result: Dictionary, opponent: Array) -> void:
 
 func _resolve_combat(result: Dictionary, _opponent: Array) -> void:
 	last_result = result
+	last_match_signature = Replay.signature(result)
 	var won: bool = result.get("winner", -1) == 0
 	economy.register_result(won)
 	if not won:
@@ -101,11 +141,53 @@ func _resolve_combat(result: Dictionary, _opponent: Array) -> void:
 		result["player_damage"] = dmg
 	else:
 		result["player_damage"] = 0
+	if won:
+		result["rewards"] = _grant_round_rewards()
 	combat_resolved.emit(result)
 	if player_hp <= 0:
 		_set_phase(Phase.GAME_OVER)
 	else:
 		_set_phase(Phase.RESULT)
+
+
+## Grant this round's win rewards (gold + item components) from config. Returns a
+## short human-readable summary (e.g. "+1g, Aether Bow") or "" if nothing dropped.
+## Deterministic: component choices come from the game RNG stream.
+func _grant_round_rewards() -> String:
+	var cfg: Dictionary = GameDatabase.cfg("rewards", {})
+	var parts: Array[String] = []
+	var gold := int(cfg.get("win_gold_bonus", 0))
+	var drops: Array = cfg.get("round_drops", {}).get(str(round_number), []).duplicate()
+	# Creep rounds always drop a component (PvE loot).
+	if is_creep_round(round_number):
+		drops.append({"type": "component"})
+	for drop in drops:
+		match drop.get("type", ""):
+			"gold":
+				gold += int(drop.get("amount", 0))
+			"component":
+				var comp := _random_component()
+				if comp != null:
+					item_inventory.append(comp.id)
+					parts.append(comp.name)
+			"item":
+				var item_id := String(drop.get("id", ""))
+				if GameDatabase.get_item(item_id) != null:
+					item_inventory.append(item_id)
+					parts.append(GameDatabase.get_item(item_id).name)
+	if gold > 0:
+		economy.add_gold(gold)
+		parts.insert(0, "+%dg" % gold)
+	if not item_inventory.is_empty():
+		items_changed.emit()
+	return ", ".join(parts)
+
+
+func _random_component() -> ItemDef:
+	var comps: Array = GameDatabase.all_components()
+	if comps.is_empty():
+		return null
+	return comps[_rng.randi_below(comps.size())]
 
 
 func _next_combat_seed() -> int:
@@ -207,14 +289,80 @@ func buy(slot: int) -> bool:
 	return true
 
 
-## Sell a unit: refund gold, return copies to the pool, remove from roster.
+## Sell a unit: refund gold, return copies to the pool, return items to the
+## inventory, and remove from roster.
 func sell(unit: GameUnit) -> bool:
 	if unit == null or not roster.has(unit):
 		return false
 	economy.add_gold(unit.sell_value())
 	pool.give(unit.hero.id, unit.star)
+	for item_id in unit.items:
+		item_inventory.append(item_id)
 	roster.erase(unit)
 	roster_changed.emit()
+	if not unit.items.is_empty():
+		items_changed.emit()
+	return true
+
+
+# --- Items -------------------------------------------------------------------
+
+## Add an item id to the player's inventory (rewards / debug).
+func grant_item(item_id: String) -> void:
+	if GameDatabase.get_item(item_id) == null:
+		return
+	item_inventory.append(item_id)
+	items_changed.emit()
+
+
+## Assign an inventory item to a unit. If the item is a component and the unit
+## already holds a component that completes a recipe, the two combine into the
+## completed item (freeing a slot). Otherwise the item is equipped if the unit has
+## a free slot (max 3). Returns true on success.
+func assign_item(unit: GameUnit, item_id: String) -> bool:
+	if unit == null or not roster.has(unit):
+		return false
+	if not item_inventory.has(item_id):
+		return false
+	var item: ItemDef = GameDatabase.get_item(item_id)
+	if item == null:
+		return false
+
+	# Try to complete a recipe with an existing component on the unit.
+	if item.is_component():
+		for i in unit.items.size():
+			var held: ItemDef = GameDatabase.get_item(unit.items[i])
+			if held != null and held.is_component():
+				var result := GameDatabase.recipe_result(held.id, item.id)
+				if result != null:
+					unit.items[i] = result.id
+					item_inventory.erase(item_id)
+					roster_changed.emit()
+					items_changed.emit()
+					return true
+
+	# Otherwise equip into a free slot.
+	if unit.items.size() >= GameUnit.MAX_ITEMS:
+		return false
+	unit.items.append(item_id)
+	item_inventory.erase(item_id)
+	roster_changed.emit()
+	items_changed.emit()
+	return true
+
+
+## Remove an item from a unit and return it to the inventory. Returns true on
+## success. (Completed items return as-is; they are not decomposed.)
+func unequip_item(unit: GameUnit, slot: int) -> bool:
+	if unit == null or not roster.has(unit):
+		return false
+	if slot < 0 or slot >= unit.items.size():
+		return false
+	var item_id: String = unit.items[slot]
+	unit.items.remove_at(slot)
+	item_inventory.append(item_id)
+	roster_changed.emit()
+	items_changed.emit()
 	return true
 
 
@@ -260,6 +408,158 @@ func move_to_bench(unit: GameUnit) -> bool:
 	unit.bench_index = idx
 	roster_changed.emit()
 	return true
+
+
+# --- Augments ----------------------------------------------------------------
+
+## If this round is an augment-offer round (and one hasn't been offered yet),
+## pick N distinct random augments the player doesn't already own and offer them.
+func _maybe_offer_augments() -> void:
+	if _augment_offered_round == round_number:
+		return
+	var acfg: Dictionary = GameDatabase.augments_config
+	var offer_rounds: Array = acfg.get("offer_rounds", [])
+	if not _int_array_has(offer_rounds, round_number):
+		return
+	var n: int = int(acfg.get("choices_per_offer", 3))
+	var available: Array = []
+	for aug in GameDatabase.all_augments():
+		if not augments.has(aug.id):
+			available.append(aug.id)
+	_rng.shuffle(available)
+	pending_augments = []
+	for i in mini(n, available.size()):
+		pending_augments.append(String(available[i]))
+	_augment_offered_round = round_number
+	if not pending_augments.is_empty():
+		augments_offered.emit(pending_augments)
+
+
+## Choose one of the pending augments. Applies its effects and clears the offer.
+func choose_augment(augment_id: String) -> bool:
+	if not pending_augments.has(augment_id):
+		return false
+	var aug: AugmentDef = GameDatabase.get_augment(augment_id)
+	if aug == null:
+		return false
+	augments.append(augment_id)
+	pending_augments = []
+	_apply_augment_effects(aug)
+	augment_chosen.emit(augment_id)
+	return true
+
+
+func _apply_augment_effects(aug: AugmentDef) -> void:
+	if aug.kind != "economy":
+		return  # combat effects are applied at combat build via player_combat_mods()
+	var e: Dictionary = aug.effects
+	economy.bonus_income += int(e.get("income_bonus", 0))
+	economy.bonus_interest_cap += int(e.get("interest_cap_bonus", 0))
+	economy.bonus_xp_per_round += int(e.get("xp_per_round_bonus", 0))
+	var gold_now := int(e.get("gold_now", 0))
+	if gold_now > 0:
+		economy.add_gold(gold_now)
+	var xp_now := int(e.get("xp_now", 0))
+	if xp_now > 0:
+		economy.add_xp(xp_now)
+
+
+## Aggregate combat-augment effects into a single global-modifier bundle passed to
+## the CombatEngine for the player's team.
+func player_combat_mods() -> Dictionary:
+	var mods: Dictionary = {}
+	for aug_id in augments:
+		var aug: AugmentDef = GameDatabase.get_augment(aug_id)
+		if aug == null or not aug.is_combat():
+			continue
+		for key in aug.effects.keys():
+			mods[key] = float(mods.get(key, 0.0)) + float(aug.effects[key])
+	return mods
+
+
+# --- Save / load -------------------------------------------------------------
+# Pure serialization: no platform access here. The presentation layer persists
+# the returned Dictionary through ISaveService and restores it on launch, so the
+# same save logic works on any platform (incl. a future Switch save backend).
+
+func serialize() -> Dictionary:
+	var units: Array = []
+	for u in roster:
+		units.append(u.to_dict())
+	return {
+		"version": 1,
+		"seed": _seed,
+		"round": round_number,
+		"hp": player_hp,
+		"uid": _uid,
+		"economy": {
+			"gold": economy.gold, "level": economy.level, "xp": economy.xp,
+			"streak": economy.streak,
+			"bonus_income": economy.bonus_income,
+			"bonus_interest_cap": economy.bonus_interest_cap,
+			"bonus_xp_per_round": economy.bonus_xp_per_round,
+		},
+		"roster": units,
+		"item_inventory": item_inventory.duplicate(),
+		"augments": augments.duplicate(),
+		"pending_augments": pending_augments.duplicate(),
+		"augment_offered_round": _augment_offered_round,
+		"shop_offers": shop.offer_ids(),
+		"pool": pool.snapshot(),
+		"rng": _rng.get_state(),
+		"combat_rng": _combat_rng.get_state(),
+	}
+
+
+## Restore state from a serialized Dictionary (as produced by serialize(), possibly
+## round-tripped through JSON). Emits the signals needed to refresh the UI.
+func load_from(data: Dictionary) -> void:
+	_seed = int(data.get("seed", _seed))
+	round_number = int(data.get("round", 0))
+	player_hp = int(data.get("hp", player_hp))
+	_uid = int(data.get("uid", _uid))
+
+	var eco: Dictionary = data.get("economy", {})
+	economy.gold = int(eco.get("gold", economy.gold))
+	economy.level = int(eco.get("level", economy.level))
+	economy.xp = int(eco.get("xp", economy.xp))
+	economy.streak = int(eco.get("streak", 0))
+	economy.bonus_income = int(eco.get("bonus_income", 0))
+	economy.bonus_interest_cap = int(eco.get("bonus_interest_cap", 0))
+	economy.bonus_xp_per_round = int(eco.get("bonus_xp_per_round", 0))
+
+	roster.clear()
+	for ud in data.get("roster", []):
+		var gu := GameUnit.from_dict(_uid, ud)
+		if gu == null:
+			continue
+		_uid += 1
+		roster.append(gu)
+
+	item_inventory.clear()
+	for it in data.get("item_inventory", []):
+		item_inventory.append(String(it))
+	augments.clear()
+	for a in data.get("augments", []):
+		augments.append(String(a))
+	pending_augments.clear()
+	for a in data.get("pending_augments", []):
+		pending_augments.append(String(a))
+	_augment_offered_round = int(data.get("augment_offered_round", -1))
+
+	shop.set_offers(data.get("shop_offers", []))
+	pool.restore(data.get("pool", {}))
+	_rng.set_state(data.get("rng", _rng.get_state()))
+	_combat_rng.set_state(data.get("combat_rng", _combat_rng.get_state()))
+
+	# Refresh UI and resume in the shop phase.
+	round_changed.emit(round_number)
+	hp_changed.emit(player_hp)
+	roster_changed.emit()
+	items_changed.emit()
+	economy.gold_changed.emit(economy.gold)
+	economy.level_changed.emit(economy.level, economy.xp, economy.xp_to_next())
+	_set_phase(Phase.SHOP)
 
 
 # --- Star combine ------------------------------------------------------------

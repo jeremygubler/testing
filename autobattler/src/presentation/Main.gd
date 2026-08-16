@@ -31,16 +31,28 @@ var _sim_accum := 0.0
 var _playback_speed := 1.0
 var _visual_pos: Dictionary = {}   # slot -> Vector2 (screen), lerped
 var _attack_fx: Array = []         # [{from:Vector2, to:Vector2, ttl:float}]
+var _floats: Array = []            # floating combat texts [{pos,text,color,size,ttl,max}]
 var _result_overlay := ""
 
 # UI references.
 var _hud: CanvasLayer
 var _cosmetics: CanvasLayer
+var _augments: CanvasLayer
 var _lbl_status: Label
 var _lbl_traits: Label
 var _shop_buttons: Array = []
 var _lbl_shop_state: Label
 var _fight_button: Button
+
+# Item tray (held, unassigned items) — left column below the HUD.
+const TRAY_ORIGIN := Vector2(16, 210)
+const TRAY_W := 210.0
+const TRAY_ROW := 26.0
+var _sel_item_idx: int = -1   # index into game.item_inventory, or -1
+
+# Hover inspector: whatever the cursor is over (a unit, or a tray item).
+var _inspect_unit: GameUnit = null
+var _inspect_item_id: String = ""
 
 
 func _ready() -> void:
@@ -50,9 +62,27 @@ func _ready() -> void:
 	_build_hud()
 	_cosmetics = preload("res://src/presentation/CosmeticsPanel.gd").new()
 	add_child(_cosmetics)
-	game.start_game()
+	_augments = preload("res://src/presentation/AugmentPanel.gd").new()
+	add_child(_augments)
+	_augments.setup(game)
+	# Resume a saved run if one exists, else start fresh. Persistence goes through
+	# the ISaveService interface (desktop: local file; Switch: platform save later).
+	var save_svc := PlatformServices.save
+	if save_svc.has("run"):
+		game.load_from(save_svc.load_data("run", {}))
+	else:
+		game.start_game()
 	_refresh_ui()
 	queue_redraw()
+
+
+func _save_run() -> void:
+	PlatformServices.save.save("run", game.serialize())
+
+
+func _autosave_on_phase(p: int) -> void:
+	if p == GameState.Phase.SHOP or p == GameState.Phase.RESULT or p == GameState.Phase.GAME_OVER:
+		_save_run()
 
 
 func _connect_game_signals() -> void:
@@ -63,6 +93,9 @@ func _connect_game_signals() -> void:
 	game.combat_resolved.connect(_on_combat_resolved)
 	game.economy.gold_changed.connect(func(_g): _refresh_ui())
 	game.economy.level_changed.connect(func(_l, _x, _n): _refresh_ui())
+	game.items_changed.connect(func(): _sel_item_idx = -1; queue_redraw())
+	game.augment_chosen.connect(func(_id): _refresh_ui())
+	game.phase_changed.connect(_autosave_on_phase)
 
 
 func _connect_input() -> void:
@@ -88,15 +121,34 @@ func _unhandled_input(event: InputEvent) -> void:
 				game.hp_changed.emit(game.player_hp); return
 			KEY_C:
 				_cosmetics.toggle(); return
+			KEY_F4:
+				var comp: ItemDef = GameDatabase.all_components().pick_random()
+				if comp != null:
+					game.grant_item(comp.id)
+				return
+			KEY_F6:
+				PlatformServices.save.erase("run")
+				_result_overlay = "Save cleared — restart for a new run"
+				queue_redraw(); return
+
+	# Update the hover inspector (what the cursor is over).
+	if event is InputEventMouseMotion:
+		_update_inspection(get_global_mouse_position())
 
 	# Compute the placement hex under the mouse and hand the raw event to the
 	# platform input service, which translates it into semantic signals.
 	var hex := _pixel_to_placement_hex(get_global_mouse_position())
 	PlatformServices.feed_input_event(event, hex)
 
-	# Bench interactions are handled here (bench geometry lives in presentation).
+	# Tray + bench interactions are handled here (their geometry lives in
+	# presentation).
 	if event is InputEventMouseButton and event.pressed and _in_shop():
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			var tidx := _pixel_to_tray_index(get_global_mouse_position())
+			if tidx >= 0:
+				_sel_item_idx = -1 if _sel_item_idx == tidx else tidx
+				queue_redraw()
+				return
 			var bidx := _pixel_to_bench_index(get_global_mouse_position())
 			if bidx >= 0:
 				_handle_bench_click(bidx)
@@ -124,6 +176,12 @@ func _on_hex_selected(col: int, row: int) -> void:
 	if col < 0:
 		return
 	var pos := Vector2i(col, row)
+	# Assigning a held item to the unit on this hex takes priority.
+	if _sel_item_idx >= 0:
+		var occ_item := _unit_at_board(pos)
+		if occ_item != null:
+			_assign_selected_item(occ_item)
+		return
 	if selected != null:
 		game.place_on_board(selected, pos)
 		selected = null
@@ -136,6 +194,11 @@ func _on_hex_selected(col: int, row: int) -> void:
 
 func _handle_bench_click(bench_index: int) -> void:
 	var unit := _bench_unit_at(bench_index)
+	# Assigning a held item to the benched unit takes priority.
+	if _sel_item_idx >= 0:
+		if unit != null:
+			_assign_selected_item(unit)
+		return
 	if selected != null and unit == null:
 		# Move selected board unit back to the bench.
 		game.move_to_bench(selected)
@@ -143,6 +206,14 @@ func _handle_bench_click(bench_index: int) -> void:
 	elif unit != null:
 		selected = unit if selected != unit else null
 	queue_redraw()
+
+
+func _assign_selected_item(unit: GameUnit) -> void:
+	if _sel_item_idx < 0 or _sel_item_idx >= game.item_inventory.size():
+		_sel_item_idx = -1
+		return
+	var item_id: String = game.item_inventory[_sel_item_idx]
+	game.assign_item(unit, item_id)  # emits items_changed -> clears selection & redraws
 
 
 func _sell_selected_or_hovered() -> void:
@@ -177,16 +248,21 @@ func _start_combat_playback() -> void:
 	for u in _engine.units:
 		_visual_pos[u.slot] = _combat_hex_to_pixel(u.pos)
 	_attack_fx.clear()
+	_floats.clear()
 	_result_overlay = ""
 	_playing = true
 	_refresh_ui()
 
 
 func _process(delta: float) -> void:
-	# Fade attack FX.
+	# Fade attack FX and float texts.
 	for fx in _attack_fx:
 		fx.ttl -= delta
 	_attack_fx = _attack_fx.filter(func(f): return f.ttl > 0.0)
+	for f in _floats:
+		f.ttl -= delta
+		f.pos = f.pos + Vector2(0, -delta * 30.0)  # drift upward
+	_floats = _floats.filter(func(f): return f.ttl > 0.0)
 
 	if _playing and _engine != null:
 		_sim_accum += delta * _playback_speed
@@ -206,13 +282,14 @@ func _process(delta: float) -> void:
 			_playing = false
 			game.resolve_combat(_engine.result, _opponent)
 		queue_redraw()
-	elif not _attack_fx.is_empty():
+	elif not _attack_fx.is_empty() or not _floats.is_empty():
 		queue_redraw()
 
 
 func _consume_events() -> void:
 	for ev in _engine.events:
-		match ev.get("type", ""):
+		var etype := String(ev.get("type", ""))
+		match etype:
 			"attack", "cast":
 				var a: CombatUnit = _find_engine_unit(ev.get("slot", -1))
 				var t: CombatUnit = _find_engine_unit(ev.get("target", ev.get("slot", -1)))
@@ -221,8 +298,34 @@ func _consume_events() -> void:
 						"from": _visual_pos.get(a.slot, _combat_hex_to_pixel(a.pos)),
 						"to": _combat_hex_to_pixel(t.pos),
 						"ttl": 0.15,
-						"crit": ev.get("type") == "cast",
+						"crit": etype == "cast",
 					})
+				if etype == "cast" and a != null:
+					var hd := GameDatabase.get_hero(a.hero_id)
+					if hd != null:
+						_spawn_float(_combat_hex_to_pixel(a.pos) + Vector2(0, -HEX_R), hd.ability_name,
+							Color("#49b6ff"), 13)
+			"damage":
+				var tgt: CombatUnit = _find_engine_unit(ev.get("target", -1))
+				var amt := int(ev.get("amount", 0))
+				if tgt != null and amt > 0:
+					var dtype := String(ev.get("dtype", "physical"))
+					var col := Color.WHITE
+					if dtype == "magic":
+						col = Color("#c98bff")
+					elif dtype == "true":
+						col = Color("#ffd24a")
+					_spawn_float(_combat_hex_to_pixel(tgt.pos) + Vector2(-6, -HEX_R * 0.5), str(amt), col, 14)
+			"dodge":
+				var d: CombatUnit = _find_engine_unit(ev.get("slot", -1))
+				if d != null:
+					_spawn_float(_combat_hex_to_pixel(d.pos), "dodge", Color("#9aa7c7"), 12)
+
+
+func _spawn_float(pos: Vector2, text: String, color: Color, size: int) -> void:
+	if _floats.size() > 60:
+		return
+	_floats.append({"pos": pos, "text": text, "color": color, "size": size, "ttl": 0.85, "max": 0.85})
 
 
 func _find_engine_unit(slot: int) -> CombatUnit:
@@ -238,6 +341,9 @@ func _on_combat_resolved(result: Dictionary) -> void:
 	var winner: int = result.get("winner", -1)
 	if winner == 0:
 		_result_overlay = "VICTORY  (streak %d)" % game.economy.streak
+		var reward: String = result.get("rewards", "")
+		if reward != "":
+			_result_overlay += "   +  " + reward
 	elif winner == 1:
 		_result_overlay = "DEFEAT  −%d HP" % result.get("player_damage", 0)
 	else:
@@ -291,6 +397,14 @@ func _pixel_to_bench_index(p: Vector2) -> int:
 	return -1
 
 
+func _pixel_to_tray_index(p: Vector2) -> int:
+	for i in game.item_inventory.size():
+		var r := Rect2(TRAY_ORIGIN + Vector2(0, i * TRAY_ROW), Vector2(TRAY_W, TRAY_ROW - 4))
+		if r.has_point(p):
+			return i
+	return -1
+
+
 func _unit_at_board(pos: Vector2i) -> GameUnit:
 	for u in game.board_units():
 		if u.board_pos == pos:
@@ -305,6 +419,26 @@ func _bench_unit_at(index: int) -> GameUnit:
 	return null
 
 
+func _update_inspection(p: Vector2) -> void:
+	var prev_u := _inspect_unit
+	var prev_i := _inspect_item_id
+	_inspect_unit = null
+	_inspect_item_id = ""
+	var tidx := _pixel_to_tray_index(p)
+	if tidx >= 0 and tidx < game.item_inventory.size():
+		_inspect_item_id = game.item_inventory[tidx]
+	else:
+		var bidx := _pixel_to_bench_index(p)
+		if bidx >= 0:
+			_inspect_unit = _bench_unit_at(bidx)
+		else:
+			var hex := _pixel_to_placement_hex(p)
+			if hex.x >= 0:
+				_inspect_unit = _unit_at_board(hex)
+	if _inspect_unit != prev_u or _inspect_item_id != prev_i:
+		queue_redraw()
+
+
 # --- Rendering ---------------------------------------------------------------
 
 func _draw() -> void:
@@ -315,6 +449,10 @@ func _draw() -> void:
 		_draw_placed_units()
 	_draw_bench()
 	_draw_attack_fx()
+	_draw_floats()
+	if not (_playing or game.phase == GameState.Phase.COMBAT):
+		_draw_item_tray()
+		_draw_inspector()
 	if _result_overlay != "":
 		_draw_center_banner(_result_overlay)
 
@@ -345,6 +483,17 @@ func _draw_placed_units() -> void:
 	for u in game.board_units():
 		var c := _placement_hex_to_pixel(u.board_pos.x, u.board_pos.y)
 		_draw_unit_token(c, u.hero.name, u.star, u.hero.cost, COL_PLAYER, u == selected, 1.0, 1.0, 1.0)
+		_draw_item_pips(c, u)
+
+
+## Small squares under a unit token, one per equipped item (bright = completed).
+func _draw_item_pips(center: Vector2, u: GameUnit) -> void:
+	for i in u.items.size():
+		var item: ItemDef = GameDatabase.get_item(u.items[i])
+		var col := Color("#ffd24a") if (item != null and not item.is_component()) else Color("#8fa1c7")
+		var p := center + Vector2(-15 + i * 12, HEX_R * 0.78)
+		draw_rect(Rect2(p, Vector2(9, 9)), col)
+		draw_rect(Rect2(p, Vector2(9, 9)), Color(0, 0, 0, 0.6), false, 1.0)
 
 
 func _draw_combat_units() -> void:
@@ -397,6 +546,27 @@ func _draw_bench() -> void:
 			continue
 		var c := BENCH_ORIGIN + Vector2(u.bench_index * BENCH_SLOT + (BENCH_SLOT - 6) * 0.5, (BENCH_SLOT - 6) * 0.5)
 		_draw_unit_token(c, u.hero.name, u.star, u.hero.cost, COL_PLAYER.darkened(0.1), u == selected, 1.0, 0.0, 1.0)
+		_draw_item_pips(c, u)
+
+
+func _draw_item_tray() -> void:
+	var font := ThemeDB.fallback_font
+	if not game.item_inventory.is_empty():
+		draw_string(font, TRAY_ORIGIN + Vector2(0, -6), "ITEMS (click, then a unit)",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#7f8bb0"))
+	for i in game.item_inventory.size():
+		var item: ItemDef = GameDatabase.get_item(game.item_inventory[i])
+		var top := TRAY_ORIGIN + Vector2(0, i * TRAY_ROW)
+		var rect := Rect2(top, Vector2(TRAY_W, TRAY_ROW - 4))
+		var bg := Color("#2a3350") if i != _sel_item_idx else Color("#586ba8")
+		draw_rect(rect, bg)
+		draw_rect(rect, Color(1, 1, 1, 0.12), false, 1.0)
+		var is_comp: bool = item != null and item.is_component()
+		var swatch := Color("#8fa1c7") if is_comp else Color("#ffd24a")
+		draw_rect(Rect2(top + Vector2(5, 5), Vector2(TRAY_ROW - 14, TRAY_ROW - 14)), swatch)
+		var nm := item.name if item != null else "?"
+		draw_string(font, top + Vector2(TRAY_ROW, TRAY_ROW - 9), nm,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 
 
 func _draw_attack_fx() -> void:
@@ -407,6 +577,14 @@ func _draw_attack_fx() -> void:
 		draw_line(fx.from, fx.to, col, 3.0 if fx.get("crit", false) else 2.0)
 
 
+func _draw_floats() -> void:
+	var font := ThemeDB.fallback_font
+	for f in _floats:
+		var col: Color = f.color
+		col.a = clampf(float(f.ttl) / float(f.max), 0.0, 1.0)
+		draw_string(font, f.pos, str(f.text), HORIZONTAL_ALIGNMENT_LEFT, -1, int(f.size), col)
+
+
 func _draw_center_banner(text: String) -> void:
 	var font := ThemeDB.fallback_font
 	var size := 40
@@ -414,6 +592,112 @@ func _draw_center_banner(text: String) -> void:
 	var pos := Vector2(get_viewport_rect().size.x * 0.5 - w * 0.5, 360)
 	draw_rect(Rect2(pos + Vector2(-20, -40), Vector2(w + 40, 60)), Color(0, 0, 0, 0.7))
 	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color("#ffe066"))
+
+
+# --- Hover inspector ---------------------------------------------------------
+
+func _draw_inspector() -> void:
+	var lines: Array = []
+	if _inspect_unit != null:
+		lines = _unit_inspect_lines(_inspect_unit)
+	elif _inspect_item_id != "":
+		lines = _item_inspect_lines(_inspect_item_id)
+	if lines.is_empty():
+		return
+	var font := ThemeDB.fallback_font
+	var origin := Vector2(1008, 300)
+	var pad := 10.0
+	var line_h := 20.0
+	var box_w := 264.0
+	var box_h := pad * 2 + line_h * lines.size()
+	draw_rect(Rect2(origin, Vector2(box_w, box_h)), Color(0.05, 0.07, 0.12, 0.92))
+	draw_rect(Rect2(origin, Vector2(box_w, box_h)), Color(1, 1, 1, 0.15), false, 1.5)
+	for i in lines.size():
+		var entry: Dictionary = lines[i]
+		var pos := origin + Vector2(pad, pad + line_h * (i + 0.75))
+		draw_string(font, pos, entry.get("text", ""), HORIZONTAL_ALIGNMENT_LEFT, box_w - pad * 2,
+			int(entry.get("size", 13)), entry.get("color", Color.WHITE))
+
+
+func _line(text: String, color := Color.WHITE, size := 13) -> Dictionary:
+	return {"text": text, "color": color, "size": size}
+
+
+func _unit_inspect_lines(u: GameUnit) -> Array:
+	var h := u.hero
+	var out: Array = []
+	out.append(_line("%s   %s   %dg" % [h.name, _stars(u.star), h.cost], Color("#ffe066"), 15))
+	out.append(_line("HP %d    AD %d    AS %.2f    Rng %d" % [
+		int(u.max_hp()), int(u.attack_damage()), h.attack_speed, h.attack_range], Color("#c9d1d9")))
+	out.append(_line("Armor %d    MR %d    Mana %d/%d" % [
+		int(h.armor), int(h.magic_resist), int(h.mana_start), int(h.mana_max)], Color("#c9d1d9")))
+	out.append(_line("Ult: %s" % h.ability_name, Color("#9fd0ff")))
+	out.append(_line(h.ability_description, Color("#7f8bb0"), 11))
+	# Per-trait status: current count on the board, active tier, and its effect.
+	var counts := _board_trait_counts()
+	for t in h.perks:
+		var perk: PerkDef = GameDatabase.get_perk(t)
+		if perk == null:
+			continue
+		var cnt := int(counts.get(t, 0))
+		var tier := perk.active_tier_count(cnt)
+		var txt := "%s %d" % [perk.name, cnt]
+		if tier > 0:
+			txt += " (%d): %s" % [tier, _format_trait_effect(perk.active_effect(cnt))]
+		out.append(_line(txt, Color("#5ad469") if tier > 0 else Color("#7f8bb0"), 11))
+	var item_names: Array[String] = []
+	for item_id in u.items:
+		var it: ItemDef = GameDatabase.get_item(item_id)
+		item_names.append(it.name if it != null else item_id)
+	out.append(_line("Items: " + ("-" if item_names.is_empty() else ", ".join(item_names)),
+		Color("#ffd24a")))
+	return out
+
+
+func _item_inspect_lines(item_id: String) -> Array:
+	var it: ItemDef = GameDatabase.get_item(item_id)
+	if it == null:
+		return []
+	var out: Array = []
+	out.append(_line("%s   [%s]" % [it.name, it.kind], Color("#ffe066"), 15))
+	out.append(_line("Stats: " + _format_stats(it.stats), Color("#c9d1d9")))
+	if it.is_component():
+		var builds: Array[String] = []
+		for other in GameDatabase.all_items():
+			if other.kind == "completed" and other.recipe.has(it.id):
+				builds.append(other.name)
+		if not builds.is_empty():
+			out.append(_line("Builds: " + ", ".join(builds), Color("#7f8bb0"), 11))
+	return out
+
+
+func _format_stats(stats: Dictionary) -> String:
+	var parts: Array[String] = []
+	for k in stats.keys():
+		parts.append(_stat_label(String(k), float(stats[k])))
+	return ", ".join(parts)
+
+
+const _STAT_LABELS := {
+	"hp": "HP", "ad": "AD", "ability_power": "AP", "as_pct": "Atk Spd",
+	"armor": "Armor", "mr": "MR", "mana_start": "Mana", "crit": "Crit",
+	"omnivamp": "Omnivamp",
+}
+const _PCT_STATS := ["as_pct", "crit", "omnivamp"]
+
+
+func _stat_label(key: String, value: float) -> String:
+	var label: String = _STAT_LABELS.get(key, key)
+	if key in _PCT_STATS:
+		return "%s +%d%%" % [label, int(round(value * 100.0))]
+	return "%s +%d" % [label, int(value)]
+
+
+func _stars(n: int) -> String:
+	var s := ""
+	for i in n:
+		s += "★"
+	return s
 
 
 # --- HUD ---------------------------------------------------------------------
@@ -444,7 +728,7 @@ func _build_hud() -> void:
 	vb.add_child(_lbl_traits)
 
 	var help := Label.new()
-	help.text = "[D] reroll (2g)   [F] buy XP (4g)   [Space] fight   Right-click: sell\nClick shop to buy · click unit then a hex to place · click bench to move"
+	help.text = "[D] reroll (2g)   [F] buy XP (4g)   [Space] fight   Right-click: sell\nClick shop to buy · click unit then a hex to place · click bench to move · hover to inspect\nItems: click a tray item then a unit (2 components combine). Debug: F1 gold · F2 unit · F4 item"
 	help.add_theme_color_override("font_color", Color("#7f8bb0"))
 	help.add_theme_font_size_override("font_size", 11)
 	vb.add_child(help)
@@ -515,7 +799,11 @@ func _refresh_ui() -> void:
 	_lbl_status.text = "Round %d   HP %d   Gold %d   Lvl %d (%d/%d XP)   Board %d/%d   Interest +%d   Streak %d" % [
 		game.round_number, game.player_hp, e.gold, e.level, e.xp,
 		e.xp + e.xp_to_next(), game.board_count(), e.board_capacity(), e.interest(), e.streak]
+	if game.is_creep_round():
+		_lbl_status.text += "\n⚔ Creep round — beat the neutrals for guaranteed loot"
 	_lbl_traits.text = "Traits: " + _active_traits_text()
+	if not game.augments.is_empty():
+		_lbl_traits.text += "\nAugments: " + _augments_text()
 
 	for i in _shop_buttons.size():
 		var b: Button = _shop_buttons[i]
@@ -538,28 +826,68 @@ func _refresh_ui() -> void:
 		_fight_button.disabled = not _in_shop()
 
 
-func _active_traits_text() -> String:
-	# Count distinct heroes per trait on the board.
+# trait_id -> number of DISTINCT heroes on the board owning that trait.
+func _board_trait_counts() -> Dictionary:
 	var distinct: Dictionary = {}
 	for u in game.board_units():
 		for t in u.hero.perks:
 			if not distinct.has(t):
 				distinct[t] = {}
 			distinct[t][u.hero.id] = true
+	var out: Dictionary = {}
+	for t in distinct.keys():
+		out[t] = distinct[t].size()
+	return out
+
+
+func _active_traits_text() -> String:
+	var counts := _board_trait_counts()
 	var parts: Array = []
-	var keys := distinct.keys()
+	var keys := counts.keys()
 	keys.sort()
 	for t in keys:
 		var perk: PerkDef = GameDatabase.get_perk(t)
 		if perk == null:
 			continue
-		var count: int = distinct[t].size()
+		var count: int = int(counts[t])
 		var tier := perk.active_tier_count(count)
 		var marker := "●" if tier > 0 else "○"
 		parts.append("%s %s %d" % [marker, perk.name, count])
 	return "  ".join(parts) if not parts.is_empty() else "(none)"
 
 
+const _TRAIT_KEY_LABELS := {
+	"armor_add": "Armor", "mr_add": "MR", "hp_pct": "HP", "ad_pct": "AD",
+	"attack_speed_pct": "AtkSpd", "ability_power_pct": "AP", "omnivamp_pct": "Omnivamp",
+	"crit_bonus_pct": "Crit", "dodge_pct": "Dodge", "regen_pct": "Regen/s",
+	"burn_dps": "Burn/s", "true_damage_pct": "TrueDmg", "double_strike_chance": "2xStrike",
+	"heal_pct": "Heal", "shield_pct": "Shield", "mana_on_hit_bonus": "Mana/hit",
+	"ramp_as_per_hit": "AS/hit", "summon_hp_pct": "SummonHP",
+}
+const _TRAIT_FLAT_KEYS := ["armor_add", "mr_add", "mana_on_hit_bonus"]
+
+
+func _format_trait_effect(effect: Dictionary) -> String:
+	var parts: Array[String] = []
+	for k in effect.keys():
+		var key := String(k)
+		var label: String = _TRAIT_KEY_LABELS.get(key, key)
+		var v := float(effect[k])
+		if key in _TRAIT_FLAT_KEYS:
+			parts.append("+%d %s" % [int(v), label])
+		else:
+			parts.append("+%d%% %s" % [int(round(v * 100.0)), label])
+	return ", ".join(parts)
+
+
 func _short(trait_id: String) -> String:
 	var p: PerkDef = GameDatabase.get_perk(trait_id)
 	return p.name if p != null else trait_id
+
+
+func _augments_text() -> String:
+	var names: Array[String] = []
+	for aug_id in game.augments:
+		var aug: AugmentDef = GameDatabase.get_augment(aug_id)
+		names.append(aug.name if aug != null else aug_id)
+	return ", ".join(names)

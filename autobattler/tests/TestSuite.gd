@@ -26,6 +26,16 @@ func run() -> int:
 	_run("combat_deterministic", test_combat_deterministic)
 	_run("combat_terminates", test_combat_terminates)
 	_run("trait_activation", test_trait_activation)
+	_run("item_combine", test_item_combine)
+	_run("item_stats_in_combat", test_item_stats_in_combat)
+	_run("round_rewards", test_round_rewards)
+	_run("augment_economy", test_augment_economy)
+	_run("augment_combat_mods", test_augment_combat_mods)
+	_run("save_load_roundtrip", test_save_load_roundtrip)
+	_run("augment_offer", test_augment_offer)
+	_run("creep_round_opponent", test_creep_round_opponent)
+	_run("creep_round_reward", test_creep_round_reward)
+	_run("combat_replay", test_combat_replay)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -192,3 +202,154 @@ func test_trait_activation() -> void:
 	_check(not eff.is_empty(), "stoneborn active at 2 distinct heroes")
 	var eff0 := perk.active_effect(1)
 	_check(eff0.is_empty(), "stoneborn inactive at 1 hero")
+
+
+func test_item_combine() -> void:
+	var g := GameState.new(2)
+	var hero: HeroDef = GameDatabase.heroes_of_cost(1)[0]
+	var gu := GameUnit.new(5000, hero, 1)
+	gu.bench_index = 0
+	g.roster.append(gu)
+	g.grant_item("blade")
+	g.grant_item("bow")
+	_check(g.assign_item(gu, "blade"), "equip first component")
+	_eq(gu.items.size(), 1, "one component equipped")
+	_check(g.assign_item(gu, "bow"), "assign second component")
+	_eq(gu.items.size(), 1, "components combine into a single item")
+	_eq(gu.items[0], "duelistedge", "blade + bow => Duelist's Edge")
+	_check(g.item_inventory.is_empty(), "both components consumed from inventory")
+
+
+func test_item_stats_in_combat() -> void:
+	var hero: HeroDef = GameDatabase.get_hero("gravik")
+	var base := GameUnit.new(6000, hero, 1)
+	base.board_pos = Vector2i(0, 0)
+	var equipped := GameUnit.new(6001, hero, 1)
+	equipped.board_pos = Vector2i(0, 0)
+	equipped.items = ["titanheart"]  # +450 hp
+	var cu_base := CombatUnit.from_game_unit(base, 0, Vector2i(0, 4), 0)
+	var cu_item := CombatUnit.from_game_unit(equipped, 0, Vector2i(0, 4), 1)
+	_approx(cu_item.max_hp - cu_base.max_hp, 450.0, "Titan Heart adds +450 max HP", 0.5)
+	_approx(cu_item.hp, cu_item.max_hp, "unit starts at full (item-boosted) HP", 0.5)
+
+
+func test_round_rewards() -> void:
+	# Round 3 has a scheduled component drop and is NOT a creep round, so a win
+	# drops exactly one component + the win gold bonus.
+	var g := GameState.new(3)
+	g.round_number = 3
+	var gold_before := g.economy.gold
+	var items_before := g.item_inventory.size()
+	g._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
+	_eq(g.item_inventory.size(), items_before + 1, "round-3 win drops one component")
+	_check(g.economy.gold >= gold_before + 1, "win grants at least the gold bonus")
+	# A loss drops nothing.
+	var g2 := GameState.new(3)
+	g2.round_number = 3
+	var inv2 := g2.item_inventory.size()
+	g2._resolve_combat({"winner": 1, "surviving_stars": [0, 1]}, [])
+	_eq(g2.item_inventory.size(), inv2, "a loss drops no items")
+
+
+func test_augment_economy() -> void:
+	var g := GameState.new(4)
+	g.pending_augments = ["prosperity"]  # +2 income
+	_check(g.choose_augment("prosperity"), "choose economy augment")
+	_eq(g.economy.bonus_income, 2, "prosperity adds +2 income bonus")
+	# base income now includes the bonus.
+	var before := g.economy.gold
+	g.economy.grant_round_income()
+	_check(g.economy.gold >= before + 5 + 2, "income reflects the +2 bonus")
+	_check(g.pending_augments.is_empty(), "offer cleared after choosing")
+
+
+func test_augment_combat_mods() -> void:
+	var g := GameState.new(4)
+	g.pending_augments = ["vigor"]  # +15% hp to all units
+	_check(g.choose_augment("vigor"), "choose combat augment")
+	var mods := g.player_combat_mods()
+	_approx(float(mods.get("hp_pct", 0.0)), 0.15, "vigor yields +15% hp mod", 0.001)
+	# The modifier scales a unit's max HP at combat build.
+	var hero: HeroDef = GameDatabase.get_hero("gravik")
+	var gu := GameUnit.new(7000, hero, 1)
+	gu.board_pos = Vector2i(0, 0)
+	var base_hp := gu.max_hp()
+	var eng := CombatEngine.new([gu], [], 1, mods)
+	_check(eng.units.size() == 1, "player unit present")
+	_approx(eng.units[0].max_hp, base_hp * 1.15, "vigor scales unit max HP by 1.15", 1.0)
+
+
+func test_save_load_roundtrip() -> void:
+	var g := GameState.new(7)
+	g.start_game()
+	g.economy.gold = 33
+	g.debug_add_unit(GameDatabase.heroes_of_cost(1)[0].id)
+	g.grant_item("belt")
+	g.pending_augments = ["prosperity"]
+	g.choose_augment("prosperity")
+
+	# Round-trip through JSON (as the real save backend does).
+	var json_str := JSON.stringify(g.serialize())
+	var reparsed = JSON.parse_string(json_str)
+	_check(typeof(reparsed) == TYPE_DICTIONARY, "save survives JSON round-trip")
+	var expect_next := g._rng.next_raw()  # the next value g's stream would produce
+
+	var g2 := GameState.new(999)  # deliberately different seed
+	g2.load_from(reparsed)
+	_eq(g2._rng.next_raw(), expect_next, "restored RNG continues the exact same stream")
+	_eq(g2.economy.gold, 33, "gold restored")
+	_eq(g2.economy.bonus_income, 2, "economy augment bonus restored")
+	_eq(g2.round_number, 1, "round restored")
+	_eq(g2.roster.size(), 1, "roster restored")
+	_check(g2.item_inventory.has("belt"), "item inventory restored")
+	_check(g2.augments.has("prosperity"), "augment restored")
+
+
+func test_augment_offer() -> void:
+	# Offer rounds come from JSON (numbers may parse as float) — the offer must
+	# still trigger. Round 2 is an offer round; round 3 is not.
+	var g := GameState.new(8)
+	g.round_number = 2
+	g._maybe_offer_augments()
+	_check(not g.pending_augments.is_empty(), "augments offered on an offer round")
+	_eq(g.pending_augments.size(), 3, "three augments offered")
+	var g2 := GameState.new(8)
+	g2.round_number = 3
+	g2._maybe_offer_augments()
+	_check(g2.pending_augments.is_empty(), "no augments on a non-offer round")
+
+
+func test_creep_round_opponent() -> void:
+	var g := GameState.new(5)
+	_check(g.is_creep_round(1), "round 1 is a creep round")
+	_check(not g.is_creep_round(2), "round 2 is not a creep round")
+	var rng := DeterministicRng.new(5)
+	var team := OpponentFactory.build_creeps(1, rng)
+	_check(not team.is_empty(), "creep round builds a non-empty enemy team")
+	var creep_ids := {}
+	for c in GameDatabase.all_creeps():
+		creep_ids[c.id] = true
+	for u in team:
+		_check(creep_ids.has(u.hero.id), "opponent unit is a neutral creep")
+
+
+func test_combat_replay() -> void:
+	var rec := Replay.capture(_mirror_team(), _mirror_team(), 4242, {})
+	var sig := Replay.signature(Replay.run(rec))
+	_eq(Replay.signature(Replay.run(rec)), sig, "replay reproduces the same outcome")
+	# The record must survive JSON transport (client -> ranked backend).
+	var rec_json = JSON.parse_string(JSON.stringify(rec))
+	_check(typeof(rec_json) == TYPE_DICTIONARY, "record survives JSON")
+	_eq(Replay.signature(Replay.run(rec_json)), sig, "replay reproduces after JSON transport")
+	_check(Replay.verify(rec, sig), "verify accepts the true signature")
+	_check(not Replay.verify(rec, "9|9|9,9|9,9"), "verify rejects a tampered signature")
+
+
+func test_creep_round_reward() -> void:
+	# Round 5 is a creep round but has no scheduled round_drops -> the creep bonus
+	# is the only item source, so a win must drop exactly one component.
+	var g := GameState.new(5)
+	g.round_number = 5
+	var before := g.item_inventory.size()
+	g._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
+	_eq(g.item_inventory.size(), before + 1, "creep round win drops one component")

@@ -92,7 +92,32 @@ static func from_game_unit(gu: GameUnit, unit_team: int, position: Vector2i, uni
 	c.ability_power = gu.hero.ability_power * HeroDef.star_multiplier(gu.star)
 	c.ability_radius = gu.hero.ability_radius
 	c.ability_duration = gu.hero.ability_duration
+	c._apply_items(gu.items)
 	return c
+
+
+## Apply equipped item stat bundles on top of base (star-scaled) stats.
+func _apply_items(item_ids: Array) -> void:
+	var as_pct := 0.0
+	for item_id in item_ids:
+		var item: ItemDef = GameDatabase.get_item(item_id)
+		if item == null:
+			continue
+		var s: Dictionary = item.stats
+		max_hp += float(s.get("hp", 0.0))
+		attack_damage += float(s.get("ad", 0.0))
+		ability_power += float(s.get("ability_power", 0.0))
+		armor += float(s.get("armor", 0.0))
+		magic_resist += float(s.get("mr", 0.0))
+		mana += float(s.get("mana_start", 0.0))
+		crit_bonus_pct += float(s.get("crit", 0.0))
+		omnivamp_pct += float(s.get("omnivamp", 0.0))
+		as_pct += float(s.get("as_pct", 0.0))
+	if as_pct != 0.0:
+		attack_speed *= (1.0 + as_pct)
+	# Re-fill HP to the new max and clamp starting mana.
+	hp = max_hp
+	mana = minf(mana, mana_max)
 
 
 ## Effective attack speed including temp buff and berserker ramp (capped at 5.0).

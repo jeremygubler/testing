@@ -84,3 +84,21 @@ func buy_slot(index: int) -> HeroDef:
 ## Clear all offers (e.g. after buying, refresh visuals only).
 func clear() -> void:
 	offers.fill(null)
+
+
+## Serialize the current offers as hero ids ("" for empty slots).
+func offer_ids() -> Array:
+	var out: Array = []
+	for h in offers:
+		out.append(h.id if h != null else "")
+	return out
+
+
+## Restore offers from a list of hero ids ("" -> empty slot).
+func set_offers(ids: Array) -> void:
+	var arr: Array = []
+	for id in ids:
+		arr.append(GameDatabase.get_hero(String(id)))  # null for "" / unknown
+	offers = arr
+	if offers.size() != _size:
+		offers.resize(_size)

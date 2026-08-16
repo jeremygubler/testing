@@ -35,6 +35,49 @@ static func build(round_number: int, rng: DeterministicRng) -> Array:
 	return units
 
 
+## Builds a PvE creep board (neutral units) for a creep round. Weaker/loot-focused
+## than a PvP-style board. Deterministic given `rng`. Returns Array[GameUnit].
+static func build_creeps(round_number: int, rng: DeterministicRng) -> Array:
+	var creeps: Array = GameDatabase.all_creeps()
+	if creeps.is_empty():
+		return build(round_number, rng)  # fallback if no creep data
+
+	var team_size: int = clampi(1 + round_number / 3, 1, 6)
+	var star: int = 1 if round_number < 6 else 2
+	var boss_threshold: int = int(GameDatabase.cfg("rounds", {}).get("boss_round_threshold", 999))
+
+	# Filter to non-boss creeps for the regular ranks (Void Maw is boss-only).
+	var regular: Array = []
+	for c in creeps:
+		if c.id != "void_maw":
+			regular.append(c)
+	if regular.is_empty():
+		regular = creeps
+
+	var units: Array = []
+	var used_positions: Dictionary = {}
+	var uid := 200000 + round_number * 100
+
+	# On boss rounds, lead with a single Void Maw.
+	if round_number >= boss_threshold:
+		var boss: HeroDef = GameDatabase.get_creep("void_maw")
+		if boss != null:
+			var bu := GameUnit.new(uid, boss, star)
+			uid += 1
+			bu.board_pos = _free_position(used_positions, rng)
+			used_positions[bu.board_pos] = true
+			units.append(bu)
+
+	for i in team_size:
+		var creep: HeroDef = regular[rng.randi_below(regular.size())]
+		var gu := GameUnit.new(uid, creep, star)
+		uid += 1
+		gu.board_pos = _free_position(used_positions, rng)
+		used_positions[gu.board_pos] = true
+		units.append(gu)
+	return units
+
+
 static func _free_position(used: Dictionary, rng: DeterministicRng) -> Vector2i:
 	# Prefer the front rows so melee opponents actually engage.
 	for _attempt in 64:

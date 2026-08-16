@@ -100,6 +100,37 @@ round**.
   DMG). Each hero has 1 ultimate that fires at full mana.
 - **Traits (20):** 10 origins + 10 classes, breakpoints at **2 / 4 / 6** (clamped
   per trait to how many heroes can supply it). Each hero has 1 origin + 1 class.
+- **Items:** 8 basic components combine into 14 completed items (`items.json`).
+  Items grant flat combat-stat bundles (HP, AD, ability power, attack speed,
+  armor, MR, mana, crit, omnivamp), up to 3 per unit. Click a tray item then a
+  unit to equip; a second component that matches a recipe combines in place.
+  Selling a unit returns its items to the inventory.
+- **Round rewards:** winning a round grants a small gold bonus plus scheduled
+  item drops (`rewards` in `game_config.json`) — the in-game source of item
+  components. Component choices are drawn from the deterministic RNG stream.
+- **PvE creep rounds (`creeps.json`):** on scheduled rounds (`rounds.creep_rounds`)
+  you fight neutral creeps (own IP — Aether Wisp, Cinder Hound, Stone Golem, Rift
+  Spawn, and a boss Void Maw from `boss_round_threshold`) instead of a PvP-style
+  board. Beating a creep round always drops an item component. Creeps are cost-0
+  and never appear in the shop.
+- **Augments (`augments.json`):** at set rounds you're offered 3 augments and
+  pick 1 for a persistent bonus. *Economy* augments boost income / interest cap /
+  gold / XP; *combat* augments apply a global stat bundle (HP, AD, AS, armor, MR,
+  omnivamp, start-shield) to all your units each fight, passed into the
+  `CombatEngine` alongside trait effects. Offers are deterministic per seed.
+- **Deterministic replays / ranked-ready:** `Replay.capture()` records a fight's
+  inputs (seed + both teams + player mods) as a JSON-safe record; `Replay.run()`
+  reproduces the exact fight anywhere, and `Replay.verify(record, signature)`
+  re-runs it to confirm a claimed outcome. That's the anti-cheat primitive for a
+  future ranked mode — a client submits {record, result signature}, a server
+  re-runs and checks. `GameState` captures `last_replay`/`last_match_signature`
+  each fight.
+- **Save/resume:** `GameState.serialize()`/`load_from()` snapshot the whole run
+  (roster, items, augments, economy, pool, and RNG state). The presentation layer
+  persists it through the `ISaveService` interface and auto-saves each phase, so
+  a run resumes exactly on next launch — and the identical logic maps onto a
+  console save backend later. (Hover the inspector shows unit/item details; F6
+  clears the save.)
 
 ### Design decisions (locked with the team)
 
@@ -148,6 +179,9 @@ godot --headless --path autobattler -s res://tests/TestRunner.gd
 
 # Combat + cosmetics sandbox (prints a reproducible fight + store demo)
 godot --headless --path autobattler -s res://tools/sandbox.gd
+
+# Balance harness (per-hero DPS vs a training dummy, sorted + per-cost averages)
+godot --headless --path autobattler -s res://tools/balance.gd
 ```
 
 The tests cover RNG reproducibility, economy math (interest cap, streaks,
