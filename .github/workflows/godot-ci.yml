@@ -34,8 +34,8 @@ jobs:
           chmod +x godot
           ./godot --version
 
-      - name: Import project (generate .godot cache)
-        run: timeout 300 ./godot --headless --path autobattler --import || true
+      - name: Clean any Godot cache (force fresh compile from source)
+        run: rm -rf autobattler/.godot
 
       - name: Parse-check all scripts
         run: ./godot --headless --path autobattler -s res://tools/parse_check.gd

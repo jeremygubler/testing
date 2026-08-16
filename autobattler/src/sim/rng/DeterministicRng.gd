@@ -19,6 +19,7 @@ extends RefCounted
 ## and no sign-extension on right shifts. That makes it identical on every
 ## platform and Godot version — exactly what a deterministic sim needs.
 
+const RNG_VERSION: int = 3  # bump on algorithm changes; used to detect stale caches
 const _MASK32: int = 0xFFFFFFFF
 const _NONZERO: int = 0x9E3779B9  # fallback state (never allow zero)
 
