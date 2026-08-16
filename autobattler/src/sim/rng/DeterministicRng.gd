@@ -3,71 +3,62 @@ extends RefCounted
 
 ## Deterministic, seedable random number generator.
 ##
-## Uses a hand-rolled xorshift128+ so results are IDENTICAL across platforms and
-## Godot versions (Godot's built-in RandomNumberGenerator is seedable but we want
-## a self-contained, audited stream that never changes underneath us). This is the
-## ONLY source of randomness allowed inside src/sim/. Never call randi()/randf()
-## or Time-based seeds in the simulation — that would break determinism, replays,
-## and future server-side ranked validation.
+## Backed by Godot's built-in RandomNumberGenerator (PCG32), which is fully
+## deterministic for a given seed and identical across platforms for a given Godot
+## version. This is the ONLY source of randomness allowed inside src/sim/ — never
+## call the global randi()/randf() or time-based seeds there, or determinism (and
+## reproducible balance tests / replays) breaks.
+##
+## We deliberately do NOT hand-roll a 64-bit bit-twiddling PRNG here: GDScript only
+## has signed 64-bit ints with implementation-defined overflow behaviour, which
+## makes hand-rolled xorshift/splitmix math unreliable. PCG32 via
+## RandomNumberGenerator is battle-tested and reproducible.
+##
+## NOTE for a future networked/ranked mode: if you need a stream that is guaranteed
+## stable across Godot *versions* (not just platforms), pin a vendored PRNG here.
+## The rest of the game only depends on this class's API, so that swap is local.
 
-var _s0: int = 0
-var _s1: int = 0
-
-const _MASK64: int = -1  # GDScript ints are 64-bit; -1 == all bits set for &-masking.
+var _rng := RandomNumberGenerator.new()
 
 
 func _init(seed_value: int = 0) -> void:
 	seed(seed_value)
 
 
-## Reseed the stream. Same seed -> same sequence, forever.
+## Reseed the stream. Same seed -> same sequence, deterministically.
 func seed(seed_value: int) -> void:
-	# splitmix64 to expand a single seed into two non-zero state words.
-	var z: int = seed_value + -7046029254386353131  # 0x9E3779B97F4A7C15
-	z = (z ^ (z >> 30)) * -4658895280553007687      # 0xBF58476D1CE4E5B9
-	z = (z ^ (z >> 27)) * -7723592293110705685      # 0x94D049BB133111EB
-	_s0 = z ^ (z >> 31)
-	z = _s0 + -7046029254386353131
-	z = (z ^ (z >> 30)) * -4658895280553007687
-	z = (z ^ (z >> 27)) * -7723592293110705685
-	_s1 = z ^ (z >> 31)
-	if _s0 == 0 and _s1 == 0:
-		_s0 = -1  # never allow all-zero state
+	_rng.seed = seed_value
+	# Reset the PCG state so the sequence restarts from the seed.
+	_rng.state = _rng.seed
 
 
-## Raw 64-bit step (xorshift128+).
+## Raw non-negative 32-bit integer (0 .. 2^32-1).
 func next_raw() -> int:
-	var x: int = _s0
-	var y: int = _s1
-	_s0 = y
-	x ^= x << 23
-	x ^= x >> 17
-	x ^= y ^ (y >> 26)
-	_s1 = x
-	return (x + y)
+	return _rng.randi()
 
 
-## Non-negative 63-bit integer.
+## Non-negative integer (alias kept for API compatibility).
 func next_u63() -> int:
-	return next_raw() & 0x7FFFFFFFFFFFFFFF
+	return _rng.randi()
 
 
 ## Integer in [0, n). n must be > 0.
 func randi_below(n: int) -> int:
 	assert(n > 0, "randi_below requires n > 0")
-	return next_u63() % n
+	return _rng.randi_range(0, n - 1)
 
 
 ## Integer in [a, b] inclusive.
 func randi_range(a: int, b: int) -> int:
 	assert(b >= a)
-	return a + randi_below(b - a + 1)
+	return _rng.randi_range(a, b)
 
 
 ## Float in [0, 1).
 func randf() -> float:
-	# 53 bits of mantissa precision.
-	return float(next_raw() & 0x1FFFFFFFFFFFFF) / float(0x20000000000000)
+	# randf() returns [0, 1]; clamp the (vanishingly rare) 1.0 to keep [0, 1).
+	var v := _rng.randf()
+	return v if v < 1.0 else 0.0
 
 
 ## Float in [a, b).
@@ -97,7 +88,7 @@ func weighted_index(weights: PackedFloat32Array) -> int:
 	return weights.size() - 1
 
 
-## In-place Fisher-Yates shuffle of an Array using this stream.
+## In-place Fisher-Yates shuffle of an Array using this stream (deterministic).
 func shuffle(arr: Array) -> void:
 	for i in range(arr.size() - 1, 0, -1):
 		var j: int = randi_below(i + 1)
@@ -108,9 +99,9 @@ func shuffle(arr: Array) -> void:
 
 ## Snapshot the internal state (for save/replay).
 func get_state() -> Array[int]:
-	return [_s0, _s1]
+	return [_rng.seed, _rng.state]
 
 
 func set_state(state: Array) -> void:
-	_s0 = state[0]
-	_s1 = state[1]
+	_rng.seed = state[0]
+	_rng.state = state[1]
