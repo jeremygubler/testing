@@ -118,6 +118,13 @@ round**.
   gold / XP; *combat* augments apply a global stat bundle (HP, AD, AS, armor, MR,
   omnivamp, start-shield) to all your units each fight, passed into the
   `CombatEngine` alongside trait effects. Offers are deterministic per seed.
+- **Deterministic replays / ranked-ready:** `Replay.capture()` records a fight's
+  inputs (seed + both teams + player mods) as a JSON-safe record; `Replay.run()`
+  reproduces the exact fight anywhere, and `Replay.verify(record, signature)`
+  re-runs it to confirm a claimed outcome. That's the anti-cheat primitive for a
+  future ranked mode — a client submits {record, result signature}, a server
+  re-runs and checks. `GameState` captures `last_replay`/`last_match_signature`
+  each fight.
 - **Save/resume:** `GameState.serialize()`/`load_from()` snapshot the whole run
   (roster, items, augments, economy, pool, and RNG state). The presentation layer
   persists it through the `ISaveService` interface and auto-saves each phase, so

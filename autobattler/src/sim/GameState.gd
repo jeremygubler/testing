@@ -31,6 +31,8 @@ var item_inventory: Array[String] = []  # unassigned item ids the player holds
 var augments: Array[String] = []        # chosen augment ids
 var pending_augments: Array[String] = []  # augment ids currently offered (choose one)
 var last_result: Dictionary = {}
+var last_replay: Dictionary = {}         # deterministic record of the last fight
+var last_match_signature: String = ""    # canonical outcome signature of the last fight
 
 var _augment_offered_round: int = -1     # last round an offer was made (avoid repeats)
 
@@ -97,7 +99,10 @@ func _build_opponent() -> Array:
 func start_combat() -> Dictionary:
 	_set_phase(Phase.COMBAT)
 	var opponent := _build_opponent()
-	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed(), player_combat_mods())
+	var seed := _next_combat_seed()
+	var mods := player_combat_mods()
+	last_replay = Replay.capture(board_units(), opponent, seed, mods)
+	var engine := CombatEngine.new(board_units(), opponent, seed, mods)
 	var result := engine.run_to_completion()
 	_resolve_combat(result, opponent)
 	return result
@@ -109,7 +114,10 @@ func start_combat() -> Dictionary:
 func begin_combat_engine() -> Dictionary:
 	_set_phase(Phase.COMBAT)
 	var opponent := _build_opponent()
-	var engine := CombatEngine.new(board_units(), opponent, _next_combat_seed(), player_combat_mods())
+	var seed := _next_combat_seed()
+	var mods := player_combat_mods()
+	last_replay = Replay.capture(board_units(), opponent, seed, mods)
+	var engine := CombatEngine.new(board_units(), opponent, seed, mods)
 	return {"engine": engine, "opponent": opponent}
 
 
@@ -119,6 +127,7 @@ func resolve_combat(result: Dictionary, opponent: Array) -> void:
 
 func _resolve_combat(result: Dictionary, _opponent: Array) -> void:
 	last_result = result
+	last_match_signature = Replay.signature(result)
 	var won: bool = result.get("winner", -1) == 0
 	economy.register_result(won)
 	if not won:
@@ -476,13 +485,7 @@ func player_combat_mods() -> Dictionary:
 func serialize() -> Dictionary:
 	var units: Array = []
 	for u in roster:
-		units.append({
-			"hero": u.hero.id,
-			"star": u.star,
-			"board": [u.board_pos.x, u.board_pos.y],
-			"bench": u.bench_index,
-			"items": u.items.duplicate(),
-		})
+		units.append(u.to_dict())
 	return {
 		"version": 1,
 		"seed": _seed,
@@ -527,16 +530,10 @@ func load_from(data: Dictionary) -> void:
 
 	roster.clear()
 	for ud in data.get("roster", []):
-		var hero := GameDatabase.get_hero(String(ud.get("hero", "")))
-		if hero == null:
+		var gu := GameUnit.from_dict(_uid, ud)
+		if gu == null:
 			continue
-		var gu := GameUnit.new(_uid, hero, int(ud.get("star", 1)))
 		_uid += 1
-		var b: Array = ud.get("board", [-1, -1])
-		gu.board_pos = Vector2i(int(b[0]), int(b[1]))
-		gu.bench_index = int(ud.get("bench", -1))
-		for it in ud.get("items", []):
-			gu.items.append(String(it))
 		roster.append(gu)
 
 	item_inventory.clear()

@@ -35,6 +35,7 @@ func run() -> int:
 	_run("augment_offer", test_augment_offer)
 	_run("creep_round_opponent", test_creep_round_opponent)
 	_run("creep_round_reward", test_creep_round_reward)
+	_run("combat_replay", test_combat_replay)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -330,6 +331,18 @@ func test_creep_round_opponent() -> void:
 		creep_ids[c.id] = true
 	for u in team:
 		_check(creep_ids.has(u.hero.id), "opponent unit is a neutral creep")
+
+
+func test_combat_replay() -> void:
+	var rec := Replay.capture(_mirror_team(), _mirror_team(), 4242, {})
+	var sig := Replay.signature(Replay.run(rec))
+	_eq(Replay.signature(Replay.run(rec)), sig, "replay reproduces the same outcome")
+	# The record must survive JSON transport (client -> ranked backend).
+	var rec_json = JSON.parse_string(JSON.stringify(rec))
+	_check(typeof(rec_json) == TYPE_DICTIONARY, "record survives JSON")
+	_eq(Replay.signature(Replay.run(rec_json)), sig, "replay reproduces after JSON transport")
+	_check(Replay.verify(rec, sig), "verify accepts the true signature")
+	_check(not Replay.verify(rec, "9|9|9,9|9,9"), "verify rejects a tampered signature")
 
 
 func test_creep_round_reward() -> void:
