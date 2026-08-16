@@ -31,6 +31,7 @@ var _sim_accum := 0.0
 var _playback_speed := 1.0
 var _visual_pos: Dictionary = {}   # slot -> Vector2 (screen), lerped
 var _attack_fx: Array = []         # [{from:Vector2, to:Vector2, ttl:float}]
+var _floats: Array = []            # floating combat texts [{pos,text,color,size,ttl,max}]
 var _result_overlay := ""
 
 # UI references.
@@ -247,16 +248,21 @@ func _start_combat_playback() -> void:
 	for u in _engine.units:
 		_visual_pos[u.slot] = _combat_hex_to_pixel(u.pos)
 	_attack_fx.clear()
+	_floats.clear()
 	_result_overlay = ""
 	_playing = true
 	_refresh_ui()
 
 
 func _process(delta: float) -> void:
-	# Fade attack FX.
+	# Fade attack FX and float texts.
 	for fx in _attack_fx:
 		fx.ttl -= delta
 	_attack_fx = _attack_fx.filter(func(f): return f.ttl > 0.0)
+	for f in _floats:
+		f.ttl -= delta
+		f.pos = f.pos + Vector2(0, -delta * 30.0)  # drift upward
+	_floats = _floats.filter(func(f): return f.ttl > 0.0)
 
 	if _playing and _engine != null:
 		_sim_accum += delta * _playback_speed
@@ -276,13 +282,14 @@ func _process(delta: float) -> void:
 			_playing = false
 			game.resolve_combat(_engine.result, _opponent)
 		queue_redraw()
-	elif not _attack_fx.is_empty():
+	elif not _attack_fx.is_empty() or not _floats.is_empty():
 		queue_redraw()
 
 
 func _consume_events() -> void:
 	for ev in _engine.events:
-		match ev.get("type", ""):
+		var etype := String(ev.get("type", ""))
+		match etype:
 			"attack", "cast":
 				var a: CombatUnit = _find_engine_unit(ev.get("slot", -1))
 				var t: CombatUnit = _find_engine_unit(ev.get("target", ev.get("slot", -1)))
@@ -291,8 +298,34 @@ func _consume_events() -> void:
 						"from": _visual_pos.get(a.slot, _combat_hex_to_pixel(a.pos)),
 						"to": _combat_hex_to_pixel(t.pos),
 						"ttl": 0.15,
-						"crit": ev.get("type") == "cast",
+						"crit": etype == "cast",
 					})
+				if etype == "cast" and a != null:
+					var hd := GameDatabase.get_hero(a.hero_id)
+					if hd != null:
+						_spawn_float(_combat_hex_to_pixel(a.pos) + Vector2(0, -HEX_R), hd.ability_name,
+							Color("#49b6ff"), 13)
+			"damage":
+				var tgt: CombatUnit = _find_engine_unit(ev.get("target", -1))
+				var amt := int(ev.get("amount", 0))
+				if tgt != null and amt > 0:
+					var dtype := String(ev.get("dtype", "physical"))
+					var col := Color.WHITE
+					if dtype == "magic":
+						col = Color("#c98bff")
+					elif dtype == "true":
+						col = Color("#ffd24a")
+					_spawn_float(_combat_hex_to_pixel(tgt.pos) + Vector2(-6, -HEX_R * 0.5), str(amt), col, 14)
+			"dodge":
+				var d: CombatUnit = _find_engine_unit(ev.get("slot", -1))
+				if d != null:
+					_spawn_float(_combat_hex_to_pixel(d.pos), "dodge", Color("#9aa7c7"), 12)
+
+
+func _spawn_float(pos: Vector2, text: String, color: Color, size: int) -> void:
+	if _floats.size() > 60:
+		return
+	_floats.append({"pos": pos, "text": text, "color": color, "size": size, "ttl": 0.85, "max": 0.85})
 
 
 func _find_engine_unit(slot: int) -> CombatUnit:
@@ -416,6 +449,7 @@ func _draw() -> void:
 		_draw_placed_units()
 	_draw_bench()
 	_draw_attack_fx()
+	_draw_floats()
 	if not (_playing or game.phase == GameState.Phase.COMBAT):
 		_draw_item_tray()
 		_draw_inspector()
@@ -541,6 +575,14 @@ func _draw_attack_fx() -> void:
 		var col := Color("#b061ff") if fx.get("crit", false) else Color("#ffd24a")
 		col.a = a
 		draw_line(fx.from, fx.to, col, 3.0 if fx.get("crit", false) else 2.0)
+
+
+func _draw_floats() -> void:
+	var font := ThemeDB.fallback_font
+	for f in _floats:
+		var col: Color = f.color
+		col.a = clampf(float(f.ttl) / float(f.max), 0.0, 1.0)
+		draw_string(font, f.pos, str(f.text), HORIZONTAL_ALIGNMENT_LEFT, -1, int(f.size), col)
 
 
 func _draw_center_banner(text: String) -> void:

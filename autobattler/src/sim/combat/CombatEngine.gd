@@ -280,6 +280,9 @@ func _deal_damage(attacker: CombatUnit, defender: CombatUnit, raw: float, dmg_ty
 			mitigated = typed_portion
 	var final_damage := mitigated + true_portion
 	var hp_damage := defender.take_final_damage(final_damage)
+	# Surface damage for presentation (floating numbers); observational only.
+	if hp_damage > 0.0:
+		events.append({"type": "damage", "target": defender.slot, "amount": hp_damage, "dtype": dmg_type})
 	# Defender gains mana from damage taken.
 	if defender.alive:
 		defender.mana = minf(defender.mana_max, defender.mana
