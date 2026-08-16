@@ -1,0 +1,368 @@
+{
+  "perks": [
+    {
+      "id": "emberkin",
+      "name": "Emberkin",
+      "category": "origin",
+      "description": "Born of the volcanic Cinderreach; their aether burns hot.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "burn_dps": 0.02
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "burn_dps": 0.045
+          }
+        }
+      ]
+    },
+    {
+      "id": "tidecaller",
+      "name": "Tidecaller",
+      "category": "origin",
+      "description": "Keepers of the Sunken Spires who bend the deep currents.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "mana_on_hit_bonus": 4
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "mana_on_hit_bonus": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "stoneborn",
+      "name": "Stoneborn",
+      "category": "origin",
+      "description": "Living mountain-folk quarried from the Bedrock Vaults.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "armor_add": 20
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "armor_add": 45
+          }
+        }
+      ]
+    },
+    {
+      "id": "stormwing",
+      "name": "Stormwing",
+      "category": "origin",
+      "description": "Sky-nomads riding the thunderheads above the Shatterlands.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "attack_speed_pct": 0.1
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "attack_speed_pct": 0.22
+          }
+        }
+      ]
+    },
+    {
+      "id": "verdant",
+      "name": "Verdant",
+      "category": "origin",
+      "description": "The overgrown remnant of the World-Root, part plant, part soul.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "regen_pct": 0.01
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "regen_pct": 0.02
+          }
+        }
+      ]
+    },
+    {
+      "id": "umbral",
+      "name": "Umbral",
+      "category": "origin",
+      "description": "Dwellers of the Nightseam who drink the light around them.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "omnivamp_pct": 0.1
+          }
+        }
+      ]
+    },
+    {
+      "id": "lumen",
+      "name": "Lumen",
+      "category": "origin",
+      "description": "Radiants sworn to the Dawn Spire and its unbroken beacon.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "shield_pct": 0.12
+          }
+        }
+      ]
+    },
+    {
+      "id": "clockwork",
+      "name": "Clockwork",
+      "category": "origin",
+      "description": "Aether-driven automatons of the lost Gearwright dynasty.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "ad_pct": 0.12
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "ad_pct": 0.28
+          }
+        }
+      ]
+    },
+    {
+      "id": "frostborn",
+      "name": "Frostborn",
+      "category": "origin",
+      "description": "Exiles of the Rimewaste, hearts slowed to a glacial calm.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "mr_add": 20
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "mr_add": 45
+          }
+        }
+      ]
+    },
+    {
+      "id": "voidtouched",
+      "name": "Voidtouched",
+      "category": "origin",
+      "description": "Marked by the Rift; reality frays where they walk.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "true_damage_pct": 0.1
+          }
+        }
+      ]
+    },
+    {
+      "id": "vanguard",
+      "name": "Vanguard",
+      "category": "class",
+      "description": "Frontline bulwarks that soak the first blows.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "hp_pct": 0.15
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "hp_pct": 0.35
+          }
+        },
+        {
+          "count": 6,
+          "effect": {
+            "hp_pct": 0.65
+          }
+        }
+      ]
+    },
+    {
+      "id": "blademaster",
+      "name": "Blademaster",
+      "category": "class",
+      "description": "Masters of the blade who stack rapid strikes.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "double_strike_chance": 0.15
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "double_strike_chance": 0.3
+          }
+        }
+      ]
+    },
+    {
+      "id": "ranger",
+      "name": "Ranger",
+      "category": "class",
+      "description": "Ranged marksfolk dealing steady physical fire.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "ad_pct": 0.15
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "ad_pct": 0.35
+          }
+        }
+      ]
+    },
+    {
+      "id": "arcanist",
+      "name": "Arcanist",
+      "category": "class",
+      "description": "Aether-casters who erupt in area magic.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "ability_power_pct": 0.2
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "ability_power_pct": 0.45
+          }
+        }
+      ]
+    },
+    {
+      "id": "warden",
+      "name": "Warden",
+      "category": "class",
+      "description": "Protectors who mend and shield their allies.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "heal_pct": 0.15
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "heal_pct": 0.35
+          }
+        }
+      ]
+    },
+    {
+      "id": "assassin",
+      "name": "Assassin",
+      "category": "class",
+      "description": "Divers that leap the line to gut the backline.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "crit_bonus_pct": 0.2
+          }
+        },
+        {
+          "count": 4,
+          "effect": {
+            "crit_bonus_pct": 0.45
+          }
+        }
+      ]
+    },
+    {
+      "id": "sentinel",
+      "name": "Sentinel",
+      "category": "class",
+      "description": "Armored anchors that harden under fire.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "armor_add": 25
+          }
+        }
+      ]
+    },
+    {
+      "id": "berserker",
+      "name": "Berserker",
+      "category": "class",
+      "description": "Frenzied attackers whose speed climbs mid-fight.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "ramp_as_per_hit": 0.03
+          }
+        }
+      ]
+    },
+    {
+      "id": "summoner",
+      "name": "Summoner",
+      "category": "class",
+      "description": "Callers who flood the board with conjured aid.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "summon_hp_pct": 0.3
+          }
+        }
+      ]
+    },
+    {
+      "id": "skirmisher",
+      "name": "Skirmisher",
+      "category": "class",
+      "description": "Mobile duelists that reposition and pick targets.",
+      "breakpoints": [
+        {
+          "count": 2,
+          "effect": {
+            "dodge_pct": 0.15
+          }
+        }
+      ]
+    }
+  ]
+}

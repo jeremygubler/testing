@@ -1,0 +1,40 @@
+; Godot 4 project configuration for the Auto-Battler (own IP).
+; Engine version target: Godot 4.3+
+;
+; NOTE: Platform-specific services (Save / Store / Input) are NEVER referenced
+; directly by game code. They are provided through the PlatformServices autoload,
+; which resolves interface implementations. A later Switch build swaps the
+; implementations without touching sim/ or presentation/.
+
+config_version=5
+
+[application]
+
+config/name="Aetherclash"
+config/description="Auto-battler (Teamfight-Tactics-style) with original IP. Platform-agnostic Godot 4 project prepared for a licensed Switch port."
+run/main_scene="res://src/presentation/Main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+config/icon="res://assets/placeholder/icon.svg"
+
+[autoload]
+
+; Single dependency-injection point for platform services (c).
+PlatformServices="*res://src/platform/PlatformServices.gd"
+; Loaded game database (heroes/perks/skins) from editable data files.
+GameDatabase="*res://src/data/Database.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.07, 0.09, 0.15, 1)
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
