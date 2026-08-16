@@ -233,17 +233,18 @@ func test_item_stats_in_combat() -> void:
 
 
 func test_round_rewards() -> void:
-	# Round 1 win drops one component + the win gold bonus.
+	# Round 3 has a scheduled component drop and is NOT a creep round, so a win
+	# drops exactly one component + the win gold bonus.
 	var g := GameState.new(3)
-	g.round_number = 1
+	g.round_number = 3
 	var gold_before := g.economy.gold
 	var items_before := g.item_inventory.size()
 	g._resolve_combat({"winner": 0, "surviving_stars": [0, 0]}, [])
-	_eq(g.item_inventory.size(), items_before + 1, "round-1 win drops one component")
+	_eq(g.item_inventory.size(), items_before + 1, "round-3 win drops one component")
 	_check(g.economy.gold >= gold_before + 1, "win grants at least the gold bonus")
 	# A loss drops nothing.
 	var g2 := GameState.new(3)
-	g2.round_number = 1
+	g2.round_number = 3
 	var inv2 := g2.item_inventory.size()
 	g2._resolve_combat({"winner": 1, "surviving_stars": [0, 1]}, [])
 	_eq(g2.item_inventory.size(), inv2, "a loss drops no items")
