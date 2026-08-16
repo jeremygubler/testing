@@ -50,9 +50,25 @@ the other way around.
 ### Determinism
 
 `CombatEngine` runs a fixed tickrate (30/s) and draws all randomness from a
-seedable `DeterministicRng` (xorshift128+). Same seed + same inputs ⇒ identical
-fight, every time and on every platform. This is what makes balance regression
-tests possible today and server-side ranked validation possible later.
+seedable `DeterministicRng`. Same seed + same inputs ⇒ identical fight, every time
+and on every platform. This is what makes balance regression tests possible today
+and server-side ranked validation possible later.
+
+**One trap is worth knowing about before touching `DeterministicRng`:** `randf`,
+`randf_range` and `randi_range` are also `@GlobalScope` function names. An
+unqualified call to one of those from *inside* the class binds to the global
+function — Godot's entropy-seeded generator — rather than to the method next to
+it. The call then returns a process-random value and never advances `_state`,
+which is exactly how `chance()`, `randf_range()` and `weighted_index()` silently
+made every crit/dodge roll, shop roll and opponent board non-reproducible while
+the integer-only tests stayed green. The canonical float draw therefore lives
+under a name `@GlobalScope` does not define (`next_float()`), and all internal
+callers use it. The same hazard is why reseeding is called `reseed()`, not
+`seed()`.
+
+Because no in-process test can see this (one process's global stream looks stable
+enough to pass a same-seed check), CI also runs the engagement harness twice in
+separate processes and diffs the output.
 
 ### Folder structure
 
@@ -88,6 +104,13 @@ autobattler/
 
 Round loop: **shop / buy → position on hex board → auto-combat → result → next
 round**.
+
+- **Movement:** units path to the nearest hex from which they can attack their
+  target via a breadth-first search over free hexes (`CombatEngine._path_step`),
+  so they walk *around* allies and chokepoints. The search expands neighbours in
+  `HexGrid.neighbors()`'s fixed order, so it stays deterministic. When no attack
+  position is reachable at all, the unit still closes as far as the board allows
+  rather than freezing.
 
 - **Economy** (all in `game_config.json`): base income 5, **interest 10 % of
   banked gold capped at 5 (max at 50 gold)**, win/loss streak bonuses, reroll 2
@@ -196,7 +219,18 @@ godot --headless --path autobattler -s res://tools/sandbox.gd
 
 # Balance harness (per-hero DPS vs a training dummy, sorted + per-cost averages)
 godot --headless --path autobattler -s res://tools/balance.gd
+
+# Engagement harness (do fights actually resolve? timeout rate + travel time)
+godot --headless --path autobattler -s res://tools/engagement.gd
 ```
+
+Where the balance harness asks *how hard does a hero hit*, the engagement harness
+asks *do fights converge*: it runs 360 fixed-seed fights and reports how many are
+still alive at the 30s cap (and therefore decided on remaining HP rather than
+fought out), the mean fight length, and the unit-ticks spent closing on a target.
+That last number is the movement cost of a fight — it is what shows whether a
+pathfinding change is worth anything. Its output is byte-identical between runs,
+which is what makes it usable as the cross-process determinism guard in CI.
 
 The tests cover RNG reproducibility, economy math (interest cap, streaks,
 leveling), star scaling, pool/combine rules (including that the shared pool never

@@ -16,6 +16,7 @@ func run() -> int:
 
 	_run("rng_deterministic", test_rng_deterministic)
 	_run("rng_ranges", test_rng_ranges)
+	_run("rng_every_draw_advances_state", test_rng_every_draw_advances_state)
 	_run("hex_distance", test_hex_distance)
 	_run("star_multiplier", test_star_multiplier)
 	_run("economy_interest_cap", test_economy_interest_cap)
@@ -37,6 +38,9 @@ func run() -> int:
 	_run("creep_round_reward", test_creep_round_reward)
 	_run("combat_replay", test_combat_replay)
 	_run("ability_params_loaded", test_ability_params_loaded)
+	_run("opponent_generation_reproducible", test_opponent_generation_reproducible)
+	_run("shop_roll_reproducible", test_shop_roll_reproducible)
+	_run("pathfinding_walks_around_blockers", test_pathfinding_walks_around_blockers)
 	_run("save_load_phase", test_save_load_phase)
 	_run("round_rewards_granted_once", test_round_rewards_granted_once)
 	_run("sell_refunds", test_sell_refunds)
@@ -98,6 +102,38 @@ func test_rng_ranges() -> void:
 	_check(f >= 0.0 and f < 1.0, "randf out of range: %f" % f)
 	var w := r.weighted_index(PackedFloat32Array([0.0, 1.0, 0.0]))
 	_eq(w, 1, "weighted_index should pick the only non-zero weight")
+
+
+func test_rng_every_draw_advances_state() -> void:
+	# Every draw helper must consume from THIS generator. `randf`, `randf_range`
+	# and `randi_range` are also @GlobalScope function names, so an unqualified
+	# internal call binds to the global (entropy-seeded) generator instead: the
+	# helper then returns a process-random value and leaves `_state` untouched.
+	# That silently broke crit/dodge rolls, shop rolls and opponent generation
+	# while every integer-only test kept passing.
+	var draws := {
+		"next_float": func(r): return r.next_float(),
+		"randf": func(r): return r.randf(),
+		"randf_range": func(r): return r.randf_range(0.0, 100.0),
+		"chance": func(r): return r.chance(0.5),
+		"weighted_index": func(r): return r.weighted_index(PackedFloat32Array([1.0, 1.0, 1.0, 1.0])),
+		"randi_below": func(r): return r.randi_below(100),
+		"randi_range": func(r): return r.randi_range(1, 100),
+		"next_raw": func(r): return r.next_raw(),
+	}
+	for name in draws.keys():
+		var fn: Callable = draws[name]
+		var r := DeterministicRng.new(37)
+		var before: int = r.get_state()[0]
+		var value = fn.call(r)
+		var after: int = r.get_state()[0]
+		_check(before != after, "%s() must advance the generator state" % name)
+		# Reproducibility: the same seed must give the same value, every time.
+		for i in 8:
+			var fresh := DeterministicRng.new(37)
+			_eq(fn.call(fresh), value, "%s() must be reproducible for a fixed seed" % name)
+			if _failed > 0:
+				return
 
 
 func test_hex_distance() -> void:
@@ -370,6 +406,97 @@ func test_combat_replay() -> void:
 	_eq(Replay.signature(Replay.run(rec_json)), sig, "replay reproduces after JSON transport")
 	_check(Replay.verify(rec, sig), "verify accepts the true signature")
 	_check(not Replay.verify(rec, "9|9|9,9|9,9"), "verify rejects a tampered signature")
+
+
+func test_opponent_generation_reproducible() -> void:
+	# End-to-end guard for the float-draw trap: OpponentFactory rolls star levels
+	# through rng.chance(), so a fixed seed must always yield the identical board.
+	# When chance() fell through to the global generator this produced a different
+	# opponent on every run while every other test stayed green.
+	var expected := ""
+	for attempt in 5:
+		var rng := DeterministicRng.new(4242)
+		var team := OpponentFactory.build(10, rng)
+		var sig := ""
+		for gu in team:
+			sig += "%s@%d,%d*%d;" % [gu.hero.id, gu.board_pos.x, gu.board_pos.y, gu.star]
+		_check(sig != "", "opponent board is non-empty")
+		if attempt == 0:
+			expected = sig
+		else:
+			_eq(sig, expected, "opponent board must be identical for a fixed seed")
+
+
+func test_shop_roll_reproducible() -> void:
+	# Shop.roll() picks its cost tier through weighted_index(), which had the same
+	# float-draw defect: identical seed + identical pool must give identical offers.
+	var expected := ""
+	for attempt in 5:
+		var shop := Shop.new(HeroPool.new(), DeterministicRng.new(1234))
+		shop.roll(7)
+		var sig := ",".join(shop.offer_ids())
+		if attempt == 0:
+			expected = sig
+		else:
+			_eq(sig, expected, "shop offers must be identical for a fixed seed")
+
+
+func test_pathfinding_walks_around_blockers() -> void:
+	# A wall of blockers sits between the unit and its target, with one gap.
+	# Greedy movement had no strictly-closer free neighbour here and returned the
+	# unit's own hex — the unit stopped dead. BFS has to route through the gap.
+	var eng := CombatEngine.new([], [], 1)
+	var mover := CombatUnit.new()
+	mover.pos = Vector2i(3, 5)
+	mover.attack_range = 1
+	var target := CombatUnit.new()
+	target.pos = Vector2i(3, 2)
+	# Seal row 4 except for column 6 (rows only connect to adjacent rows, so this
+	# is the single way through).
+	for col in 6:
+		eng._occupancy[Vector2i(col, 4)] = 100 + col
+	eng._occupancy[mover.pos] = 1
+	eng._occupancy[target.pos] = 2
+
+	# Sanity-check the setup: no neighbour of the start is closer to the target,
+	# which is exactly the situation greedy movement could not escape.
+	var start_dist := HexGrid.distance(mover.pos, target.pos)
+	var greedy_options := 0
+	for n in HexGrid.neighbors(mover.pos.x, mover.pos.y):
+		if not eng._occupancy.has(n) and HexGrid.distance(n, target.pos) < start_dist:
+			greedy_options += 1
+	_eq(greedy_options, 0, "setup: no strictly-closer free neighbour exists")
+
+	_check(eng._path_step(mover, target) != mover.pos, "a walled-in unit still finds a step")
+
+	# Follow the path; the unit must actually arrive in attack range.
+	var guard := 0
+	while HexGrid.distance(mover.pos, target.pos) > mover.attack_range and guard < 64:
+		var nxt: Vector2i = eng._path_step(mover, target)
+		if nxt == mover.pos:
+			_check(false, "path dead-ended before reaching the target")
+			return
+		eng._occupancy.erase(mover.pos)
+		mover.pos = nxt
+		eng._occupancy[mover.pos] = 1
+		guard += 1
+	_check(HexGrid.distance(mover.pos, target.pos) <= mover.attack_range,
+		"the unit reaches attack range by going around the wall")
+
+	# With the gap sealed too there is no route at all: the unit must still close
+	# in as far as the board allows instead of freezing on the spot.
+	var eng2 := CombatEngine.new([], [], 1)
+	var boxed := CombatUnit.new()
+	boxed.pos = Vector2i(3, 6)
+	boxed.attack_range = 1
+	for col in HexGrid.COLS:
+		eng2._occupancy[Vector2i(col, 4)] = 200 + col
+	eng2._occupancy[boxed.pos] = 1
+	eng2._occupancy[target.pos] = 2
+	var approach: Vector2i = eng2._path_step(boxed, target)
+	_check(approach != boxed.pos, "an unreachable target still draws the unit closer")
+	_check(HexGrid.distance(approach, target.pos) < HexGrid.distance(boxed.pos, target.pos),
+		"the fallback step reduces the distance to the target")
 
 
 func test_save_load_phase() -> void:
