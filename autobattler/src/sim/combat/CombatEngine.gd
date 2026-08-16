@@ -310,7 +310,7 @@ func _most_wounded_ally(u: CombatUnit) -> CombatUnit:
 	for other in units:
 		if other.team != u.team or not other.alive:
 			continue
-		var missing := other.max_hp - other.hp
+		var missing: float = other.max_hp - other.hp
 		if missing > best_missing or (missing == best_missing and (best == null or other.slot < best.slot)):
 			best_missing = missing
 			best = other

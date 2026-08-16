@@ -18,7 +18,13 @@ func _initialize() -> void:
 		if f.ends_with("parse_check.gd"):
 			continue
 		var res = load(f)
-		if res == null:
+		# load() returns the resource even for scripts with parse errors, so we
+		# recompile via reload() and check the returned error code — that is what
+		# actually reveals a broken script.
+		var ok := res != null
+		if res is GDScript:
+			ok = res.reload() == OK
+		if not ok:
 			push_error("PARSE FAIL: %s" % f)
 			print("  FAIL  %s" % f)
 			failed += 1

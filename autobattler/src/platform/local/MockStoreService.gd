@@ -25,7 +25,7 @@ func _init(entitlements: IEntitlementService) -> void:
 func get_available_products() -> Array[String]:
 	var out: Array[String] = []
 	for skin in GameDatabase.all_skins():
-		out.append(skin.id)
+		out.append(String(skin.id))
 	return out
 
 

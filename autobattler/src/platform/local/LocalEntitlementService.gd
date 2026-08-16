@@ -42,7 +42,7 @@ func owned_ids() -> Array[String]:
 	var out: Array[String] = []
 	for k in _owned.keys():
 		if _owned[k] == true:
-			out.append(k)
+			out.append(String(k))
 	return out
 
 

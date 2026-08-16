@@ -35,6 +35,7 @@ var _result_overlay := ""
 
 # UI references.
 var _hud: CanvasLayer
+var _cosmetics: CanvasLayer
 var _lbl_status: Label
 var _lbl_traits: Label
 var _shop_buttons: Array = []
@@ -47,6 +48,8 @@ func _ready() -> void:
 	_connect_game_signals()
 	_connect_input()
 	_build_hud()
+	_cosmetics = preload("res://src/presentation/CosmeticsPanel.gd").new()
+	add_child(_cosmetics)
 	game.start_game()
 	_refresh_ui()
 	queue_redraw()
@@ -83,6 +86,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F3:
 				game.player_hp = mini(100, game.player_hp + 10)
 				game.hp_changed.emit(game.player_hp); return
+			KEY_C:
+				_cosmetics.toggle(); return
 
 	# Compute the placement hex under the mouse and hand the raw event to the
 	# platform input service, which translates it into semantic signals.
@@ -473,6 +478,11 @@ func _build_hud() -> void:
 	_fight_button.pressed.connect(_on_fight_pressed)
 	ctl.add_child(_fight_button)
 
+	var cos_b := Button.new()
+	cos_b.text = "Wardrobe [C]"
+	cos_b.pressed.connect(_on_wardrobe_pressed)
+	ctl.add_child(cos_b)
+
 	_lbl_shop_state = Label.new()
 	ctl.add_child(_lbl_shop_state)
 
@@ -492,6 +502,10 @@ func _on_reroll_pressed() -> void:
 func _on_xp_pressed() -> void:
 	if _in_shop():
 		game.buy_xp()
+
+
+func _on_wardrobe_pressed() -> void:
+	_cosmetics.toggle()
 
 
 func _refresh_ui() -> void:
