@@ -1,0 +1,33 @@
+{
+  "_comment": "Items: 8 basic components + completed items built from component pairs. Stats are flat bonuses applied to a unit's combat stats (as_pct/crit/omnivamp are fractions). Edit freely.",
+
+  "stat_keys": ["hp", "ad", "ability_power", "as_pct", "armor", "mr", "mana_start", "crit", "omnivamp"],
+
+  "components": [
+    {"id": "blade", "name": "Aether Blade",  "stats": {"ad": 10}},
+    {"id": "rod",   "name": "Aether Rod",    "stats": {"ability_power": 10}},
+    {"id": "bow",   "name": "Aether Bow",    "stats": {"as_pct": 0.10}},
+    {"id": "cloak", "name": "Aether Cloak",  "stats": {"mr": 20}},
+    {"id": "belt",  "name": "Aether Belt",   "stats": {"hp": 150}},
+    {"id": "chain", "name": "Aether Chain",  "stats": {"armor": 20}},
+    {"id": "glove", "name": "Aether Glove",  "stats": {"crit": 0.20}},
+    {"id": "tear",  "name": "Aether Tear",   "stats": {"mana_start": 15}}
+  ],
+
+  "completed": [
+    {"id": "warblade",     "name": "Warblade",         "recipe": ["blade", "blade"], "stats": {"ad": 25, "omnivamp": 0.15}},
+    {"id": "rapidstrike",  "name": "Rapidstrike",      "recipe": ["bow", "bow"],     "stats": {"as_pct": 0.45}},
+    {"id": "archmage",     "name": "Archmage Core",    "recipe": ["rod", "rod"],     "stats": {"ability_power": 35}},
+    {"id": "titanheart",   "name": "Titan Heart",      "recipe": ["belt", "belt"],   "stats": {"hp": 450}},
+    {"id": "bulwark",      "name": "Bulwark Plate",    "recipe": ["chain", "chain"], "stats": {"armor": 55}},
+    {"id": "nullmantle",   "name": "Null Mantle",      "recipe": ["cloak", "cloak"], "stats": {"mr": 55}},
+    {"id": "assassingrip", "name": "Assassin's Grip",  "recipe": ["glove", "glove"], "stats": {"crit": 0.55, "ad": 10}},
+    {"id": "duelistedge",  "name": "Duelist's Edge",   "recipe": ["blade", "bow"],   "stats": {"ad": 15, "as_pct": 0.15, "crit": 0.10}},
+    {"id": "bloodhound",   "name": "Bloodhound Blade", "recipe": ["blade", "belt"],  "stats": {"ad": 15, "hp": 200, "omnivamp": 0.15}},
+    {"id": "aetherconduit","name": "Aether Conduit",   "recipe": ["rod", "tear"],    "stats": {"ability_power": 20, "mana_start": 20}},
+    {"id": "hawkeye",      "name": "Hawkeye",          "recipe": ["bow", "glove"],   "stats": {"as_pct": 0.20, "crit": 0.30}},
+    {"id": "aegisguard",   "name": "Aegis Guard",      "recipe": ["belt", "chain"],  "stats": {"hp": 200, "armor": 30}},
+    {"id": "wardstone",    "name": "Wardstone",        "recipe": ["cloak", "tear"],  "stats": {"mr": 30, "mana_start": 15}},
+    {"id": "spellward",    "name": "Spellward",        "recipe": ["belt", "cloak"],  "stats": {"hp": 200, "mr": 25}}
+  ]
+}

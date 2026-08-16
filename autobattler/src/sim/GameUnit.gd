@@ -5,11 +5,14 @@ extends RefCounted
 ## (which hero, what star level) and placement. Turned into a CombatUnit when a
 ## fight starts. Star upgrades happen here (3 of a kind -> next star).
 
+const MAX_ITEMS := 3
+
 var uid: int                    # unique instance id within a game
 var hero: HeroDef
 var star: int = 1               # 1..3
 var board_pos: Vector2i = Vector2i(-1, -1)  # placement hex, or (-1,-1) if benched
 var bench_index: int = -1       # slot on the bench, or -1 if on board
+var items: Array[String] = []   # equipped item ids (components or completed), max 3
 
 
 func _init(instance_id: int, hero_def: HeroDef, star_level: int = 1) -> void:

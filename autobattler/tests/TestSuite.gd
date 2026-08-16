@@ -26,6 +26,8 @@ func run() -> int:
 	_run("combat_deterministic", test_combat_deterministic)
 	_run("combat_terminates", test_combat_terminates)
 	_run("trait_activation", test_trait_activation)
+	_run("item_combine", test_item_combine)
+	_run("item_stats_in_combat", test_item_stats_in_combat)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -192,3 +194,32 @@ func test_trait_activation() -> void:
 	_check(not eff.is_empty(), "stoneborn active at 2 distinct heroes")
 	var eff0 := perk.active_effect(1)
 	_check(eff0.is_empty(), "stoneborn inactive at 1 hero")
+
+
+func test_item_combine() -> void:
+	var g := GameState.new(2)
+	var hero: HeroDef = GameDatabase.heroes_of_cost(1)[0]
+	var gu := GameUnit.new(5000, hero, 1)
+	gu.bench_index = 0
+	g.roster.append(gu)
+	g.grant_item("blade")
+	g.grant_item("bow")
+	_check(g.assign_item(gu, "blade"), "equip first component")
+	_eq(gu.items.size(), 1, "one component equipped")
+	_check(g.assign_item(gu, "bow"), "assign second component")
+	_eq(gu.items.size(), 1, "components combine into a single item")
+	_eq(gu.items[0], "duelistedge", "blade + bow => Duelist's Edge")
+	_check(g.item_inventory.is_empty(), "both components consumed from inventory")
+
+
+func test_item_stats_in_combat() -> void:
+	var hero: HeroDef = GameDatabase.get_hero("gravik")
+	var base := GameUnit.new(6000, hero, 1)
+	base.board_pos = Vector2i(0, 0)
+	var equipped := GameUnit.new(6001, hero, 1)
+	equipped.board_pos = Vector2i(0, 0)
+	equipped.items = ["titanheart"]  # +450 hp
+	var cu_base := CombatUnit.from_game_unit(base, 0, Vector2i(0, 4), 0)
+	var cu_item := CombatUnit.from_game_unit(equipped, 0, Vector2i(0, 4), 1)
+	_approx(cu_item.max_hp - cu_base.max_hp, 450.0, "Titan Heart adds +450 max HP", 0.5)
+	_approx(cu_item.hp, cu_item.max_hp, "unit starts at full (item-boosted) HP", 0.5)

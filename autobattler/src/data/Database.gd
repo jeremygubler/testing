@@ -9,12 +9,16 @@ extends Node
 const HEROES_PATH := "res://data_files/heroes.json"
 const PERKS_PATH := "res://data_files/perks.json"
 const SKINS_PATH := "res://data_files/skins.json"
+const ITEMS_PATH := "res://data_files/items.json"
 const CONFIG_PATH := "res://data_files/game_config.json"
 
 var _heroes: Dictionary = {}       # id -> HeroDef
 var _heroes_by_cost: Dictionary = {}  # cost(int) -> Array[HeroDef]
 var _perks: Dictionary = {}        # id -> PerkDef
 var _skins: Dictionary = {}        # id -> SkinDef
+var _items: Dictionary = {}        # id -> ItemDef
+var _components: Array = []        # Array[ItemDef] (component items only)
+var _recipes: Dictionary = {}      # "compA+compB" -> completed ItemDef
 var pool_copies: Dictionary = {}   # cost(int) -> copies available in shared pool
 var config: Dictionary = {}        # tunable game constants
 
@@ -28,9 +32,13 @@ func reload() -> void:
 	_heroes_by_cost.clear()
 	_perks.clear()
 	_skins.clear()
+	_items.clear()
+	_components.clear()
+	_recipes.clear()
 	_load_heroes()
 	_load_perks()
 	_load_skins()
+	_load_items()
 	_load_config()
 
 
@@ -77,6 +85,21 @@ func _load_skins() -> void:
 		_skins[skin.id] = skin
 
 
+func _load_items() -> void:
+	var d = _read_json(ITEMS_PATH)
+	if d == null:
+		return
+	for cd in d.get("components", []):
+		var comp := ItemDef.from_dict(cd, "component")
+		_items[comp.id] = comp
+		_components.append(comp)
+	for wd in d.get("completed", []):
+		var item := ItemDef.from_dict(wd, "completed")
+		_items[item.id] = item
+		if item.recipe.size() == 2:
+			_recipes[ItemDef.recipe_key(item.recipe[0], item.recipe[1])] = item
+
+
 func _load_config() -> void:
 	var d = _read_json(CONFIG_PATH)
 	config = d if typeof(d) == TYPE_DICTIONARY else {}
@@ -118,6 +141,24 @@ func skins_for_hero(hero_id: String) -> Array:
 		if s.type == "hero" and s.hero_id == hero_id:
 			out.append(s)
 	return out
+
+
+func get_item(id: String) -> ItemDef:
+	return _items.get(id, null)
+
+
+func all_items() -> Array:
+	return _items.values()
+
+
+func all_components() -> Array:
+	return _components
+
+
+## Returns the completed ItemDef built from two components, or null if the pair
+## has no recipe.
+func recipe_result(comp_a: String, comp_b: String) -> ItemDef:
+	return _recipes.get(ItemDef.recipe_key(comp_a, comp_b), null)
 
 
 ## Config getter with default fallback (so missing config keys never crash).

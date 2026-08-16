@@ -15,6 +15,7 @@ signal roster_changed()
 signal hp_changed(hp: int)
 signal round_changed(round_number: int)
 signal combat_resolved(result: Dictionary)
+signal items_changed()
 
 var phase: int = Phase.SHOP
 var round_number: int = 0
@@ -24,6 +25,7 @@ var pool: HeroPool
 var shop: Shop
 
 var roster: Array = []          # Array[GameUnit] (bench + board)
+var item_inventory: Array[String] = []  # unassigned item ids the player holds
 var last_result: Dictionary = {}
 
 var _rng: DeterministicRng
@@ -207,14 +209,80 @@ func buy(slot: int) -> bool:
 	return true
 
 
-## Sell a unit: refund gold, return copies to the pool, remove from roster.
+## Sell a unit: refund gold, return copies to the pool, return items to the
+## inventory, and remove from roster.
 func sell(unit: GameUnit) -> bool:
 	if unit == null or not roster.has(unit):
 		return false
 	economy.add_gold(unit.sell_value())
 	pool.give(unit.hero.id, unit.star)
+	for item_id in unit.items:
+		item_inventory.append(item_id)
 	roster.erase(unit)
 	roster_changed.emit()
+	if not unit.items.is_empty():
+		items_changed.emit()
+	return true
+
+
+# --- Items -------------------------------------------------------------------
+
+## Add an item id to the player's inventory (rewards / debug).
+func grant_item(item_id: String) -> void:
+	if GameDatabase.get_item(item_id) == null:
+		return
+	item_inventory.append(item_id)
+	items_changed.emit()
+
+
+## Assign an inventory item to a unit. If the item is a component and the unit
+## already holds a component that completes a recipe, the two combine into the
+## completed item (freeing a slot). Otherwise the item is equipped if the unit has
+## a free slot (max 3). Returns true on success.
+func assign_item(unit: GameUnit, item_id: String) -> bool:
+	if unit == null or not roster.has(unit):
+		return false
+	if not item_inventory.has(item_id):
+		return false
+	var item: ItemDef = GameDatabase.get_item(item_id)
+	if item == null:
+		return false
+
+	# Try to complete a recipe with an existing component on the unit.
+	if item.is_component():
+		for i in unit.items.size():
+			var held: ItemDef = GameDatabase.get_item(unit.items[i])
+			if held != null and held.is_component():
+				var result := GameDatabase.recipe_result(held.id, item.id)
+				if result != null:
+					unit.items[i] = result.id
+					item_inventory.erase(item_id)
+					roster_changed.emit()
+					items_changed.emit()
+					return true
+
+	# Otherwise equip into a free slot.
+	if unit.items.size() >= GameUnit.MAX_ITEMS:
+		return false
+	unit.items.append(item_id)
+	item_inventory.erase(item_id)
+	roster_changed.emit()
+	items_changed.emit()
+	return true
+
+
+## Remove an item from a unit and return it to the inventory. Returns true on
+## success. (Completed items return as-is; they are not decomposed.)
+func unequip_item(unit: GameUnit, slot: int) -> bool:
+	if unit == null or not roster.has(unit):
+		return false
+	if slot < 0 or slot >= unit.items.size():
+		return false
+	var item_id: String = unit.items[slot]
+	unit.items.remove_at(slot)
+	item_inventory.append(item_id)
+	roster_changed.emit()
+	items_changed.emit()
 	return true
 
 
