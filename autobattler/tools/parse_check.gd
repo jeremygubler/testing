@@ -18,12 +18,14 @@ func _initialize() -> void:
 		if f.ends_with("parse_check.gd"):
 			continue
 		var res = load(f)
-		# load() returns the resource even for scripts with parse errors, so we
-		# recompile via reload() and check the returned error code — that is what
-		# actually reveals a broken script.
+		# load() returns the resource even for scripts with parse errors, so a
+		# null check is not enough. can_instantiate() returns false for a script
+		# that failed to compile (including when a dependency failed), and — unlike
+		# reload() — it neither collides with a user-defined reload() method nor
+		# trips over autoloads that already have a live instance.
 		var ok := res != null
 		if res is GDScript:
-			ok = res.reload() == OK
+			ok = res.can_instantiate()
 		if not ok:
 			push_error("PARSE FAIL: %s" % f)
 			print("  FAIL  %s" % f)
