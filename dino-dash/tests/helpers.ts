@@ -232,6 +232,15 @@ export async function resolveObstacles(page: Page, timeout = 8000): Promise<'sur
   return page.evaluate(() => (window.dinoDash.scene.state === 'running' ? 'survived' : 'crashed'));
 }
 
+/**
+ * The save as the game currently holds it in memory, with defaults filled in.
+ * Use this when an action is expected to change nothing: a refused purchase
+ * writes no file, so localStorage would still hold the raw seeded JSON.
+ */
+export async function liveSave(page: Page): Promise<SaveData> {
+  return page.evaluate(() => JSON.parse(JSON.stringify(window.dinoDash.save)) as SaveData);
+}
+
 export async function readSave(page: Page): Promise<SaveData | null> {
   return page.evaluate((key) => {
     const raw = localStorage.getItem(key);

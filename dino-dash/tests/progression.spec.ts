@@ -11,11 +11,13 @@ import {
   tapView,
 } from './helpers';
 
-/** Menu button positions in internal view coordinates. */
+/** Centres of the menu buttons, in internal view coordinates. */
 const MENU = {
-  play: { x: 720, y: 258 },
-  skins: { x: 720, y: 332 },
-  achievements: { x: 720, y: 396 },
+  play: { x: 720, y: 227 },
+  skins: { x: 720, y: 291 },
+  upgrades: { x: 720, y: 347 },
+  achievements: { x: 720, y: 403 },
+  stats: { x: 720, y: 459 },
   mute: { x: 902, y: 34 },
   back: { x: 107, y: 557 },
 };
@@ -157,8 +159,18 @@ test.describe('menu navigation', () => {
     await tapView(page, MENU.back.x, MENU.back.y);
     await expect.poll(sceneName).toBe('MenuScene');
 
+    await tapView(page, MENU.upgrades.x, MENU.upgrades.y);
+    await expect.poll(sceneName).toBe('UpgradesScene');
+    await tapView(page, MENU.back.x, MENU.back.y);
+    await expect.poll(sceneName).toBe('MenuScene');
+
     await tapView(page, MENU.achievements.x, MENU.achievements.y);
     await expect.poll(sceneName).toBe('AchievementsScene');
+    await tapView(page, MENU.back.x, MENU.back.y);
+    await expect.poll(sceneName).toBe('MenuScene');
+
+    await tapView(page, MENU.stats.x, MENU.stats.y);
+    await expect.poll(sceneName).toBe('StatsScene');
     await tapView(page, MENU.back.x, MENU.back.y);
     await expect.poll(sceneName).toBe('MenuScene');
 

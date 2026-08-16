@@ -6,27 +6,29 @@ import {
   MAGNET_RADIUS,
   MAX_SPEED,
   PLAYER_Z,
-  POWERUP_DURATION,
+  powerUpDuration,
   SPEED_ACCEL,
   START_SPEED,
   VIEW,
 } from '../core/config';
 import { clamp, lerp, randRange } from '../core/math';
+import { motionScale } from '../core/motion';
 import type { Action, PowerUpKind, Scene } from '../core/types';
-import { getSkin, SKINS } from '../assets/skins';
+import { getSkin } from '../assets/skins';
 import { drawEgg, type Egg } from '../entities/egg';
 import { drawObstacle, type Obstacle } from '../entities/obstacle';
 import { Player } from '../entities/player';
 import { drawPowerUp, POWERUP_COLOR, POWERUP_LABEL, type PowerUp } from '../entities/powerup';
 import type { Game } from '../game';
 import { drawBackground } from '../render/background';
+import { biomeAt, biomeIndexAt, BIOMES } from '../render/biome';
 import { project } from '../render/camera';
 import { drawText, fillCircle } from '../render/draw';
 import { drawEggIcon, drawHud, formatNumber, type ActiveTimer } from '../render/hud';
 import { drawPath } from '../render/path';
 import { drawButton, drawPanel, hitButton, INK, type Button } from '../render/ui';
-import { evaluateAchievements } from '../systems/achievements';
 import { audio } from '../systems/audio';
+import { recordScore } from '../systems/storage';
 import { hitsObstacle, touchesEgg, touchesPowerUp } from '../systems/collision';
 import { Particles } from '../systems/particles';
 import { Spawner } from '../systems/spawner';
@@ -57,6 +59,8 @@ export class GameScene implements Scene {
   private eggCount = 0;
   private state: RunState = 'running';
   private timers: Record<PowerUpKind, number> = { magnet: 0, shield: 0, boost: 0, spring: 0 };
+  /** Full duration of each active power-up, so the HUD bar drains correctly. */
+  private durations: Record<PowerUpKind, number> = { magnet: 1, shield: 1, boost: 1, spring: 1 };
 
   private eggsWhileMagnet = 0;
   private shieldSaves = 0;
@@ -68,6 +72,8 @@ export class GameScene implements Scene {
   private lastStepPhase = 0;
   private wasAirborne = false;
   private isNewRecord = false;
+  /** Which biome the player was in last frame, to announce changes. */
+  private biomeIndex = 0;
   private buttons: Button[] = [];
 
   constructor(private game: Game) {}
@@ -85,6 +91,7 @@ export class GameScene implements Scene {
     this.eggCount = 0;
     this.state = 'running';
     this.timers = { magnet: 0, shield: 0, boost: 0, spring: 0 };
+    this.durations = { magnet: 1, shield: 1, boost: 1, spring: 1 };
     this.eggsWhileMagnet = 0;
     this.shieldSaves = 0;
     this.topSpeed = START_SPEED;
@@ -94,6 +101,7 @@ export class GameScene implements Scene {
     this.lastStepPhase = 0;
     this.wasAirborne = false;
     this.isNewRecord = false;
+    this.biomeIndex = 0;
   }
 
   onAction(action: Action): void {
@@ -132,6 +140,10 @@ export class GameScene implements Scene {
         if (this.player.duck()) audio.play('duck');
         break;
     }
+  }
+
+  onBlur(): void {
+    if (this.state === 'running') this.state = 'paused';
   }
 
   onTap(x: number, y: number): void {
@@ -181,9 +193,21 @@ export class GameScene implements Scene {
     this.handlePickups();
     this.handleObstacles();
     this.emitRunningParticles();
+    // Checked every frame so a milestone is celebrated as it happens rather
+    // than being held back until the run is over.
+    this.game.awardAchievements(this.achievementContext(false));
+    this.announceBiomeChange();
 
     if (this.invulnerable > 0) this.invulnerable -= dt;
     if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.4);
+  }
+
+  /** Names each new stretch of the route as the player reaches it. */
+  private announceBiomeChange(): void {
+    const index = biomeIndexAt(this.distance);
+    if (index === this.biomeIndex) return;
+    this.biomeIndex = index;
+    this.game.toast('🌍', BIOMES[index].name, 'Neuer Streckenabschnitt');
   }
 
   private moveWorld(travelled: number): void {
@@ -239,11 +263,14 @@ export class GameScene implements Scene {
   }
 
   private activatePowerUp(kind: PowerUpKind): void {
-    this.timers[kind] = POWERUP_DURATION[kind];
+    // Upgrades bought with eggs extend how long the effect lasts.
+    const duration = powerUpDuration(kind, this.game.save.upgrades[kind]);
+    this.timers[kind] = duration;
+    this.durations[kind] = duration;
     audio.play('powerup');
     const feet = this.playerScreenPosition();
     this.particles.sparkle(feet.x, feet.y - feet.scale * 0.8, 22, POWERUP_COLOR[kind], 170);
-    this.game.toast('✨', POWERUP_LABEL[kind], `${POWERUP_DURATION[kind]} Sekunden aktiv`);
+    this.game.toast('✨', POWERUP_LABEL[kind], `${duration.toFixed(0)} Sekunden aktiv`);
   }
 
   private handleObstacles(): void {
@@ -318,6 +345,21 @@ export class GameScene implements Scene {
     return project(this.player.worldX, this.player.y, PLAYER_Z);
   }
 
+  /** Snapshot of the run in the shape the achievement rules expect. */
+  private achievementContext(runFinished: boolean) {
+    return {
+      eggs: this.eggCount,
+      distance: this.distance,
+      score: this.score,
+      eggsWhileMagnet: this.eggsWhileMagnet,
+      shieldSaves: this.shieldSaves,
+      topSpeed: this.topSpeed,
+      // Lifetime total including the eggs of the run in progress.
+      eggsAllTime: this.game.save.eggsAllTime + this.eggCount,
+      runFinished,
+    };
+  }
+
   private finishRun(): void {
     this.state = 'over';
     const save = this.game.save;
@@ -330,28 +372,12 @@ export class GameScene implements Scene {
     this.isNewRecord = finalScore > save.highScore;
     save.highScore = Math.max(save.highScore, finalScore);
     save.bestDistance = Math.max(save.bestDistance, Math.floor(this.distance));
-
-    const earned = evaluateAchievements(
-      {
-        eggs: this.eggCount,
-        distance: this.distance,
-        score: finalScore,
-        eggsWhileMagnet: this.eggsWhileMagnet,
-        shieldSaves: this.shieldSaves,
-        topSpeed: this.topSpeed,
-      },
-      save,
-      SKINS.length,
-    );
-
-    for (const achievement of earned) {
-      save.achievements.push(achievement.id);
-      this.game.toast(achievement.icon, achievement.name, achievement.description);
-    }
+    recordScore(save, finalScore, Math.floor(this.distance), this.eggCount);
 
     this.game.persist();
     audio.play('gameOver');
-    if (earned.length > 0) audio.play('achievement');
+    // Catches the achievements that can only be judged once a run is over.
+    this.game.awardAchievements(this.achievementContext(true));
   }
 
   private restart(): void {
@@ -365,12 +391,13 @@ export class GameScene implements Scene {
   draw(ctx: CanvasRenderingContext2D): void {
     ctx.save();
     if (this.shake > 0) {
-      const magnitude = this.shake * 12;
+      const magnitude = this.shake * 12 * motionScale();
       ctx.translate(randRange(-magnitude, magnitude), randRange(-magnitude, magnitude));
     }
 
-    drawBackground(ctx, this.distance, this.game.time);
-    drawPath(ctx, this.distance);
+    const palette = biomeAt(this.distance);
+    drawBackground(ctx, this.distance, this.game.time, palette);
+    drawPath(ctx, this.distance, palette);
     this.drawWorld(ctx);
     this.particles.draw(ctx);
     ctx.restore();
@@ -401,7 +428,7 @@ export class GameScene implements Scene {
     return POWERUP_KINDS.filter((kind) => this.timers[kind] > 0).map((kind) => ({
       kind,
       remaining: this.timers[kind],
-      duration: POWERUP_DURATION[kind],
+      duration: this.durations[kind],
     }));
   }
 

@@ -2,6 +2,7 @@
  * Central tuning values. World units are metres; the camera looks down the
  * positive z axis, y points up from the path surface, x is lateral.
  */
+import type { PowerUpKind } from './types';
 
 export const VIEW = { W: 960, H: 600 };
 
@@ -50,12 +51,28 @@ export const PLAYER_HALF_WIDTH = 0.42;
 /** Half depth of the player's collision box along z. */
 export const PLAYER_HALF_DEPTH = 0.5;
 
-export const POWERUP_DURATION = {
+export const POWERUP_DURATION: Record<PowerUpKind, number> = {
   magnet: 8,
   shield: 9,
   boost: 6,
   spring: 12,
 };
+
+/** Extra seconds granted per upgrade level, bought with eggs. */
+export const UPGRADE_DURATION_BONUS: Record<PowerUpKind, number> = {
+  magnet: 2.5,
+  shield: 2.5,
+  boost: 2,
+  spring: 3,
+};
+
+/** Egg cost of each upgrade level, giving eggs a use beyond the skins. */
+export const UPGRADE_COST = [200, 450, 900];
+
+/** Duration of a power-up at the given upgrade level. */
+export function powerUpDuration(kind: PowerUpKind, level: number): number {
+  return POWERUP_DURATION[kind] + UPGRADE_DURATION_BONUS[kind] * level;
+}
 
 /** Radius within which the magnet pulls eggs towards the player. */
 export const MAGNET_RADIUS = 26;

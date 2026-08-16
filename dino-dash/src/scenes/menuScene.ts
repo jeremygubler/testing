@@ -4,6 +4,7 @@ import { drawDino } from '../assets/dino';
 import { getSkin } from '../assets/skins';
 import type { Game } from '../game';
 import { drawBackground } from '../render/background';
+import { BIOMES } from '../render/biome';
 import { drawText, fillCircle, fillRoundRect } from '../render/draw';
 import { drawEggIcon, formatNumber } from '../render/hud';
 import { drawPath } from '../render/path';
@@ -12,8 +13,13 @@ import { audio } from '../systems/audio';
 import { AchievementsScene } from './achievementsScene';
 import { GameScene } from './gameScene';
 import { SkinsScene } from './skinsScene';
+import { StatsScene } from './statsScene';
+import { UpgradesScene } from './upgradesScene';
 
 const MUTE_BUTTON = { x: VIEW.W - 58, y: 22, r: 24 };
+
+/** Menus always show the daytime look, whatever biome the last run ended in. */
+export const MENU_BIOME = BIOMES[0];
 
 export class MenuScene implements Scene {
   private buttons: Button[] = [];
@@ -31,9 +37,11 @@ export class MenuScene implements Scene {
     const x = 552;
     const w = 336;
     this.buttons = [
-      { id: 'play', x, y: 224, w, h: 68, label: 'Spielen', color: '#6fcf97' },
-      { id: 'skins', x, y: 306, w, h: 52, label: 'Dinos', color: '#ff9fb0' },
-      { id: 'achievements', x, y: 370, w, h: 52, label: 'Erfolge', color: '#b8a6d9' },
+      { id: 'play', x, y: 196, w, h: 62, label: 'Spielen', color: '#6fcf97' },
+      { id: 'skins', x, y: 268, w, h: 46, label: 'Dinos', color: '#ff9fb0' },
+      { id: 'upgrades', x, y: 324, w, h: 46, label: 'Power-Ups', color: '#ffa94d' },
+      { id: 'achievements', x, y: 380, w, h: 46, label: 'Erfolge', color: '#b8a6d9' },
+      { id: 'stats', x, y: 436, w, h: 46, label: 'Statistik', color: '#7bb8f0' },
     ];
   }
 
@@ -58,7 +66,9 @@ export class MenuScene implements Scene {
 
     if (button.id === 'play') this.start();
     else if (button.id === 'skins') this.game.setScene(new SkinsScene(this.game));
+    else if (button.id === 'upgrades') this.game.setScene(new UpgradesScene(this.game));
     else if (button.id === 'achievements') this.game.setScene(new AchievementsScene(this.game));
+    else if (button.id === 'stats') this.game.setScene(new StatsScene(this.game));
   }
 
   private start(): void {
@@ -71,8 +81,8 @@ export class MenuScene implements Scene {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    drawBackground(ctx, this.scroll, this.game.time);
-    drawPath(ctx, this.scroll);
+    drawBackground(ctx, this.scroll, this.game.time, MENU_BIOME);
+    drawPath(ctx, this.scroll, MENU_BIOME);
 
     this.drawTitle(ctx);
     this.drawMascot(ctx);
@@ -113,33 +123,31 @@ export class MenuScene implements Scene {
     }, skin, 476);
   }
 
+  /** Compact strip: the full breakdown lives on the statistics screen. */
   private drawStats(ctx: CanvasRenderingContext2D): void {
     const save = this.game.save;
     const x = 552;
     const w = 336;
-    const y = 442;
-    const h = 118;
+    const y = 500;
+    const h = 46;
     drawPanel(ctx, x, y, w, h, 20);
 
-    drawText(ctx, 'Rekord', x + 24, y + 30, { size: 15, align: 'left', color: '#8a7a9a', weight: 'normal' });
-    drawText(ctx, formatNumber(save.highScore), x + w - 24, y + 30, {
-      size: 20,
-      align: 'right',
+    drawText(ctx, 'Rekord', x + 20, y + h / 2, {
+      size: 14,
+      align: 'left',
+      color: '#8a7a9a',
+      weight: 'normal',
+    });
+    drawText(ctx, formatNumber(save.highScore), x + 78, y + h / 2, {
+      size: 18,
+      align: 'left',
       color: INK,
     });
 
-    drawText(ctx, 'Beste Strecke', x + 24, y + 60, { size: 15, align: 'left', color: '#8a7a9a', weight: 'normal' });
-    drawText(ctx, `${formatNumber(save.bestDistance)} m`, x + w - 24, y + 60, {
-      size: 20,
-      align: 'right',
-      color: INK,
-    });
-
-    drawEggIcon(ctx, x + 30, y + 90, 11);
-    drawText(ctx, 'Eier', x + 48, y + 90, { size: 15, align: 'left', color: '#8a7a9a', weight: 'normal' });
-    drawText(ctx, formatNumber(save.eggs), x + w - 24, y + 90, {
-      size: 20,
-      align: 'right',
+    drawEggIcon(ctx, x + w - 92, y + h / 2 - 1, 11);
+    drawText(ctx, formatNumber(save.eggs), x + w - 74, y + h / 2, {
+      size: 18,
+      align: 'left',
       color: '#e0a92e',
     });
   }

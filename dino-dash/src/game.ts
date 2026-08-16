@@ -1,7 +1,9 @@
 import { VIEW } from './core/config';
 import { Input } from './core/input';
 import type { Scene } from './core/types';
+import { SKINS } from './assets/skins';
 import { drawText, fillRoundRect } from './render/draw';
+import { evaluateAchievements, type AchievementContext } from './systems/achievements';
 import { audio } from './systems/audio';
 import { loadSave, writeSave, type SaveData } from './systems/storage';
 
@@ -37,6 +39,13 @@ export class Game {
     this.input = new Input(canvas);
     this.save = loadSave();
     audio.setMuted(this.save.muted);
+
+    // Losing focus should never cost a run.
+    const blur = () => this.scene?.onBlur?.();
+    window.addEventListener('blur', blur);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) blur();
+    });
   }
 
   start(scene: Scene): void {
@@ -61,6 +70,47 @@ export class Game {
 
   toast(icon: string, title: string, subtitle: string): void {
     this.toasts.push({ icon, title, subtitle, life: TOAST_DURATION });
+  }
+
+  /**
+   * Awards any achievement whose condition now holds. Called every frame
+   * during a run so milestones pop the moment they happen, and again when a
+   * run ends for the ones that can only be judged then.
+   */
+  awardAchievements(context: Omit<AchievementContext, 'totalSkins' | 'unlockedSkins'>): void {
+    const earned = evaluateAchievements(
+      {
+        ...context,
+        unlockedSkins: this.save.unlockedSkins.length,
+        totalSkins: SKINS.length,
+      },
+      this.save.achievements,
+    );
+    if (earned.length === 0) return;
+
+    for (const achievement of earned) {
+      this.save.achievements.push(achievement.id);
+      this.toast(achievement.icon, achievement.name, achievement.description);
+    }
+    audio.play('achievement');
+    this.persist();
+  }
+
+  /**
+   * Re-checks the achievements that depend on the save file rather than on a
+   * run, so unlocking the last dino is celebrated right there in the shop.
+   */
+  awardIdleAchievements(): void {
+    this.awardAchievements({
+      eggs: 0,
+      distance: 0,
+      score: 0,
+      eggsWhileMagnet: 0,
+      shieldSaves: 0,
+      topSpeed: 0,
+      eggsAllTime: this.save.eggsAllTime,
+      runFinished: false,
+    });
   }
 
   private frame = (now: number): void => {

@@ -7,7 +7,7 @@ import { drawPath } from '../render/path';
 import { drawButton, drawPanel, hitButton, INK, type Button } from '../render/ui';
 import { ACHIEVEMENTS, type Achievement } from '../systems/achievements';
 import { audio } from '../systems/audio';
-import { backButton, drawScrim, MenuScene } from './menuScene';
+import { backButton, drawScrim, MENU_BIOME, MenuScene } from './menuScene';
 
 const COLUMNS = 2;
 const ROW_W = 410;
@@ -46,8 +46,8 @@ export class AchievementsScene implements Scene {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    drawBackground(ctx, this.game.time * 6, this.game.time);
-    drawPath(ctx, this.game.time * 6);
+    drawBackground(ctx, this.game.time * 6, this.game.time, MENU_BIOME);
+    drawPath(ctx, this.game.time * 6, MENU_BIOME);
     drawScrim(ctx);
 
     const unlocked = this.game.save.achievements.length;

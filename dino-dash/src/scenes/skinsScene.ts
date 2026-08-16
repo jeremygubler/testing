@@ -9,7 +9,7 @@ import { drawEggIcon, formatNumber } from '../render/hud';
 import { drawPath } from '../render/path';
 import { drawButton, drawPanel, hitButton, INK, type Button } from '../render/ui';
 import { audio } from '../systems/audio';
-import { backButton, drawScrim, MenuScene } from './menuScene';
+import { backButton, drawScrim, MENU_BIOME, MenuScene } from './menuScene';
 
 const COLUMNS = 4;
 const CELL_W = 196;
@@ -90,6 +90,9 @@ export class SkinsScene implements Scene {
     audio.play('unlock');
     this.flash(`${skin.name} freigeschaltet!`);
     this.game.persist();
+    // Unlocking the last dino completes an achievement; award it here rather
+    // than making the player finish a run to hear about it.
+    this.game.awardIdleAchievements();
   }
 
   private flash(text: string): void {
@@ -102,8 +105,8 @@ export class SkinsScene implements Scene {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    drawBackground(ctx, this.game.time * 6, this.game.time);
-    drawPath(ctx, this.game.time * 6);
+    drawBackground(ctx, this.game.time * 6, this.game.time, MENU_BIOME);
+    drawPath(ctx, this.game.time * 6, MENU_BIOME);
     drawScrim(ctx);
 
     drawText(ctx, 'Wähle deinen Dino', VIEW.W / 2, 56, {

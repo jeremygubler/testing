@@ -19,4 +19,6 @@ export interface Scene {
   draw(ctx: CanvasRenderingContext2D): void;
   onAction?(action: Action): void;
   onTap?(x: number, y: number): void;
+  /** Called when the window or tab loses focus, so a run can pause itself. */
+  onBlur?(): void;
 }

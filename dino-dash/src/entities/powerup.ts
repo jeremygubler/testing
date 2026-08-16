@@ -57,19 +57,40 @@ export function drawPowerUp(ctx: CanvasRenderingContext2D, p: PowerUp, time: num
   fillCircle(ctx, 0, 0, POWERUP_RADIUS * (1.5 + pulse * 0.22), color);
   ctx.restore();
 
+  ctx.save();
+  ctx.rotate(Math.sin(time * 1.5 + p.seed * 3) * 0.12);
+  drawBadgeFace(ctx, p.kind, color);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+/**
+ * The power-up disc on its own, for menus. `radius` is in pixels; the icon
+ * artwork is authored in world units and scaled to match.
+ */
+export function drawPowerUpBadge(
+  ctx: CanvasRenderingContext2D,
+  kind: PowerUpKind,
+  cx: number,
+  cy: number,
+  radius: number,
+): void {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(radius / POWERUP_RADIUS, radius / POWERUP_RADIUS);
+  drawBadgeFace(ctx, kind, POWERUP_COLOR[kind]);
+  ctx.restore();
+}
+
+function drawBadgeFace(ctx: CanvasRenderingContext2D, kind: PowerUpKind, color: string): void {
   fillCircle(ctx, 0, 0, POWERUP_RADIUS, '#fffaf2');
   ctx.lineWidth = 0.09;
   ctx.strokeStyle = color;
   ctx.beginPath();
   ctx.arc(0, 0, POWERUP_RADIUS - 0.045, 0, Math.PI * 2);
   ctx.stroke();
-
-  ctx.save();
-  ctx.rotate(Math.sin(time * 1.5 + p.seed * 3) * 0.12);
-  drawIcon(ctx, p.kind, color);
-  ctx.restore();
-
-  ctx.restore();
+  drawIcon(ctx, kind, color);
 }
 
 function drawIcon(ctx: CanvasRenderingContext2D, kind: PowerUpKind, color: string): void {

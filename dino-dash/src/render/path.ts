@@ -1,13 +1,9 @@
 import { DESPAWN_Z, HORIZON, LANE_WIDTH, PATH_HALF_WIDTH, SPAWN_Z, VIEW } from '../core/config';
+import type { BiomePalette } from './biome';
 import { project } from './camera';
 import { fillEllipse, fillPolygon } from './draw';
 
 const BAND_LENGTH = 4;
-const GROUND_GREEN = '#8fd4a8';
-const GROUND_GREEN_DARK = '#7cc596';
-const PATH_LIGHT = '#eccfa6';
-const PATH_DARK = '#e0be92';
-const PATH_EDGE = '#c9a179';
 
 function hash(n: number): number {
   const x = Math.sin(n * 91.7) * 27183.1234;
@@ -19,22 +15,30 @@ function hash(n: number): number {
  * Bands are laid out in world space and offset by the travelled distance, so
  * the ground appears to rush towards the camera.
  */
-export function drawPath(ctx: CanvasRenderingContext2D, distance: number): void {
-  drawGroundPlane(ctx);
-  drawPathBands(ctx, distance);
+export function drawPath(
+  ctx: CanvasRenderingContext2D,
+  distance: number,
+  palette: BiomePalette,
+): void {
+  drawGroundPlane(ctx, palette);
+  drawPathBands(ctx, distance, palette);
   drawLaneSeams(ctx, distance);
-  drawScenery(ctx, distance);
+  drawScenery(ctx, distance, palette);
 }
 
-function drawGroundPlane(ctx: CanvasRenderingContext2D): void {
+function drawGroundPlane(ctx: CanvasRenderingContext2D, palette: BiomePalette): void {
   const gradient = ctx.createLinearGradient(0, HORIZON, 0, VIEW.H);
-  gradient.addColorStop(0, GROUND_GREEN_DARK);
-  gradient.addColorStop(1, GROUND_GREEN);
+  gradient.addColorStop(0, palette.grassFar);
+  gradient.addColorStop(1, palette.grassNear);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, HORIZON, VIEW.W, VIEW.H - HORIZON);
 }
 
-function drawPathBands(ctx: CanvasRenderingContext2D, distance: number): void {
+function drawPathBands(
+  ctx: CanvasRenderingContext2D,
+  distance: number,
+  palette: BiomePalette,
+): void {
   const offset = distance % BAND_LENGTH;
   // Far bands first so nearer ones paint over them.
   for (let z = SPAWN_Z; z > DESPAWN_Z; z -= BAND_LENGTH) {
@@ -43,7 +47,7 @@ function drawPathBands(ctx: CanvasRenderingContext2D, distance: number): void {
     if (near <= DESPAWN_Z * 0.5) continue;
 
     const index = Math.round((distance - near) / BAND_LENGTH);
-    const color = index % 2 === 0 ? PATH_LIGHT : PATH_DARK;
+    const color = index % 2 === 0 ? palette.pathLight : palette.pathDark;
 
     const nl = project(-PATH_HALF_WIDTH, 0, near);
     const nr = project(PATH_HALF_WIDTH, 0, near);
@@ -75,7 +79,7 @@ function drawPathBands(ctx: CanvasRenderingContext2D, distance: number): void {
         [nl.x, nl.y],
         [nlo.x, nlo.y],
       ],
-      PATH_EDGE,
+      palette.pathEdge,
     );
     fillPolygon(
       ctx,
@@ -85,7 +89,7 @@ function drawPathBands(ctx: CanvasRenderingContext2D, distance: number): void {
         [nro.x, nro.y],
         [nr.x, nr.y],
       ],
-      PATH_EDGE,
+      palette.pathEdge,
     );
   }
 }
@@ -125,7 +129,11 @@ function drawLaneSeams(ctx: CanvasRenderingContext2D, distance: number): void {
 }
 
 /** Ferns, boulders and palms scattered along both shoulders. */
-function drawScenery(ctx: CanvasRenderingContext2D, distance: number): void {
+function drawScenery(
+  ctx: CanvasRenderingContext2D,
+  distance: number,
+  palette: BiomePalette,
+): void {
   const spacing = 7;
   const first = Math.floor((distance + DESPAWN_Z) / spacing);
   const count = Math.ceil((SPAWN_Z - DESPAWN_Z) / spacing);
@@ -149,9 +157,9 @@ function drawScenery(ctx: CanvasRenderingContext2D, distance: number): void {
   for (const prop of props) {
     const p = project(prop.x, 0, prop.z);
     if (p.scale < 0.6) continue;
-    if (prop.seed > 0.78) drawBoulder(ctx, p.x, p.y, p.scale, prop.seed);
-    else if (prop.seed > 0.5) drawPalm(ctx, p.x, p.y, p.scale, prop.seed);
-    else drawFern(ctx, p.x, p.y, p.scale, prop.seed);
+    if (prop.seed > 0.78) drawBoulder(ctx, p.x, p.y, p.scale, prop.seed, palette);
+    else if (prop.seed > 0.5) drawPalm(ctx, p.x, p.y, p.scale, prop.seed, palette);
+    else drawFern(ctx, p.x, p.y, p.scale, prop.seed, palette);
   }
 }
 
@@ -161,6 +169,7 @@ function drawFern(
   y: number,
   scale: number,
   seed: number,
+  palette: BiomePalette,
 ): void {
   const height = (0.9 + seed * 0.7) * scale;
   const leaves = 6;
@@ -173,11 +182,11 @@ function drawFern(
       y + Math.sin(angle) * length * 0.5,
       length * 0.5,
       height * 0.13,
-      i % 2 === 0 ? '#5fb886' : '#6fc795',
+      i % 2 === 0 ? palette.fern : palette.treeLine,
       angle,
     );
   }
-  fillEllipse(ctx, x, y, height * 0.22, height * 0.08, '#4e9c70');
+  fillEllipse(ctx, x, y, height * 0.22, height * 0.08, palette.fern);
 }
 
 function drawPalm(
@@ -186,11 +195,12 @@ function drawPalm(
   y: number,
   scale: number,
   seed: number,
+  palette: BiomePalette,
 ): void {
   const height = (2.4 + seed * 1.8) * scale;
   const lean = (seed - 0.5) * height * 0.22;
 
-  ctx.strokeStyle = '#b9895e';
+  ctx.strokeStyle = palette.pathEdge;
   ctx.lineWidth = Math.max(2, height * 0.07);
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -210,7 +220,7 @@ function drawPalm(
       topY + Math.sin(angle) * length * 0.55,
       length * 0.55,
       height * 0.09,
-      i % 2 === 0 ? '#57ae7d' : '#67bf8d',
+      i % 2 === 0 ? palette.fern : palette.treeLine,
       angle,
     );
   }
@@ -222,9 +232,10 @@ function drawBoulder(
   y: number,
   scale: number,
   seed: number,
+  palette: BiomePalette,
 ): void {
   const size = (0.6 + seed * 0.6) * scale;
   fillEllipse(ctx, x, y - size * 0.05, size * 0.95, size * 0.3, 'rgba(0,0,0,0.12)');
-  fillEllipse(ctx, x, y - size * 0.45, size * 0.9, size * 0.55, '#b9b2c4');
-  fillEllipse(ctx, x - size * 0.2, y - size * 0.6, size * 0.5, size * 0.3, '#cdc7d6');
+  fillEllipse(ctx, x, y - size * 0.45, size * 0.9, size * 0.55, palette.rock);
+  fillEllipse(ctx, x - size * 0.2, y - size * 0.6, size * 0.5, size * 0.3, palette.rockLit);
 }

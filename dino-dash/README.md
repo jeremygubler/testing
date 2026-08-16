@@ -88,19 +88,31 @@ endet unterhalb der Sprunghöhe.
   - 🛡️ **Schild** (9 s) – überlebt einen Treffer und räumt das Hindernis weg
   - ⚡ **Tempo-Boost** (6 s) – 55 % schneller, 50 % mehr Punkte
   - 🪀 **Sprungfeder** (12 s) – erlaubt einen Doppelsprung
-- **Highscore und Fortschritt** in `localStorage` (Rekord, beste Strecke, Eier-Konto).
+- **Streckenabschnitte**: Alle 750 m wechselt die Umgebung – Dschungeltag, Abendglut,
+  Sternennacht mit Mond und Sternenhimmel, Morgengrauen. Die Paletten blenden über
+  160 m ineinander, ein Banner nennt den neuen Abschnitt.
+- **Power-Up-Upgrades** gegen Eier: drei Stufen je Power-Up (200/450/900 Eier), die
+  die Wirkdauer verlängern. Damit behalten Eier auch nach allen Skins einen Nutzen.
+- **Highscore und Fortschritt** in `localStorage` (Rekord, beste Strecke, Eier-Konto,
+  Top-5-Bestenliste).
+- **Statistikseite** mit Läufen, Bestwerten und den fünf besten Läufen.
 - **7 freischaltbare Dino-Skins** gegen gesammelte Eier: Rex (gratis), Beere (60),
   Wölkchen (150), Sonnenschein (300), Minze (500), Schattenpfote (800),
   Regenbogen (1500).
 - **9 Erfolge**, z. B. „50 Eier in einem Lauf" oder „Überlebe einen Treffer mit
-  dem Schild" – mit Einblend-Benachrichtigung.
+  dem Schild". Sie werden **während** des Laufs geprüft, erscheinen also im Moment
+  des Erreichens statt erst nach dem Game Over.
 - **Soundeffekte** komplett über die Web Audio API synthetisiert (Sprung,
   Sammeln, Power-Up, Treffer, Game Over). Stummschalten über das Lautsprecher-
   Symbol im Hauptmenü.
+- **Rücksicht auf Systemeinstellungen**: Bei aktivem `prefers-reduced-motion`
+  entfällt das Bildschirmwackeln.
+- **Automatische Pause**, sobald das Fenster den Fokus verliert – ein
+  versehentliches Alt-Tab kostet keinen Lauf mehr.
 
 ## Tests
 
-49 Browser-Tests mit Playwright, die das echte Spiel in Chromium steuern:
+61 Browser-Tests mit Playwright, die das echte Spiel in Chromium steuern:
 
 ```bash
 npm test              # alle Tests headless
@@ -115,6 +127,7 @@ npm run test:ui       # interaktiver Playwright-UI-Modus
 | `tests/collision.spec.ts` | Jedes Hindernis mit der richtigen *und* der falschen Reaktion, Game Over, Neustart |
 | `tests/collectibles.spec.ts` | Ei-Aufnahme, Magnet-Anziehung, alle vier Power-Ups, Doppelsprung, Schild-Rettung |
 | `tests/progression.spec.ts` | `localStorage`-Persistenz, Skin-Kauf, Menü-Navigation, Erfolge |
+| `tests/upgrades.spec.ts` | Power-Up-Upgrades, Bestenliste, Erfolge während des Laufs, Biome, Auto-Pause |
 
 ### Wie die Tests deterministisch bleiben
 
@@ -136,6 +149,16 @@ Die Suite wurde per Mutationstest gegengeprüft: Wird die Kollisionserkennung
 deaktiviert, fallen exakt die 7 „muss krachen"-Tests und keiner der
 „muss überleben"-Tests. Wird die Duckhöhe entfernt, fallen exakt die 2 Tests,
 die das Ducken abdecken.
+
+## Automatisierung
+
+Zwei GitHub-Actions-Workflows liegen unter `.github/workflows/`:
+
+- **`ci.yml`** – prüft bei jedem Push und jedem Pull Request Typen, Build,
+  alle Browsertests und den Single-File-Build.
+- **`pages.yml`** – veröffentlicht das Spiel bei jedem Push auf `main` über
+  GitHub Pages. Einmalig nötig: in den Repository-Einstellungen unter *Pages*
+  die Quelle auf *GitHub Actions* stellen.
 
 ## Architektur
 
@@ -171,8 +194,8 @@ src/
 ├── assets/       Prozedurale Grafik: Dino-Zeichnung und Skin-Paletten
 ├── entities/     Spieler, Hindernisse, Eier, Power-Ups (Daten + Darstellung)
 ├── systems/      Spawner, Kollision, Audio, Speicherung, Erfolge, Partikel
-├── render/       Projektion, Zeichenhilfen, Parallax-Hintergrund, Pfad, HUD, UI
-├── scenes/       Menü, Spiel, Dino-Auswahl, Erfolge
+├── render/       Projektion, Zeichenhilfen, Biome, Parallax-Hintergrund, Pfad, HUD, UI
+├── scenes/       Menü, Spiel, Dino-Auswahl, Power-Ups, Erfolge, Statistik
 ├── game.ts       Spielschleife, Szenenverwaltung, Speicherstand
 └── main.ts       Canvas-Setup und Skalierung
 
