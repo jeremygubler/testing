@@ -31,6 +31,7 @@ func run() -> int:
 	_run("round_rewards", test_round_rewards)
 	_run("augment_economy", test_augment_economy)
 	_run("augment_combat_mods", test_augment_combat_mods)
+	_run("save_load_roundtrip", test_save_load_roundtrip)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -271,3 +272,29 @@ func test_augment_combat_mods() -> void:
 	var eng := CombatEngine.new([gu], [], 1, mods)
 	_check(eng.units.size() == 1, "player unit present")
 	_approx(eng.units[0].max_hp, base_hp * 1.15, "vigor scales unit max HP by 1.15", 1.0)
+
+
+func test_save_load_roundtrip() -> void:
+	var g := GameState.new(7)
+	g.start_game()
+	g.economy.gold = 33
+	g.debug_add_unit(GameDatabase.heroes_of_cost(1)[0].id)
+	g.grant_item("belt")
+	g.pending_augments = ["prosperity"]
+	g.choose_augment("prosperity")
+
+	# Round-trip through JSON (as the real save backend does).
+	var json_str := JSON.stringify(g.serialize())
+	var reparsed = JSON.parse_string(json_str)
+	_check(typeof(reparsed) == TYPE_DICTIONARY, "save survives JSON round-trip")
+	var expect_next := g._rng.next_raw()  # the next value g's stream would produce
+
+	var g2 := GameState.new(999)  # deliberately different seed
+	g2.load_from(reparsed)
+	_eq(g2._rng.next_raw(), expect_next, "restored RNG continues the exact same stream")
+	_eq(g2.economy.gold, 33, "gold restored")
+	_eq(g2.economy.bonus_income, 2, "economy augment bonus restored")
+	_eq(g2.round_number, 1, "round restored")
+	_eq(g2.roster.size(), 1, "roster restored")
+	_check(g2.item_inventory.has("belt"), "item inventory restored")
+	_check(g2.augments.has("prosperity"), "augment restored")

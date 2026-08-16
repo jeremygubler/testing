@@ -113,6 +113,12 @@ round**.
   gold / XP; *combat* augments apply a global stat bundle (HP, AD, AS, armor, MR,
   omnivamp, start-shield) to all your units each fight, passed into the
   `CombatEngine` alongside trait effects. Offers are deterministic per seed.
+- **Save/resume:** `GameState.serialize()`/`load_from()` snapshot the whole run
+  (roster, items, augments, economy, pool, and RNG state). The presentation layer
+  persists it through the `ISaveService` interface and auto-saves each phase, so
+  a run resumes exactly on next launch — and the identical logic maps onto a
+  console save backend later. (Hover the inspector shows unit/item details; F6
+  clears the save.)
 
 ### Design decisions (locked with the team)
 

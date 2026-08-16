@@ -443,6 +443,103 @@ func player_combat_mods() -> Dictionary:
 	return mods
 
 
+# --- Save / load -------------------------------------------------------------
+# Pure serialization: no platform access here. The presentation layer persists
+# the returned Dictionary through ISaveService and restores it on launch, so the
+# same save logic works on any platform (incl. a future Switch save backend).
+
+func serialize() -> Dictionary:
+	var units: Array = []
+	for u in roster:
+		units.append({
+			"hero": u.hero.id,
+			"star": u.star,
+			"board": [u.board_pos.x, u.board_pos.y],
+			"bench": u.bench_index,
+			"items": u.items.duplicate(),
+		})
+	return {
+		"version": 1,
+		"seed": _seed,
+		"round": round_number,
+		"hp": player_hp,
+		"uid": _uid,
+		"economy": {
+			"gold": economy.gold, "level": economy.level, "xp": economy.xp,
+			"streak": economy.streak,
+			"bonus_income": economy.bonus_income,
+			"bonus_interest_cap": economy.bonus_interest_cap,
+			"bonus_xp_per_round": economy.bonus_xp_per_round,
+		},
+		"roster": units,
+		"item_inventory": item_inventory.duplicate(),
+		"augments": augments.duplicate(),
+		"pending_augments": pending_augments.duplicate(),
+		"augment_offered_round": _augment_offered_round,
+		"shop_offers": shop.offer_ids(),
+		"pool": pool.snapshot(),
+		"rng": _rng.get_state(),
+		"combat_rng": _combat_rng.get_state(),
+	}
+
+
+## Restore state from a serialized Dictionary (as produced by serialize(), possibly
+## round-tripped through JSON). Emits the signals needed to refresh the UI.
+func load_from(data: Dictionary) -> void:
+	_seed = int(data.get("seed", _seed))
+	round_number = int(data.get("round", 0))
+	player_hp = int(data.get("hp", player_hp))
+	_uid = int(data.get("uid", _uid))
+
+	var eco: Dictionary = data.get("economy", {})
+	economy.gold = int(eco.get("gold", economy.gold))
+	economy.level = int(eco.get("level", economy.level))
+	economy.xp = int(eco.get("xp", economy.xp))
+	economy.streak = int(eco.get("streak", 0))
+	economy.bonus_income = int(eco.get("bonus_income", 0))
+	economy.bonus_interest_cap = int(eco.get("bonus_interest_cap", 0))
+	economy.bonus_xp_per_round = int(eco.get("bonus_xp_per_round", 0))
+
+	roster.clear()
+	for ud in data.get("roster", []):
+		var hero := GameDatabase.get_hero(String(ud.get("hero", "")))
+		if hero == null:
+			continue
+		var gu := GameUnit.new(_uid, hero, int(ud.get("star", 1)))
+		_uid += 1
+		var b: Array = ud.get("board", [-1, -1])
+		gu.board_pos = Vector2i(int(b[0]), int(b[1]))
+		gu.bench_index = int(ud.get("bench", -1))
+		for it in ud.get("items", []):
+			gu.items.append(String(it))
+		roster.append(gu)
+
+	item_inventory.clear()
+	for it in data.get("item_inventory", []):
+		item_inventory.append(String(it))
+	augments.clear()
+	for a in data.get("augments", []):
+		augments.append(String(a))
+	pending_augments.clear()
+	for a in data.get("pending_augments", []):
+		pending_augments.append(String(a))
+	_augment_offered_round = int(data.get("augment_offered_round", -1))
+
+	shop.set_offers(data.get("shop_offers", []))
+	pool.restore(data.get("pool", {}))
+	_rng.set_state(data.get("rng", _rng.get_state()))
+	_combat_rng.set_state(data.get("combat_rng", _combat_rng.get_state()))
+
+	# Refresh UI and resume in the shop phase.
+	round_changed.emit(round_number)
+	hp_changed.emit(player_hp)
+	roster_changed.emit()
+	items_changed.emit()
+	economy.gold_changed.emit(economy.gold)
+	economy.level_changed.emit(economy.level, economy.xp, economy.xp_to_next())
+	_set_phase(Phase.SHOP)
+
+
 # --- Star combine ------------------------------------------------------------
 
 # --- Debug helpers (sandbox/testing only) ------------------------------------

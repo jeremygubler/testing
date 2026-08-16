@@ -64,9 +64,24 @@ func _ready() -> void:
 	_augments = preload("res://src/presentation/AugmentPanel.gd").new()
 	add_child(_augments)
 	_augments.setup(game)
-	game.start_game()
+	# Resume a saved run if one exists, else start fresh. Persistence goes through
+	# the ISaveService interface (desktop: local file; Switch: platform save later).
+	var save_svc := PlatformServices.save
+	if save_svc.has("run"):
+		game.load_from(save_svc.load_data("run", {}))
+	else:
+		game.start_game()
 	_refresh_ui()
 	queue_redraw()
+
+
+func _save_run() -> void:
+	PlatformServices.save.save("run", game.serialize())
+
+
+func _autosave_on_phase(p: int) -> void:
+	if p == GameState.Phase.SHOP or p == GameState.Phase.RESULT or p == GameState.Phase.GAME_OVER:
+		_save_run()
 
 
 func _connect_game_signals() -> void:
@@ -79,6 +94,7 @@ func _connect_game_signals() -> void:
 	game.economy.level_changed.connect(func(_l, _x, _n): _refresh_ui())
 	game.items_changed.connect(func(): _sel_item_idx = -1; queue_redraw())
 	game.augment_chosen.connect(func(_id): _refresh_ui())
+	game.phase_changed.connect(_autosave_on_phase)
 
 
 func _connect_input() -> void:
@@ -109,6 +125,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				if comp != null:
 					game.grant_item(comp.id)
 				return
+			KEY_F6:
+				PlatformServices.save.erase("run")
+				_result_overlay = "Save cleared — restart for a new run"
+				queue_redraw(); return
 
 	# Update the hover inspector (what the cursor is over).
 	if event is InputEventMouseMotion:
