@@ -30,10 +30,18 @@ func _init(seed_value: int = 0) -> void:
 
 
 ## Reseed the stream. Same seed -> same sequence, deterministically.
+## The seed is run through an integer avalanche (a Murmur-style finalizer) first,
+## so that adjacent seeds (e.g. 42 and 43) map to wildly different starting states
+## and therefore diverge from the very first output. Every intermediate stays in
+## the positive < 2^63 range, so there is no overflow.
 func seed(seed_value: int) -> void:
-	_state = seed_value & _MASK32
-	if _state == 0:
-		_state = _NONZERO
+	var s: int = seed_value & _MASK32
+	s = (s ^ (s >> 15)) & _MASK32
+	s = (s * 0x2C1B3C6D) & _MASK32
+	s = (s ^ (s >> 12)) & _MASK32
+	s = (s * 0x297A2D39) & _MASK32
+	s = (s ^ (s >> 15)) & _MASK32
+	_state = s if s != 0 else _NONZERO
 
 
 ## Core step: advance the state and return a 32-bit value (1 .. 2^32-1).
