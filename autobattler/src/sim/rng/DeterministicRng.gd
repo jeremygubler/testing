@@ -1,24 +1,28 @@
 class_name DeterministicRng
 extends RefCounted
 
-## Deterministic, seedable random number generator.
+## Deterministic, seedable random number generator (xorshift32).
 ##
-## Backed by Godot's built-in RandomNumberGenerator (PCG32), which is fully
-## deterministic for a given seed and identical across platforms for a given Godot
-## version. This is the ONLY source of randomness allowed inside src/sim/ — never
-## call the global randi()/randf() or time-based seeds there, or determinism (and
-## reproducible balance tests / replays) breaks.
+## The ONLY source of randomness allowed inside src/sim/. Never call the global
+## randi()/randf() or time-based seeds there, or determinism (and reproducible
+## balance tests / replays) breaks.
 ##
-## We deliberately do NOT hand-roll a 64-bit bit-twiddling PRNG here: GDScript only
-## has signed 64-bit ints with implementation-defined overflow behaviour, which
-## makes hand-rolled xorshift/splitmix math unreliable. PCG32 via
-## RandomNumberGenerator is battle-tested and reproducible.
-##
-## NOTE for a future networked/ranked mode: if you need a stream that is guaranteed
-## stable across Godot *versions* (not just platforms), pin a vendored PRNG here.
-## The rest of the game only depends on this class's API, so that swap is local.
+## Why a hand-rolled xorshift32 rather than Godot's RandomNumberGenerator or a
+## 64-bit generator:
+##  * Godot's RandomNumberGenerator did not give reproducible same-seed sequences
+##    across freshly constructed instances in our headless CI, so we don't depend
+##    on its state-reset semantics.
+##  * A 64-bit xorshift needs clean two's-complement overflow + logical shifts,
+##    which GDScript's signed ints don't reliably provide.
+## xorshift32 keeps every intermediate value in the positive < 2^53 range
+## (x << 13 of a 32-bit value is at most ~2^45), so there is no integer overflow
+## and no sign-extension on right shifts. That makes it identical on every
+## platform and Godot version — exactly what a deterministic sim needs.
 
-var _rng := RandomNumberGenerator.new()
+const _MASK32: int = 0xFFFFFFFF
+const _NONZERO: int = 0x9E3779B9  # fallback state (never allow zero)
+
+var _state: int = _NONZERO
 
 
 func _init(seed_value: int = 0) -> void:
@@ -26,39 +30,47 @@ func _init(seed_value: int = 0) -> void:
 
 
 ## Reseed the stream. Same seed -> same sequence, deterministically.
-## Assigning `seed` resets the generator's state deterministically from the seed
-## (Godot guarantees a reproducible sequence per seed); do NOT also poke `state`.
 func seed(seed_value: int) -> void:
-	_rng.seed = seed_value
+	_state = seed_value & _MASK32
+	if _state == 0:
+		_state = _NONZERO
 
 
-## Raw non-negative 32-bit integer (0 .. 2^32-1).
+## Core step: advance the state and return a 32-bit value (1 .. 2^32-1).
+func _next32() -> int:
+	var x: int = _state
+	x = (x ^ (x << 13)) & _MASK32
+	x = x ^ (x >> 17)              # x is a masked non-negative int -> logical shift
+	x = (x ^ (x << 5)) & _MASK32
+	_state = x
+	return x
+
+
+## Raw non-negative 32-bit integer.
 func next_raw() -> int:
-	return _rng.randi()
+	return _next32()
 
 
 ## Non-negative integer (alias kept for API compatibility).
 func next_u63() -> int:
-	return _rng.randi()
+	return _next32()
 
 
 ## Integer in [0, n). n must be > 0.
 func randi_below(n: int) -> int:
 	assert(n > 0, "randi_below requires n > 0")
-	return _rng.randi_range(0, n - 1)
+	return _next32() % n
 
 
 ## Integer in [a, b] inclusive.
 func randi_range(a: int, b: int) -> int:
 	assert(b >= a)
-	return _rng.randi_range(a, b)
+	return a + (_next32() % (b - a + 1))
 
 
 ## Float in [0, 1).
 func randf() -> float:
-	# randf() returns [0, 1]; clamp the (vanishingly rare) 1.0 to keep [0, 1).
-	var v := _rng.randf()
-	return v if v < 1.0 else 0.0
+	return float(_next32()) / 4294967296.0  # 2^32
 
 
 ## Float in [a, b).
@@ -99,9 +111,10 @@ func shuffle(arr: Array) -> void:
 
 ## Snapshot the internal state (for save/replay).
 func get_state() -> Array[int]:
-	return [_rng.seed, _rng.state]
+	return [_state]
 
 
 func set_state(state: Array) -> void:
-	_rng.seed = state[0]
-	_rng.state = state[1]
+	_state = int(state[0]) & _MASK32
+	if _state == 0:
+		_state = _NONZERO
