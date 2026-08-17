@@ -330,7 +330,7 @@ func _cast_ability(u: CombatUnit) -> void:
 		"burst":
 			var t := _get_or_acquire_target(u)
 			if t != null:
-				_deal_damage(u, t, u.ability_power * float(p.get("burst_factor", 1.0)), "magic")
+				u.ability_damage_dealt += _deal_damage(u, t, u.ability_power * float(p.get("burst_factor", 1.0)), "magic")
 				if not t.alive:
 					_on_death(t)
 		"nova":
@@ -345,7 +345,7 @@ func _cast_ability(u: CombatUnit) -> void:
 					if other.team == u.team or not other.alive:
 						continue
 					if HexGrid.distance(center, other.pos) <= radius:
-						_deal_damage(u, other, u.ability_power * factor, "magic")
+						u.ability_damage_dealt += _deal_damage(u, other, u.ability_power * factor, "magic")
 						if not other.alive:
 							_on_death(other)
 		"heal":
@@ -364,7 +364,7 @@ func _cast_ability(u: CombatUnit) -> void:
 				var dmg := u.ability_power * float(p.get("factor", 1.5))
 				if et.hp / et.max_hp < float(p.get("lowhp_threshold", 0.5)):
 					dmg *= float(p.get("lowhp_mult", 2.0))
-				_deal_damage(u, et, dmg, "true")
+				u.ability_damage_dealt += _deal_damage(u, et, dmg, "true")
 				if not et.alive:
 					_on_death(et)
 		"summon":
