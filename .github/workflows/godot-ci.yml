@@ -56,3 +56,6 @@ jobs:
 
       - name: Comp / trait balance harness smoke test
         run: ./godot --headless --path autobattler -s res://tools/comps.gd
+
+      - name: Full-run simulator smoke test
+        run: ./godot --headless --path autobattler -s res://tools/simrun.gd

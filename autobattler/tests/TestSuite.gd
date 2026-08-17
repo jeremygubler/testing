@@ -38,6 +38,7 @@ func run() -> int:
 	_run("combat_replay", test_combat_replay)
 	_run("ability_params_loaded", test_ability_params_loaded)
 	_run("trait_toggle_affects_combat", test_trait_toggle_affects_combat)
+	_run("full_run_completes", test_full_run_completes)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -398,6 +399,40 @@ func _team_fingerprint(engine: CombatEngine) -> float:
 		s += u.omnivamp_pct + u.true_damage_pct + u.double_strike_chance + u.crit_bonus_pct
 		s += u.ramp_as_per_hit + u.dodge_pct + u.heal_pct + u.summon_hp_pct
 	return s
+
+
+func test_full_run_completes() -> void:
+	# Drive the whole game loop (income -> shop -> buy -> place -> combat -> resolve
+	# -> next round) for several rounds with a minimal bot. Guards against loop-level
+	# regressions the single-fight tests can't see, and against infinite loops.
+	var gs := GameState.new(123)
+	gs.start_game()
+	var guard := 0
+	while gs.round_number <= 6 and gs.phase != GameState.Phase.GAME_OVER and guard < 60:
+		guard += 1
+		for slot in range(gs.shop.offers.size()):
+			if gs.economy.gold < 3:
+				break
+			gs.buy(slot)
+		for u in gs.bench_units():
+			if gs.board_count() >= gs.economy.board_capacity():
+				break
+			var placed := false
+			for row in [0, 1, 2, 3]:
+				for col in [3, 2, 4, 1, 5, 0, 6]:
+					var pos := Vector2i(col, row)
+					if gs._hex_occupied_by(pos) == null and gs.place_on_board(u, pos):
+						placed = true
+						break
+				if placed:
+					break
+		gs.start_combat()
+		if gs.phase == GameState.Phase.GAME_OVER:
+			break
+		gs.begin_next_round()
+	_check(gs.round_number >= 2, "run advanced past the first round")
+	_check(gs.player_hp >= 0 and gs.player_hp <= 100, "player hp stays within [0,100]")
+	_check(guard < 60, "run loop terminated without spinning")
 
 
 func test_creep_round_reward() -> void:
