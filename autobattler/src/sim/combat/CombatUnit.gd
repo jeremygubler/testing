@@ -51,6 +51,7 @@ var summon_hp_pct: float = 0.0
 
 # Transient combat state.
 var shield: float = 0.0
+var ability_damage_dealt: float = 0.0  # cumulative enemy HP damage from this unit's ability casts
 var attack_cooldown: float = 0.0     # seconds until next attack allowed
 var move_accum: float = 0.0          # accumulated fractional hex movement
 var target_slot: int = -1

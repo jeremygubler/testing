@@ -2,14 +2,17 @@ extends RefCounted
 
 ## Headless item balance harness (implementation; loaded at runtime by tools/items.gd).
 ##
-## The last unmeasured power axis. Like the per-trait package bench, but for the 14
-## completed items: equip each on a standardized 2★ carry and measure its marginal
-## combat value against fixed synthetic opponents, all else equal:
-##   - phys%  : extra DPS on a physical carry vs an inert high-HP soak (AD/AS/crit).
-##   - mage%  : extra DPS on an ability carry vs the same soak (ability power / mana).
-##   - surv%  : extra ticks a physical carry survives a fixed hard-hitting aggressor
-##              (HP / armor / MR / omnivamp / lifesteal-style sustain).
-## Deterministic (fixed seeds, stall disabled so the escalating true damage doesn't
+## The last power axis. Equip each of the 14 completed items on a standardized 2★
+## carry and measure its marginal combat value against fixed synthetic opponents,
+## all else equal:
+##   - phys%  : extra total DPS on a physical carry vs an inert high-HP soak.
+##   - mage%  : extra total DPS on an ability carry vs the same soak.
+##   - burst% : extra ABILITY-ONLY DPS on the ability carry (isolates ability power
+##              and mana items, which raw total DPS drowns out under auto-attacks).
+##   - sPhys% : extra ticks a physical carry survives a PHYSICAL aggressor (HP/armor).
+##   - sMag%  : extra ticks it survives a MAGIC aggressor (HP/MR) — so magic-resist
+##              items aren't invisible the way a physical-only bench left them.
+## Deterministic (fixed seeds, stall disabled so the sudden-death chip doesn't
 ## corrupt the full-duration reading) and reproducible as a balance baseline.
 
 const STAR := 2
@@ -28,7 +31,9 @@ func run() -> void:
 	# Baselines (no item), averaged over seeds, computed once.
 	var base_phys := _avg(func(s): return _dps_vs_soak(phys, "", s))
 	var base_mage := _avg(func(s): return _dps_vs_soak(mage, "", s))
-	var base_surv := _avg(func(s): return float(_survival_ticks(phys, "", s)))
+	var base_burst := _avg(func(s): return _ability_dps_vs_soak(mage, "", s))
+	var base_sphys := _avg(func(s): return float(_survival_ticks(phys, "", s, false)))
+	var base_smag := _avg(func(s): return float(_survival_ticks(phys, "", s, true)))
 
 	var rows: Array = []
 	for item in GameDatabase.all_items():
@@ -36,34 +41,40 @@ func run() -> void:
 			continue
 		var phys_dps := _avg(func(s): return _dps_vs_soak(phys, item.id, s))
 		var mage_dps := _avg(func(s): return _dps_vs_soak(mage, item.id, s))
-		var surv := _avg(func(s): return float(_survival_ticks(phys, item.id, s)))
+		var burst_dps := _avg(func(s): return _ability_dps_vs_soak(mage, item.id, s))
+		var sphys := _avg(func(s): return float(_survival_ticks(phys, item.id, s, false)))
+		var smag := _avg(func(s): return float(_survival_ticks(phys, item.id, s, true)))
 		rows.append({
 			"name": item.name,
 			"phys": 100.0 * (phys_dps / maxf(0.001, base_phys) - 1.0),
 			"mage": 100.0 * (mage_dps / maxf(0.001, base_mage) - 1.0),
-			"surv": 100.0 * (surv / maxf(0.001, base_surv) - 1.0),
+			"burst": 100.0 * (burst_dps / maxf(0.001, base_burst) - 1.0),
+			"sphys": 100.0 * (sphys / maxf(0.001, base_sphys) - 1.0),
+			"smag": 100.0 * (smag / maxf(0.001, base_smag) - 1.0),
 		})
 
 	rows.sort_custom(func(a, b): return _peak(a) > _peak(b))
 
-	print("\n%-16s %8s %8s %8s  %s" % ["item", "phys%", "mage%", "surv%", "profile"])
+	print("\n%-16s %7s %7s %7s %7s %7s  %s" % ["item", "phys%", "mage%", "burst%", "sPhys%", "sMag%", "profile"])
 	for r in rows:
-		print("%-16s %+8.1f %+8.1f %+8.1f  %s" % [r.name, r.phys, r.mage, r.surv, _profile(r)])
-	print("  (phys%%/mage%% = extra DPS vs a soak dummy on a physical / ability carry; surv%% = extra survival time vs a fixed aggressor)")
+		print("%-16s %+7.1f %+7.1f %+7.1f %+7.1f %+7.1f  %s" % [r.name, r.phys, r.mage, r.burst, r.sphys, r.smag, _profile(r)])
+	print("  (phys/mage = total DPS vs soak; burst = ability-only DPS; sPhys/sMag = survival vs a physical / magic aggressor)")
 
 
 func _peak(r: Dictionary) -> float:
-	return maxf(maxf(r.phys, r.mage), r.surv)
+	return maxf(maxf(maxf(r.phys, r.mage), maxf(r.burst, r.sphys)), r.smag)
 
 
 func _profile(r: Dictionary) -> String:
 	var tags: Array = []
 	if r.phys >= 15.0:
 		tags.append("attacker")
-	if r.mage >= 15.0:
+	if r.burst >= 15.0:
 		tags.append("caster")
-	if r.surv >= 15.0:
-		tags.append("tank")
+	if r.sphys >= 15.0:
+		tags.append("armor")
+	if r.smag >= 15.0:
+		tags.append("mr")
 	if tags.is_empty():
 		tags.append("marginal")
 	return "/".join(tags)
@@ -71,9 +82,27 @@ func _profile(r: Dictionary) -> String:
 
 # --- Measurements ------------------------------------------------------------
 
-## DPS of a carry (optionally holding one item) against a single inert high-HP soak
-## over the full combat duration. Stall is off so it never dies early.
+## Total DPS of a carry (optionally holding one item) vs a single inert high-HP
+## soak over the full combat duration. Stall off so it never dies early.
 func _dps_vs_soak(hero: HeroDef, item_id: String, seed_value: int) -> float:
+	var engine := _run_vs_soak(hero, item_id, seed_value)
+	for u in engine.units:
+		if u.team == 1:
+			return (u.max_hp - u.hp) / maxf(0.001, engine.elapsed)
+	return 0.0
+
+
+## Ability-only DPS of a carry vs the soak: isolates ability power / mana items,
+## which total DPS drowns out because auto-attacks dominate against a lone target.
+func _ability_dps_vs_soak(hero: HeroDef, item_id: String, seed_value: int) -> float:
+	var engine := _run_vs_soak(hero, item_id, seed_value)
+	for u in engine.units:
+		if u.team == 0:
+			return u.ability_damage_dealt / maxf(0.001, engine.elapsed)
+	return 0.0
+
+
+func _run_vs_soak(hero: HeroDef, item_id: String, seed_value: int) -> CombatEngine:
 	var carry := GameUnit.new(1, hero, STAR)
 	carry.board_pos = Vector2i(3, 3)
 	if item_id != "":
@@ -82,25 +111,20 @@ func _dps_vs_soak(hero: HeroDef, item_id: String, seed_value: int) -> float:
 	soak.board_pos = Vector2i(3, 1)
 	var engine := CombatEngine.new([carry], [soak], seed_value, {}, true, false)
 	engine.run_to_completion()
-	for u in engine.units:
-		if u.team == 1:
-			return (u.max_hp - u.hp) / maxf(0.001, engine.elapsed)
-	return 0.0
+	return engine
 
 
-## Ticks a carry (optionally holding one item) survives against a fixed hard-hitting
-## aggressor. Higher = more effective durability. Stall off (would mask the item).
-func _survival_ticks(hero: HeroDef, item_id: String, seed_value: int) -> int:
+## Ticks a carry (optionally holding one item) survives a fixed hard-hitting
+## aggressor. `magic` picks a magic-damage aggressor so MR items are measurable.
+func _survival_ticks(hero: HeroDef, item_id: String, seed_value: int, magic: bool) -> int:
 	var carry := GameUnit.new(1, hero, STAR)
 	carry.board_pos = Vector2i(3, 3)
 	if item_id != "":
 		carry.items = [item_id]
-	var agg := GameUnit.new(2, _aggressor_hero(), 1)
+	var agg := GameUnit.new(2, _aggressor_hero(magic), 1)
 	agg.board_pos = Vector2i(3, 1)
 	var engine := CombatEngine.new([carry], [agg], seed_value, {}, true, false)
 	engine.run_to_completion()
-	# Combat ends when the carry dies (team 0 wiped) or at the time cap; either way
-	# engine.tick is how long the carry lasted.
 	return engine.tick
 
 
@@ -157,10 +181,11 @@ func _soak_hero() -> HeroDef:
 
 
 ## Fixed hard-hitting bruiser: enough HP to outlast the carry, high sustained DPS so
-## the carry's durability (and any defensive item) decides how long it lives.
-func _aggressor_hero() -> HeroDef:
+## the carry's durability (and any defensive item) decides how long it lives. The
+## damage type flips between physical (values armor) and magic (values MR).
+func _aggressor_hero(magic: bool) -> HeroDef:
 	var h := HeroDef.new()
-	h.id = "item_aggressor"
+	h.id = "item_aggressor_magic" if magic else "item_aggressor_phys"
 	h.name = "Aggressor"
 	h.cost = 0
 	h.hp = 8000.0
@@ -172,7 +197,7 @@ func _aggressor_hero() -> HeroDef:
 	h.mana_start = 0.0
 	h.mana_max = 9999999.0
 	h.move_speed = 3.0
-	h.attack_type = "physical"
+	h.attack_type = "magic" if magic else "physical"
 	h.ability_kind = "none"
 	h.ability_power = 0.0
 	h.ability_radius = 0

@@ -40,6 +40,7 @@ func run() -> int:
 	_run("trait_toggle_affects_combat", test_trait_toggle_affects_combat)
 	_run("full_run_completes", test_full_run_completes)
 	_run("stall_breaker_resolves_stalls", test_stall_breaker_resolves_stalls)
+	_run("ability_damage_tracked", test_ability_damage_tracked)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -416,6 +417,24 @@ func test_stall_breaker_resolves_stalls() -> void:
 	var on: Dictionary = CombatEngine.new([mk.call(1)], [mk.call(2)], 7, {}, true, true).run_to_completion()
 	_check(int(off.ticks) >= cap, "without stall, two over-tanks grind to the time cap")
 	_check(int(on.ticks) < cap, "stall-breaker resolves the fight before the cap")
+
+
+func test_ability_damage_tracked() -> void:
+	# A caster accumulates ability_damage_dealt from its casts (used by the item
+	# harness to isolate ability-power / mana item value).
+	var mage := GameUnit.new(1, GameDatabase.get_hero("abyssia"), 2)  # nova caster
+	mage.board_pos = Vector2i(3, 0)
+	var target := GameUnit.new(2, GameDatabase.get_hero("gravik"), 2)  # tanky, outlasts casts
+	target.board_pos = Vector2i(3, 0)
+	var eng := CombatEngine.new([mage], [target], 5, {}, true, false)
+	eng.run_to_completion()
+	var caster: CombatUnit = null
+	for u in eng.units:
+		if u.team == 0:
+			caster = u
+	_check(caster != null, "caster present after combat")
+	if caster != null:
+		_check(caster.ability_damage_dealt > 0.0, "caster accumulated ability damage from casts")
 
 
 func test_full_run_completes() -> void:
