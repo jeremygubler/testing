@@ -405,7 +405,7 @@ func _team_fingerprint(engine: CombatEngine) -> float:
 func test_stall_breaker_resolves_stalls() -> void:
 	# Two very tanky units (gravik 2★ + 3x Titan Heart) grind past the 30s cap on
 	# their own; the sudden-death stall-breaker must resolve the fight before it.
-	var cfg := GameDatabase.cfg("combat", {})
+	var cfg: Dictionary = GameDatabase.cfg("combat", {})
 	var cap := int(float(cfg.get("max_duration_sec", 30.0)) * int(cfg.get("tick_rate", 30)))
 	var mk := func(uid):
 		var gu := GameUnit.new(uid, GameDatabase.get_hero("gravik"), 2)
