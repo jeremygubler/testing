@@ -18,6 +18,8 @@ signal combat_resolved(result: Dictionary)
 signal items_changed()
 signal augments_offered(choices: Array)   # Array[String] of augment ids
 signal augment_chosen(augment_id: String)
+signal draft_offered(choices: Array)      # Array of {hero, item} draft choices
+signal draft_chosen(index: int)
 
 var phase: int = Phase.SHOP
 var round_number: int = 0
@@ -73,6 +75,8 @@ func begin_next_round() -> Dictionary:
 	if is_draft_round(round_number):
 		_build_draft_offers()
 		_set_phase(Phase.DRAFT)
+		if not pending_draft.is_empty():
+			draft_offered.emit(pending_draft)
 	else:
 		pending_draft = []
 		_set_phase(Phase.SHOP)
@@ -539,6 +543,7 @@ func choose_draft(index: int) -> bool:
 	pending_draft = []
 	roster_changed.emit()
 	items_changed.emit()
+	draft_chosen.emit(index)
 	_set_phase(Phase.RESULT)
 	return true
 

@@ -38,6 +38,7 @@ var _result_overlay := ""
 var _hud: CanvasLayer
 var _cosmetics: CanvasLayer
 var _augments: CanvasLayer
+var _draft: CanvasLayer
 var _lbl_status: Label
 var _lbl_traits: Label
 var _shop_buttons: Array = []
@@ -65,6 +66,9 @@ func _ready() -> void:
 	_augments = preload("res://src/presentation/AugmentPanel.gd").new()
 	add_child(_augments)
 	_augments.setup(game)
+	_draft = preload("res://src/presentation/DraftPanel.gd").new()
+	add_child(_draft)
+	_draft.setup(game)
 	# Resume a saved run if one exists, else start fresh. Persistence goes through
 	# the ISaveService interface (desktop: local file; Switch: platform save later).
 	var save_svc := PlatformServices.save
@@ -95,6 +99,8 @@ func _connect_game_signals() -> void:
 	game.economy.level_changed.connect(func(_l, _x, _n): _refresh_ui())
 	game.items_changed.connect(func(): _sel_item_idx = -1; queue_redraw())
 	game.augment_chosen.connect(func(_id): _refresh_ui())
+	# A draft pick resolves to RESULT; advance straight to the next round.
+	game.draft_chosen.connect(func(_i): _continue_to_next_round())
 	game.phase_changed.connect(_autosave_on_phase)
 
 

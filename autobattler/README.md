@@ -128,8 +128,9 @@ round**.
 - **Draft rounds (`rounds.draft_rounds`):** a carousel-style tempo beat — instead
   of a fight you're offered 3 free units, each carrying an item component, and pick
   one (cost-banded by round; drafted units bypass gold and the shared pool). Handled
-  in the sim via `GameState.draft_offers()` / `choose_draft()`; a `DraftPanel` UI is a
-  follow-up (the headless sim + full-run bot already resolve it).
+  in the sim via `GameState.draft_offers()` / `choose_draft()` and presented by
+  `DraftPanel` (a carousel-style overlay); picking one advances straight to the next
+  round.
 - **Augments (`augments.json`, 19 of them):** at set rounds you're offered 3
   augments and pick 1 for a persistent bonus. *Economy* augments boost income /
   interest cap / gold / XP; *combat* augments apply a global effect bundle to all
