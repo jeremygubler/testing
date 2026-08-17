@@ -39,6 +39,7 @@ func run() -> int:
 	_run("ability_params_loaded", test_ability_params_loaded)
 	_run("trait_toggle_affects_combat", test_trait_toggle_affects_combat)
 	_run("full_run_completes", test_full_run_completes)
+	_run("stall_breaker_resolves_stalls", test_stall_breaker_resolves_stalls)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -399,6 +400,22 @@ func _team_fingerprint(engine: CombatEngine) -> float:
 		s += u.omnivamp_pct + u.true_damage_pct + u.double_strike_chance + u.crit_bonus_pct
 		s += u.ramp_as_per_hit + u.dodge_pct + u.heal_pct + u.summon_hp_pct
 	return s
+
+
+func test_stall_breaker_resolves_stalls() -> void:
+	# Two very tanky units (gravik 2★ + 3x Titan Heart) grind past the 30s cap on
+	# their own; the sudden-death stall-breaker must resolve the fight before it.
+	var cfg: Dictionary = GameDatabase.cfg("combat", {})
+	var cap := int(float(cfg.get("max_duration_sec", 30.0)) * int(cfg.get("tick_rate", 30)))
+	var mk := func(uid):
+		var gu := GameUnit.new(uid, GameDatabase.get_hero("gravik"), 2)
+		gu.board_pos = Vector2i(3, 0)
+		gu.items = ["titanheart", "titanheart", "titanheart"]
+		return gu
+	var off: Dictionary = CombatEngine.new([mk.call(1)], [mk.call(2)], 7, {}, true, false).run_to_completion()
+	var on: Dictionary = CombatEngine.new([mk.call(1)], [mk.call(2)], 7, {}, true, true).run_to_completion()
+	_check(int(off.ticks) >= cap, "without stall, two over-tanks grind to the time cap")
+	_check(int(on.ticks) < cap, "stall-breaker resolves the fight before the cap")
 
 
 func test_full_run_completes() -> void:
