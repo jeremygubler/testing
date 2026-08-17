@@ -59,3 +59,6 @@ jobs:
 
       - name: Full-run simulator smoke test
         run: ./godot --headless --path autobattler -s res://tools/simrun.gd
+
+      - name: Item value harness smoke test
+        run: ./godot --headless --path autobattler -s res://tools/items.gd

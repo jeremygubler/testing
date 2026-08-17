@@ -195,6 +195,9 @@ godot --headless --path autobattler -s res://tools/comps.gd
 
 # Full-run simulator (greedy bot plays whole runs; pacing + whole-loop smoke test)
 godot --headless --path autobattler -s res://tools/simrun.gd
+
+# Item value harness (each completed item's marginal phys / mage / survival worth)
+godot --headless --path autobattler -s res://tools/items.gd
 ```
 
 The tests cover RNG reproducibility, economy math (interest cap, streaks,
