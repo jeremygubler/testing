@@ -57,29 +57,29 @@ CLASSES = {
 # additively to units possessing the trait (only when the trait is ACTIVE).
 # Keys are stat modifiers understood by the sim's TraitSystem.
 ORIGIN_EFFECTS = {
-    "emberkin":    [{"burn_dps": 0.02}, {"burn_dps": 0.045}, {"burn_dps": 0.08}],   # % max hp/s burn on hit
+    "emberkin":    [{"burn_dps": 0.012}, {"burn_dps": 0.025}, {"burn_dps": 0.045}],  # % max hp/s burn on hit (harness: burn overscaled vs high-HP targets)
     "tidecaller":  [{"mana_on_hit_bonus": 4}, {"mana_on_hit_bonus": 8}, {"mana_on_hit_bonus": 14}],
     "stoneborn":   [{"armor_add": 20}, {"armor_add": 45}, {"armor_add": 90}],
     "stormwing":   [{"attack_speed_pct": 0.10}, {"attack_speed_pct": 0.22}, {"attack_speed_pct": 0.40}],
     "verdant":     [{"regen_pct": 0.01}, {"regen_pct": 0.02}, {"regen_pct": 0.04}],  # % max hp/s
     "umbral":      [{"omnivamp_pct": 0.10}, {"omnivamp_pct": 0.20}, {"omnivamp_pct": 0.35}],
-    "lumen":       [{"shield_pct": 0.12}, {"shield_pct": 0.25}],                     # start-of-combat shield
+    "lumen":       [{"shield_pct": 0.18}, {"shield_pct": 0.38}],                     # start-of-combat shield (harness: package barely registered)
     "clockwork":   [{"ad_pct": 0.12}, {"ad_pct": 0.28}, {"ad_pct": 0.50}],
     "frostborn":   [{"mr_add": 20}, {"mr_add": 45}, {"mr_add": 90}],
-    "voidtouched": [{"true_damage_pct": 0.10}, {"true_damage_pct": 0.25}],           # % of dmg as true
+    "voidtouched": [{"true_damage_pct": 0.15}, {"true_damage_pct": 0.35}],           # % of dmg as true (harness: near-zero package value)
 }
 
 CLASS_EFFECTS = {
-    "vanguard":    [{"hp_pct": 0.15}, {"hp_pct": 0.35}, {"hp_pct": 0.65}],
-    "blademaster": [{"double_strike_chance": 0.15}, {"double_strike_chance": 0.30}, {"double_strike_chance": 0.50}],
-    "ranger":      [{"ad_pct": 0.15}, {"ad_pct": 0.35}, {"ad_pct": 0.60}],
+    "vanguard":    [{"hp_pct": 0.12}, {"hp_pct": 0.26}, {"hp_pct": 0.45}],           # harness: 6-stack was unbeatable (100% win)
+    "blademaster": [{"double_strike_chance": 0.12}, {"double_strike_chance": 0.25}, {"double_strike_chance": 0.42}],  # harness: top-tier offense, trimmed
+    "ranger":      [{"ad_pct": 0.12}, {"ad_pct": 0.30}, {"ad_pct": 0.52}],           # harness: top-tier offense, trimmed
     "arcanist":    [{"ability_power_pct": 0.20}, {"ability_power_pct": 0.45}, {"ability_power_pct": 0.80}],
-    "warden":      [{"heal_pct": 0.15}, {"heal_pct": 0.35}],
+    "warden":      [{"heal_pct": 0.20}, {"heal_pct": 0.45}],                         # harness: weak comp, buffed
     "assassin":    [{"crit_bonus_pct": 0.20}, {"crit_bonus_pct": 0.45}],
-    "sentinel":    [{"armor_add": 25}, {"armor_add": 60}],
+    "sentinel":    [{"armor_add": 32}, {"armor_add": 75}],                           # harness: weak comp, buffed
     "berserker":   [{"ramp_as_per_hit": 0.03}, {"ramp_as_per_hit": 0.06}],
     "summoner":    [{"summon_hp_pct": 0.30}, {"summon_hp_pct": 0.70}],
-    "skirmisher":  [{"dodge_pct": 0.15}, {"dodge_pct": 0.30}],
+    "skirmisher":  [{"dodge_pct": 0.22}, {"dodge_pct": 0.42}],                       # harness: near-zero package value, buffed
 }
 
 # --- Hero roster -------------------------------------------------------------
