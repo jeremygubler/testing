@@ -70,16 +70,16 @@ ORIGIN_EFFECTS = {
 }
 
 CLASS_EFFECTS = {
-    "vanguard":    [{"hp_pct": 0.12}, {"hp_pct": 0.26}, {"hp_pct": 0.45}],           # harness: 6-stack was unbeatable (100% win)
-    "blademaster": [{"double_strike_chance": 0.12}, {"double_strike_chance": 0.25}, {"double_strike_chance": 0.42}],  # harness: top-tier offense, trimmed
-    "ranger":      [{"ad_pct": 0.12}, {"ad_pct": 0.30}, {"ad_pct": 0.52}],           # harness: top-tier offense, trimmed
-    "arcanist":    [{"ability_power_pct": 0.20}, {"ability_power_pct": 0.45}, {"ability_power_pct": 0.80}],
-    "warden":      [{"heal_pct": 0.20}, {"heal_pct": 0.45}],                         # harness: weak comp, buffed
+    "vanguard":    [{"hp_pct": 0.10}, {"hp_pct": 0.22}, {"hp_pct": 0.40}],           # realistic-meta pass: tank comp too stally (77.8% win)
+    "blademaster": [{"double_strike_chance": 0.12}, {"double_strike_chance": 0.25}, {"double_strike_chance": 0.42}],  # healthy mid (55.6%), left
+    "ranger":      [{"ad_pct": 0.10}, {"ad_pct": 0.26}, {"ad_pct": 0.46}],           # realistic-meta pass: top carry (81.5%), trimmed
+    "arcanist":    [{"ability_power_pct": 0.26}, {"ability_power_pct": 0.52}, {"ability_power_pct": 0.88}],  # realistic-meta pass: only underperforming carry (14.8%), buffed
+    "warden":      [{"heal_pct": 0.20}, {"heal_pct": 0.45}],                         # support trait: standalone-weak by design (splashes into carries)
     "assassin":    [{"crit_bonus_pct": 0.20}, {"crit_bonus_pct": 0.45}],
-    "sentinel":    [{"armor_add": 32}, {"armor_add": 75}],                           # harness: weak comp, buffed
-    "berserker":   [{"ramp_as_per_hit": 0.03}, {"ramp_as_per_hit": 0.06}],
-    "summoner":    [{"summon_hp_pct": 0.30}, {"summon_hp_pct": 0.70}],
-    "skirmisher":  [{"dodge_pct": 0.22}, {"dodge_pct": 0.42}],                       # harness: near-zero package value, buffed
+    "sentinel":    [{"armor_add": 32}, {"armor_add": 75}],                           # defensive splash trait: standalone-weak by design
+    "berserker":   [{"ramp_as_per_hit": 0.025}, {"ramp_as_per_hit": 0.05}],         # realistic-meta pass: strong carry (75.9%), trimmed
+    "summoner":    [{"summon_hp_pct": 0.25}, {"summon_hp_pct": 0.60}],              # realistic-meta pass: strong carry (68.5%), trimmed
+    "skirmisher":  [{"dodge_pct": 0.22}, {"dodge_pct": 0.42}],                       # mobility splash trait: standalone-weak by design
 }
 
 # --- Hero roster -------------------------------------------------------------
