@@ -43,6 +43,7 @@ func run() -> int:
 	_run("ability_damage_tracked", test_ability_damage_tracked)
 	_run("recipe_grid_complete", test_recipe_grid_complete)
 	_run("augment_new_effects", test_augment_new_effects)
+	_run("boss_rounds", test_boss_rounds)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -458,6 +459,27 @@ func test_augment_new_effects() -> void:
 	_check(eng.units.size() == 1, "unit present")
 	_approx(eng.units[0].crit_bonus_pct, 0.25, "crit applied to unit", 0.001)
 	_approx(eng.units[0].ability_power, base_ap * 1.30, "ability power scaled on unit", 0.5)
+
+
+func _creep_ids(r: int) -> Dictionary:
+	var team := OpponentFactory.build_creeps(r, DeterministicRng.new(r))
+	var s: Dictionary = {}
+	for u in team:
+		s[u.hero.id] = true
+	return s
+
+
+func test_boss_rounds() -> void:
+	# Data-driven bosses: a creep round leads with the strongest boss it qualifies
+	# for (Emberlord from round 5, Void Maw from round 9), and none before.
+	var r1 := _creep_ids(1)
+	_check(not r1.is_empty(), "round 1 builds a creep team")
+	_check(not r1.has("emberlord") and not r1.has("void_maw"), "round 1 has no boss")
+	var r5 := _creep_ids(5)
+	_check(r5.has("emberlord"), "round 5 leads with the mid-boss Emberlord")
+	_check(not r5.has("void_maw"), "round 5 is not the late boss yet")
+	var r9 := _creep_ids(9)
+	_check(r9.has("void_maw"), "round 9 leads with Void Maw")
 
 
 func test_recipe_grid_complete() -> void:

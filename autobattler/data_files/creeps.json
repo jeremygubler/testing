@@ -20,6 +20,26 @@
 
     {"id": "void_maw", "name": "Void Maw", "cost": 0, "origin": "neutral", "lore": "An elder horror that swallows the light.", "perks": [],
      "stats": {"hp": 1600, "attack_damage": 72, "attack_speed": 0.6, "attack_range": 1, "armor": 35, "magic_resist": 35, "mana_start": 0, "mana_max": 1000, "move_speed": 1.8, "attack_type": "physical"},
-     "ability": {"id": "none", "name": "-", "kind": "none", "power": 0, "radius": 0, "duration": 0, "description": ""}}
+     "ability": {"id": "none", "name": "-", "kind": "none", "power": 0, "radius": 0, "duration": 0, "description": ""}},
+
+    {"id": "frost_shade", "name": "Frost Shade", "cost": 0, "origin": "neutral", "lore": "A wraith of the Rimewaste that hurls killing cold.", "perks": [],
+     "stats": {"hp": 360, "attack_damage": 26, "attack_speed": 0.6, "attack_range": 3, "armor": 10, "magic_resist": 20, "mana_start": 25, "mana_max": 90, "move_speed": 2.2, "attack_type": "magic"},
+     "ability": {"id": "frostbolt", "name": "Frostbolt", "kind": "burst", "power": 130, "radius": 0, "duration": 0, "description": "Hurls a bolt of killing cold at the nearest foe."}},
+
+    {"id": "gloom_bat", "name": "Gloom Bat", "cost": 0, "origin": "neutral", "lore": "A swarm-thing of the Nightseam, fast and frenzied.", "perks": [],
+     "stats": {"hp": 240, "attack_damage": 30, "attack_speed": 1.15, "attack_range": 1, "armor": 10, "magic_resist": 10, "mana_start": 0, "mana_max": 1000, "move_speed": 3.2, "attack_type": "physical"},
+     "ability": {"id": "none", "name": "-", "kind": "none", "power": 0, "radius": 0, "duration": 0, "description": ""}},
+
+    {"id": "thornback", "name": "Thornback Brute", "cost": 0, "origin": "neutral", "lore": "A plated bruiser that shrugs off blows.", "perks": [],
+     "stats": {"hp": 780, "attack_damage": 48, "attack_speed": 0.6, "attack_range": 1, "armor": 45, "magic_resist": 20, "mana_start": 0, "mana_max": 1000, "move_speed": 1.7, "attack_type": "physical"},
+     "ability": {"id": "none", "name": "-", "kind": "none", "power": 0, "radius": 0, "duration": 0, "description": ""}},
+
+    {"id": "aether_warden", "name": "Aether Warden", "cost": 0, "origin": "neutral", "lore": "A construct that knits its kin back together.", "perks": [],
+     "stats": {"hp": 560, "attack_damage": 28, "attack_speed": 0.6, "attack_range": 2, "armor": 25, "magic_resist": 25, "mana_start": 30, "mana_max": 85, "move_speed": 1.8, "attack_type": "magic"},
+     "ability": {"id": "mend", "name": "Mend", "kind": "heal", "power": 170, "radius": 0, "duration": 0, "description": "Mends the most wounded nearby creep."}},
+
+    {"id": "emberlord", "name": "Emberlord Vharr", "cost": 0, "origin": "neutral", "lore": "A mid-tier tyrant of the Cinderreach wreathed in flame.", "perks": [],
+     "stats": {"hp": 1500, "attack_damage": 60, "attack_speed": 0.65, "attack_range": 1, "armor": 35, "magic_resist": 30, "mana_start": 30, "mana_max": 100, "move_speed": 1.8, "attack_type": "physical"},
+     "ability": {"id": "embernova", "name": "Ember Nova", "kind": "nova", "power": 150, "radius": 2, "duration": 0, "description": "Erupts in flame, scorching all nearby foes.", "params": {"aoe_factor": 0.8}}}
   ]
 }

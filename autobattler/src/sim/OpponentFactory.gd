@@ -44,23 +44,42 @@ static func build_creeps(round_number: int, rng: DeterministicRng) -> Array:
 
 	var team_size: int = clampi(1 + round_number / 3, 1, 6)
 	var star: int = 1 if round_number < 6 else 2
-	var boss_threshold: int = int(GameDatabase.cfg("rounds", {}).get("boss_round_threshold", 999))
 
-	# Filter to non-boss creeps for the regular ranks (Void Maw is boss-only).
+	# Data-driven bosses: rounds.bosses is a list of {id, min_round}; a creep round
+	# leads with the strongest boss whose min_round it has reached. Falls back to the
+	# legacy single boss_round_threshold + Void Maw if no boss list is configured.
+	var boss_defs: Array = GameDatabase.cfg("rounds", {}).get("bosses", [])
+	var boss_ids: Dictionary = {}
+	for b in boss_defs:
+		boss_ids[String(b.get("id", ""))] = int(b.get("min_round", 999))
+	if boss_ids.is_empty():
+		var legacy := int(GameDatabase.cfg("rounds", {}).get("boss_round_threshold", 999))
+		boss_ids["void_maw"] = legacy
+
+	# Regular ranks exclude any boss creep.
 	var regular: Array = []
 	for c in creeps:
-		if c.id != "void_maw":
+		if not boss_ids.has(c.id):
 			regular.append(c)
 	if regular.is_empty():
 		regular = creeps
+
+	# Pick the highest-min_round boss this round qualifies for.
+	var chosen_boss := ""
+	var best_min := -1
+	for bid in boss_ids:
+		var mr: int = boss_ids[bid]
+		if round_number >= mr and mr > best_min:
+			best_min = mr
+			chosen_boss = bid
 
 	var units: Array = []
 	var used_positions: Dictionary = {}
 	var uid := 200000 + round_number * 100
 
-	# On boss rounds, lead with a single Void Maw.
-	if round_number >= boss_threshold:
-		var boss: HeroDef = GameDatabase.get_creep("void_maw")
+	# On boss rounds, lead with a single boss.
+	if chosen_boss != "":
+		var boss: HeroDef = GameDatabase.get_creep(chosen_boss)
 		if boss != null:
 			var bu := GameUnit.new(uid, boss, star)
 			uid += 1

@@ -118,10 +118,13 @@ round**.
   item drops (`rewards` in `game_config.json`) — the in-game source of item
   components. Component choices are drawn from the deterministic RNG stream.
 - **PvE creep rounds (`creeps.json`):** on scheduled rounds (`rounds.creep_rounds`)
-  you fight neutral creeps (own IP — Aether Wisp, Cinder Hound, Stone Golem, Rift
-  Spawn, and a boss Void Maw from `boss_round_threshold`) instead of a PvP-style
-  board. Beating a creep round always drops an item component. Creeps are cost-0
-  and never appear in the shop.
+  you fight neutral creeps (own IP) instead of a PvP-style board — nine regular
+  creeps including ability users (Frost Shade bursts, Aether Warden heals its kin,
+  fast Gloom Bat swarms, tanky Thornback) and **two data-driven bosses**: a creep
+  round leads with the strongest boss whose `min_round` it has reached (mid-boss
+  **Emberlord Vharr** with a fire nova from round 5, **Void Maw** from round 9), set
+  in `rounds.bosses`. Beating a creep round always drops an item component. Creeps
+  are cost-0 and never appear in the shop.
 - **Augments (`augments.json`, 19 of them):** at set rounds you're offered 3
   augments and pick 1 for a persistent bonus. *Economy* augments boost income /
   interest cap / gold / XP; *combat* augments apply a global effect bundle to all
