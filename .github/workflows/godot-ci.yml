@@ -53,3 +53,6 @@ jobs:
 
       - name: Balance harness smoke test
         run: ./godot --headless --path autobattler -s res://tools/balance.gd
+
+      - name: Comp / trait balance harness smoke test
+        run: ./godot --headless --path autobattler -s res://tools/comps.gd

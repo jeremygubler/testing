@@ -37,6 +37,7 @@ func run() -> int:
 	_run("creep_round_reward", test_creep_round_reward)
 	_run("combat_replay", test_combat_replay)
 	_run("ability_params_loaded", test_ability_params_loaded)
+	_run("trait_toggle_affects_combat", test_trait_toggle_affects_combat)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -355,6 +356,48 @@ func test_combat_replay() -> void:
 	_eq(Replay.signature(Replay.run(rec_json)), sig, "replay reproduces after JSON transport")
 	_check(Replay.verify(rec, sig), "verify accepts the true signature")
 	_check(not Replay.verify(rec, "9|9|9,9|9,9"), "verify rejects a tampered signature")
+
+
+func test_trait_toggle_affects_combat() -> void:
+	# CombatEngine's apply_traits flag (used by the comp balance harness to measure
+	# trait value) must actually gate trait application. Build a 2-distinct-hero
+	# board that activates some trait, then compare unit stats ON vs OFF.
+	var pair: Array = []
+	for perk in GameDatabase.all_perks():
+		var owners: Array = []
+		for h in GameDatabase.all_heroes():
+			if h.perks.has(perk.id):
+				owners.append(h)
+		if owners.size() >= 2:
+			pair = [owners[0], owners[1]]
+			break
+	_check(pair.size() == 2, "found a trait with >=2 heroes to activate")
+	if pair.size() != 2:
+		return
+	var mk := func(uid, h, col):
+		var gu := GameUnit.new(uid, h, 2)
+		gu.board_pos = Vector2i(col, 0)
+		return gu
+	var board: Array = [mk.call(1, pair[0], 3), mk.call(2, pair[1], 2)]
+	var fp_on := _team_fingerprint(CombatEngine.new(board, [], 1, {}, true))
+	var fp_off := _team_fingerprint(CombatEngine.new(board, [], 1, {}, false))
+	_check(fp_on != fp_off, "traits ON must change unit stats vs OFF")
+	var fp_default := _team_fingerprint(CombatEngine.new(board, [], 1))
+	_approx(fp_default, fp_on, "apply_traits defaults to ON", 0.001)
+
+
+## Sum of every trait-affected stat across team 0 — a single number that changes
+## if (and only if) any trait effect was applied.
+func _team_fingerprint(engine: CombatEngine) -> float:
+	var s := 0.0
+	for u in engine.units:
+		if u.team != 0:
+			continue
+		s += u.max_hp + u.attack_damage + u.attack_speed + u.armor + u.magic_resist
+		s += u.ability_power + u.shield + u.burn_dps + u.mana_on_hit_bonus + u.regen_pct
+		s += u.omnivamp_pct + u.true_damage_pct + u.double_strike_chance + u.crit_bonus_pct
+		s += u.ramp_as_per_hit + u.dodge_pct + u.heal_pct + u.summon_hp_pct
+	return s
 
 
 func test_creep_round_reward() -> void:

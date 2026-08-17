@@ -35,7 +35,10 @@ var _cfg: Dictionary
 ## player_mods: optional global stat modifiers (e.g. from augments) applied to
 ## every team-0 unit after traits. Keys: hp_pct, ad_pct, as_pct, armor_add,
 ## mr_add, omnivamp, start_shield_pct.
-func _init(team0: Array, team1: Array, seed_value: int, player_mods: Dictionary = {}) -> void:
+## apply_traits: when false, no trait breakpoints are applied to either team.
+## Defaults to true (normal play); the balance harness toggles it to measure the
+## marginal value of a comp's trait package (traits ON vs OFF, all else equal).
+func _init(team0: Array, team1: Array, seed_value: int, player_mods: Dictionary = {}, apply_traits: bool = true) -> void:
 	_rng = DeterministicRng.new(seed_value)
 	_cfg = GameDatabase.cfg("combat", {})
 	var tick_rate := int(_cfg.get("tick_rate", 30))
@@ -44,8 +47,9 @@ func _init(team0: Array, team1: Array, seed_value: int, player_mods: Dictionary 
 	_spawn_team(team0, 0, false)
 	_spawn_team(team1, 1, true)
 	# Apply traits per team after all units exist.
-	TraitSystem.apply(_team_units(0))
-	TraitSystem.apply(_team_units(1))
+	if apply_traits:
+		TraitSystem.apply(_team_units(0))
+		TraitSystem.apply(_team_units(1))
 	# Apply player-global modifiers (augments) to the player's team.
 	if not player_mods.is_empty():
 		_apply_global_mods(_team_units(0), player_mods)
