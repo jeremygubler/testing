@@ -21,6 +21,8 @@ extends RefCounted
 
 const STAR := 2
 const BOARD_SIZE := 6
+const FRONT_TANKS := 2                 # shared tank front on every tournament comp
+const CARRY_SLOTS := BOARD_SIZE - FRONT_TANKS
 const SEEDS := [101, 202, 303]
 const CENTER_COLS := [3, 2, 4, 1, 5, 0, 6]
 
@@ -41,7 +43,7 @@ func run() -> void:
 # --- 1) Composition tournament ----------------------------------------------
 
 func _tournament() -> void:
-	print("=== Aetherclash comps: class-anchored tournament (%d units @%d★, round-robin, seeds %s) ===" % [BOARD_SIZE, STAR, str(SEEDS)])
+	print("=== Aetherclash comps: realistic tournament (%d carries + %d-tank front @%d★, round-robin, seeds %s) ===" % [CARRY_SLOTS, FRONT_TANKS, STAR, str(SEEDS)])
 
 	var comps: Array = []
 	for perk in GameDatabase.all_perks():
@@ -50,11 +52,15 @@ func _tournament() -> void:
 		var anchor := _heroes_with_trait(perk.id)
 		if anchor.size() < 2:
 			continue
-		var heroes := _fill_to(anchor, BOARD_SIZE)
+		# Realistic board: a carry core of the anchor trait PLUS a shared frontline
+		# of tanky bruisers, so backline-only comps aren't auto-run-down and pure
+		# tanks aren't auto-winners — the way boards are actually built in play.
+		var carries := _fill_to(anchor, CARRY_SLOTS)
+		var heroes := _add_frontline(carries)
 		comps.append({
 			"id": perk.id,
 			"name": perk.name,
-			"anchor_count": _distinct_with_trait(heroes, perk.id),
+			"anchor_count": _distinct_with_trait(carries, perk.id),
 			"board": _make_board(heroes, STAR),
 			"wins": 0.0,
 			"games": 0,
@@ -214,6 +220,26 @@ func _fill_to(anchor: Array, size: int) -> Array:
 			if not have.has(h.id) and not comp.has(h):
 				comp.append(h)
 	return comp
+
+
+## Append a frontline of the beefiest melee bruisers not already in the carry
+## core, so every tournament comp fights with a real front instead of a naked
+## backline. Tanks are shared across comps, so their contribution largely cancels
+## in relative win% — what's left is how well each carry package performs when
+## played the way boards actually are.
+func _add_frontline(carries: Array) -> Array:
+	var have: Dictionary = {}
+	for h in carries:
+		have[h.id] = true
+	var pool: Array = []
+	for h in GameDatabase.all_heroes():
+		if int(h.attack_range) <= 1 and not have.has(h.id):
+			pool.append(h)
+	pool.sort_custom(func(a, b): return a.hp > b.hp)  # beefiest first
+	var out: Array = carries.duplicate()
+	for i in range(mini(FRONT_TANKS, pool.size())):
+		out.append(pool[i])
+	return out
 
 
 ## Turn a hero list into a positioned board: melee to the front rows, ranged to
