@@ -9,13 +9,13 @@
         {
           "count": 2,
           "effect": {
-            "burn_dps": 0.02
+            "burn_dps": 0.012
           }
         },
         {
           "count": 4,
           "effect": {
-            "burn_dps": 0.045
+            "burn_dps": 0.025
           }
         }
       ]
@@ -123,7 +123,7 @@
         {
           "count": 2,
           "effect": {
-            "shield_pct": 0.12
+            "shield_pct": 0.18
           }
         }
       ]
@@ -177,7 +177,7 @@
         {
           "count": 2,
           "effect": {
-            "true_damage_pct": 0.1
+            "true_damage_pct": 0.15
           }
         }
       ]
@@ -191,19 +191,19 @@
         {
           "count": 2,
           "effect": {
-            "hp_pct": 0.15
+            "hp_pct": 0.12
           }
         },
         {
           "count": 4,
           "effect": {
-            "hp_pct": 0.35
+            "hp_pct": 0.26
           }
         },
         {
           "count": 6,
           "effect": {
-            "hp_pct": 0.65
+            "hp_pct": 0.45
           }
         }
       ]
@@ -217,13 +217,13 @@
         {
           "count": 2,
           "effect": {
-            "double_strike_chance": 0.15
+            "double_strike_chance": 0.12
           }
         },
         {
           "count": 4,
           "effect": {
-            "double_strike_chance": 0.3
+            "double_strike_chance": 0.25
           }
         }
       ]
@@ -237,13 +237,13 @@
         {
           "count": 2,
           "effect": {
-            "ad_pct": 0.15
+            "ad_pct": 0.12
           }
         },
         {
           "count": 4,
           "effect": {
-            "ad_pct": 0.35
+            "ad_pct": 0.3
           }
         }
       ]
@@ -277,13 +277,13 @@
         {
           "count": 2,
           "effect": {
-            "heal_pct": 0.15
+            "heal_pct": 0.2
           }
         },
         {
           "count": 4,
           "effect": {
-            "heal_pct": 0.35
+            "heal_pct": 0.45
           }
         }
       ]
@@ -317,7 +317,7 @@
         {
           "count": 2,
           "effect": {
-            "armor_add": 25
+            "armor_add": 32
           }
         }
       ]
@@ -359,7 +359,7 @@
         {
           "count": 2,
           "effect": {
-            "dodge_pct": 0.15
+            "dodge_pct": 0.22
           }
         }
       ]
