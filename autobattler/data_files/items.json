@@ -28,6 +28,29 @@
     {"id": "hawkeye",      "name": "Hawkeye",          "recipe": ["bow", "glove"],   "stats": {"as_pct": 0.20, "crit": 0.30}},
     {"id": "aegisguard",   "name": "Aegis Guard",      "recipe": ["belt", "chain"],  "stats": {"hp": 200, "armor": 30}},
     {"id": "wardstone",    "name": "Wardstone",        "recipe": ["cloak", "tear"],  "stats": {"mr": 30, "mana_start": 15}},
-    {"id": "spellward",    "name": "Spellward",        "recipe": ["belt", "cloak"],  "stats": {"hp": 200, "mr": 25}}
+    {"id": "spellward",    "name": "Spellward",        "recipe": ["belt", "cloak"],  "stats": {"hp": 200, "mr": 25}},
+
+    {"id": "manaflow",     "name": "Manaflow Prism",   "recipe": ["tear", "tear"],   "stats": {"mana_start": 35, "ability_power": 10}},
+    {"id": "runeblade",    "name": "Runeblade",        "recipe": ["blade", "rod"],   "stats": {"ad": 18, "ability_power": 25}},
+    {"id": "wardingedge",  "name": "Warding Edge",     "recipe": ["blade", "cloak"], "stats": {"ad": 18, "mr": 30}},
+    {"id": "cleaver",      "name": "Vanguard's Cleaver","recipe": ["blade", "chain"], "stats": {"ad": 18, "armor": 30}},
+    {"id": "reaverfang",   "name": "Reaver's Fang",    "recipe": ["blade", "glove"], "stats": {"ad": 15, "crit": 0.30}},
+    {"id": "kineticedge",  "name": "Kinetic Edge",     "recipe": ["blade", "tear"],  "stats": {"ad": 18, "mana_start": 15}},
+    {"id": "spellweaver",  "name": "Spellweaver",      "recipe": ["rod", "bow"],     "stats": {"ability_power": 25, "as_pct": 0.15}},
+    {"id": "voidsilk",     "name": "Voidsilk Focus",   "recipe": ["rod", "cloak"],   "stats": {"ability_power": 25, "mr": 30}},
+    {"id": "everbloom",    "name": "Everbloom Staff",  "recipe": ["rod", "belt"],    "stats": {"ability_power": 25, "hp": 200}},
+    {"id": "wardensigil",  "name": "Warden's Sigil",   "recipe": ["rod", "chain"],   "stats": {"ability_power": 25, "armor": 30}},
+    {"id": "starcaller",   "name": "Starcaller",       "recipe": ["rod", "glove"],   "stats": {"ability_power": 25, "crit": 0.30}},
+    {"id": "zephyrveil",   "name": "Zephyr Veil",      "recipe": ["bow", "cloak"],   "stats": {"as_pct": 0.20, "mr": 30}},
+    {"id": "windward",     "name": "Windward Guard",   "recipe": ["bow", "belt"],    "stats": {"as_pct": 0.20, "hp": 200}},
+    {"id": "ironquiver",   "name": "Ironquiver",       "recipe": ["bow", "chain"],   "stats": {"as_pct": 0.20, "armor": 30}},
+    {"id": "tempocoil",    "name": "Tempo Coil",       "recipe": ["bow", "tear"],    "stats": {"as_pct": 0.20, "mana_start": 15}},
+    {"id": "bastionwall",  "name": "Bastion Wall",     "recipe": ["cloak", "chain"], "stats": {"mr": 30, "armor": 30}},
+    {"id": "duskblade",    "name": "Duskblade",        "recipe": ["cloak", "glove"], "stats": {"mr": 30, "crit": 0.30}},
+    {"id": "titansfury",   "name": "Titan's Fury",     "recipe": ["belt", "glove"],  "stats": {"hp": 200, "crit": 0.30}},
+    {"id": "lifewell",     "name": "Lifewell",         "recipe": ["belt", "tear"],   "stats": {"hp": 200, "mana_start": 15}},
+    {"id": "bloodforge",   "name": "Bloodforge Plate", "recipe": ["chain", "glove"], "stats": {"armor": 30, "crit": 0.30}},
+    {"id": "aegiscell",    "name": "Aegis Cell",       "recipe": ["chain", "tear"],  "stats": {"armor": 30, "mana_start": 15}},
+    {"id": "fateweaver",   "name": "Fateweaver",       "recipe": ["glove", "tear"],  "stats": {"crit": 0.30, "mana_start": 15}}
   ]
 }

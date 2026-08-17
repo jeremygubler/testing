@@ -107,7 +107,9 @@ round**.
   DMG). Each hero has 1 ultimate that fires at full mana.
 - **Traits (20):** 10 origins + 10 classes, breakpoints at **2 / 4 / 6** (clamped
   per trait to how many heroes can supply it). Each hero has 1 origin + 1 class.
-- **Items:** 8 basic components combine into 14 completed items (`items.json`).
+- **Items:** 8 basic components combine into a **complete 36-item recipe grid**
+  (`items.json`) — every component pair merges into a defined item, so no combine
+  is ever wasted.
   Items grant flat combat-stat bundles (HP, AD, ability power, attack speed,
   armor, MR, mana, crit, omnivamp), up to 3 per unit. Click a tray item then a
   unit to equip; a second component that matches a recipe combines in place.

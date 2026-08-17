@@ -41,6 +41,7 @@ func run() -> int:
 	_run("full_run_completes", test_full_run_completes)
 	_run("stall_breaker_resolves_stalls", test_stall_breaker_resolves_stalls)
 	_run("ability_damage_tracked", test_ability_damage_tracked)
+	_run("recipe_grid_complete", test_recipe_grid_complete)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -435,6 +436,19 @@ func test_ability_damage_tracked() -> void:
 	_check(caster != null, "caster present after combat")
 	if caster != null:
 		_check(caster.ability_damage_dealt > 0.0, "caster accumulated ability damage from casts")
+
+
+func test_recipe_grid_complete() -> void:
+	# Every pair of components must combine into a defined item — no "dead" combines
+	# that waste a slot instead of merging.
+	var comps := GameDatabase.all_components()
+	_eq(comps.size(), 8, "8 components")
+	var missing: Array = []
+	for i in comps.size():
+		for j in range(i, comps.size()):
+			if GameDatabase.recipe_result(comps[i].id, comps[j].id) == null:
+				missing.append(comps[i].id + "+" + comps[j].id)
+	_check(missing.is_empty(), "every component pair has a recipe (missing: %s)" % str(missing))
 
 
 func test_full_run_completes() -> void:
