@@ -182,11 +182,21 @@ godot --headless --path autobattler -s res://tools/sandbox.gd
 
 # Balance harness (per-hero DPS vs a training dummy, sorted + per-cost averages)
 godot --headless --path autobattler -s res://tools/balance.gd
+
+# Comp / trait harness (class-comp win-rate tournament + per-trait package value)
+godot --headless --path autobattler -s res://tools/comps.gd
 ```
 
 The tests cover RNG reproducibility, economy math (interest cap, streaks,
 leveling), star scaling, pool/combine rules, trait activation, and — critically —
 that identical seeds produce identical combat outcomes.
+
+Two complementary balance harnesses read the same deterministic engine: `balance.gd`
+isolates each hero's raw DPS, while `comps.gd` measures the *strategic* layer —
+it plays one class-anchored composition per class trait round-robin (win%) to
+surface dominant or dead comps, and fights each trait's board against a fixed,
+trait-neutral wall with traits toggled on vs off (via `CombatEngine`'s
+`apply_traits` flag) to report each trait package's offensive and defensive value.
 
 ---
 
