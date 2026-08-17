@@ -299,37 +299,45 @@ func _on_death(u: CombatUnit) -> void:
 
 func _cast_ability(u: CombatUnit) -> void:
 	events.append({"type": "cast", "slot": u.slot, "kind": u.ability_kind})
+	var p: Dictionary = u.ability_params
 	match u.ability_kind:
 		"burst":
 			var t := _get_or_acquire_target(u)
 			if t != null:
-				_deal_damage(u, t, u.ability_power, "magic")
+				_deal_damage(u, t, u.ability_power * float(p.get("burst_factor", 1.0)), "magic")
 				if not t.alive:
 					_on_death(t)
 		"nova":
-			var radius: int = maxi(1, u.ability_radius)
-			for other in units:
-				if other.team == u.team or not other.alive:
-					continue
-				if HexGrid.distance(u.pos, other.pos) <= radius:
-					_deal_damage(u, other, u.ability_power * 0.7, "magic")
-					if not other.alive:
-						_on_death(other)
+			# Centered on the current target (not the caster), so ranged mages
+			# actually land their AoE on the enemy cluster.
+			var nt := _get_or_acquire_target(u)
+			if nt != null:
+				var radius: int = maxi(1, u.ability_radius)
+				var factor := float(p.get("aoe_factor", 0.7))
+				var center: Vector2i = nt.pos
+				for other in units:
+					if other.team == u.team or not other.alive:
+						continue
+					if HexGrid.distance(center, other.pos) <= radius:
+						_deal_damage(u, other, u.ability_power * factor, "magic")
+						if not other.alive:
+							_on_death(other)
 		"heal":
 			var ally := _most_wounded_ally(u)
 			if ally != null:
-				ally.heal(u.ability_power * (1.0 + u.heal_pct))
+				ally.heal(u.ability_power * float(p.get("heal_factor", 1.0)) * (1.0 + u.heal_pct))
 		"shield":
-			u.shield += u.ability_power
+			u.shield += u.ability_power * float(p.get("shield_factor", 1.0))
 		"empower":
 			var dur: float = u.ability_duration if u.ability_duration > 0.0 else 4.0
-			u.apply_empower(0.4 + 0.1 * u.star, 0.4, dur)
+			var ad_pct := float(p.get("ad_pct", 0.4)) + float(p.get("star_ad_pct", 0.1)) * u.star
+			u.apply_empower(ad_pct, float(p.get("as_add", 0.4)), dur)
 		"execute":
 			var et := _get_or_acquire_target(u)
 			if et != null:
-				var dmg := u.ability_power * 1.5
-				if et.hp / et.max_hp < 0.5:
-					dmg *= 2.0
+				var dmg := u.ability_power * float(p.get("factor", 1.5))
+				if et.hp / et.max_hp < float(p.get("lowhp_threshold", 0.5)):
+					dmg *= float(p.get("lowhp_mult", 2.0))
 				_deal_damage(u, et, dmg, "true")
 				if not et.alive:
 					_on_death(et)
@@ -362,9 +370,11 @@ func _spawn_summon(u: CombatUnit) -> void:
 	m.star = 1
 	m.is_summon = true
 	m.pos = pos
-	m.max_hp = u.ability_power * (3.0 + u.summon_hp_pct * 5.0)
+	var hp_factor := float(u.ability_params.get("minion_hp_factor", 3.0))
+	var ad_factor := float(u.ability_params.get("minion_ad_factor", 0.5))
+	m.max_hp = u.ability_power * (hp_factor + u.summon_hp_pct * 5.0)
 	m.hp = m.max_hp
-	m.attack_damage = u.ability_power * 0.5
+	m.attack_damage = u.ability_power * ad_factor
 	m.attack_speed = 0.8
 	m.attack_range = 1
 	m.armor = 20

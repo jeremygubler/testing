@@ -213,9 +213,42 @@ def build_heroes():
                 "radius": 1 if kind == "nova" else 0,
                 "duration": 4.0 if kind in ("empower", "shield") else 0.0,
                 "description": f"{name} {ABILITY_TEXT[kind]}",
+                # Per-kind tunable magnitudes (data-driven so balancing is a JSON
+                # edit, not an engine change), plus per-hero balance overrides.
+                "params": _hero_ability_params(name, kind),
             },
         })
     return heroes
+
+
+def _ability_params(kind):
+    return {
+        "burst":   {"burst_factor": 1.0},
+        "nova":    {"aoe_factor": 0.7},
+        "heal":    {"heal_factor": 1.0},
+        "shield":  {"shield_factor": 1.0},
+        "empower": {"ad_pct": 0.4, "star_ad_pct": 0.1, "as_add": 0.4},
+        "execute": {"factor": 1.5, "lowhp_mult": 2.0, "lowhp_threshold": 0.5},
+        "summon":  {"minion_hp_factor": 3.0, "minion_ad_factor": 0.5},
+    }.get(kind, {})
+
+
+# Per-hero ability-param tweaks from the balance pass (harness-driven).
+#  - Cirrus/Ashvin: Surge over-performed for their cost -> weaker AD buff.
+#  - Abyssia/Icevein/Emberlyn: 4/5-cost AoE mages under-performed -> stronger nova.
+ABILITY_PARAM_OVERRIDES = {
+    "cirrus":   {"ad_pct": 0.25},
+    "ashvin":   {"ad_pct": 0.25},
+    "abyssia":  {"aoe_factor": 0.85},
+    "icevein":  {"aoe_factor": 0.85},
+    "emberlyn": {"aoe_factor": 0.85},
+}
+
+
+def _hero_ability_params(name, kind):
+    p = dict(_ability_params(kind))
+    p.update(ABILITY_PARAM_OVERRIDES.get(name.lower(), {}))
+    return p
 
 
 def _ability_name(name, kind):
