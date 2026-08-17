@@ -185,6 +185,9 @@ godot --headless --path autobattler -s res://tools/balance.gd
 
 # Comp / trait harness (class-comp win-rate tournament + per-trait package value)
 godot --headless --path autobattler -s res://tools/comps.gd
+
+# Full-run simulator (greedy bot plays whole runs; pacing + whole-loop smoke test)
+godot --headless --path autobattler -s res://tools/simrun.gd
 ```
 
 The tests cover RNG reproducibility, economy math (interest cap, streaks,
