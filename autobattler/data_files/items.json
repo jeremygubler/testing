@@ -16,8 +16,8 @@
 
   "completed": [
     {"id": "warblade",     "name": "Warblade",         "recipe": ["blade", "blade"], "stats": {"ad": 25, "omnivamp": 0.15}},
-    {"id": "rapidstrike",  "name": "Rapidstrike",      "recipe": ["bow", "bow"],     "stats": {"as_pct": 0.45}},
-    {"id": "archmage",     "name": "Archmage Core",    "recipe": ["rod", "rod"],     "stats": {"ability_power": 35}},
+    {"id": "rapidstrike",  "name": "Rapidstrike",      "recipe": ["bow", "bow"],     "stats": {"as_pct": 0.38}},
+    {"id": "archmage",     "name": "Archmage Core",    "recipe": ["rod", "rod"],     "stats": {"ability_power": 65}},
     {"id": "titanheart",   "name": "Titan Heart",      "recipe": ["belt", "belt"],   "stats": {"hp": 450}},
     {"id": "bulwark",      "name": "Bulwark Plate",    "recipe": ["chain", "chain"], "stats": {"armor": 55}},
     {"id": "nullmantle",   "name": "Null Mantle",      "recipe": ["cloak", "cloak"], "stats": {"mr": 55}},
