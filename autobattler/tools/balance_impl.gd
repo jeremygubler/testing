@@ -50,7 +50,7 @@ func _measure_dps(hero: HeroDef, star: int) -> float:
 	var dummy := GameUnit.new(2, _dummy_hero(), 1)
 	dummy.board_pos = Vector2i(3, 1)
 
-	var engine := CombatEngine.new([attacker], [dummy], SEED)
+	var engine := CombatEngine.new([attacker], [dummy], SEED, {}, true, false)
 	engine.run_to_completion()
 
 	for u in engine.units:
@@ -73,7 +73,7 @@ func _measure_aoe_dps(hero: HeroDef, star: int) -> float:
 		d.board_pos = pos
 		dummies.append(d)
 
-	var engine := CombatEngine.new([attacker], dummies, SEED)
+	var engine := CombatEngine.new([attacker], dummies, SEED, {}, true, false)
 	engine.run_to_completion()
 
 	var total := 0.0

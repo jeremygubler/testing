@@ -58,7 +58,10 @@
     "crit_base_chance": 0.0,
     "crit_multiplier": 1.5,
     "player_damage_base": 3,
-    "player_damage_per_surviving_star": 2
+    "player_damage_per_surviving_star": 2,
+    "_stall_comment": "Sudden death: from stall_start_sec on, every unit takes escalating true damage (max_hp * stall_dps_pct_ramp * seconds_past_threshold per second), so fights always resolve decisively instead of timing out on an HP tiebreak, and over-tanky boards can't stall.",
+    "stall_start_sec": 15.0,
+    "stall_dps_pct_ramp": 0.06
   },
 
   "rounds": {

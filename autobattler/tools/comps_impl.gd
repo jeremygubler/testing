@@ -160,7 +160,7 @@ func _trait_value() -> void:
 ## One fight of `board` (team 0) vs the neutral `wall` (team 1). Returns damage
 ## dealt to the wall and team-0's surviving-HP fraction (own units, excl. summons).
 func _measure_vs_wall(board: Array, wall: Array, seed_value: int, traits: bool) -> Dictionary:
-	var engine := CombatEngine.new(board, wall, seed_value, {}, traits)
+	var engine := CombatEngine.new(board, wall, seed_value, {}, traits, false)
 	engine.run_to_completion()
 	var dmg := 0.0
 	var hp := 0.0

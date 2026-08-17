@@ -28,6 +28,10 @@ var _next_slot: int = 0
 var _dt: float
 var _max_ticks: int
 var _cfg: Dictionary
+var _stall_enabled: bool = true
+var _stall_start: float = 15.0
+var _stall_ramp: float = 0.06
+var _stall_announced: bool = false
 
 
 ## teams: Array of two Arrays of GameUnit (team 0 = player, team 1 = enemy).
@@ -38,12 +42,19 @@ var _cfg: Dictionary
 ## apply_traits: when false, no trait breakpoints are applied to either team.
 ## Defaults to true (normal play); the balance harness toggles it to measure the
 ## marginal value of a comp's trait package (traits ON vs OFF, all else equal).
-func _init(team0: Array, team1: Array, seed_value: int, player_mods: Dictionary = {}, apply_traits: bool = true) -> void:
+## stall: when false, the sudden-death stall-breaker is disabled. Defaults to true
+## (normal play); DPS/package benches that measure damage over the full duration
+## against a huge-HP dummy turn it off so the escalating true damage doesn't
+## corrupt their reading.
+func _init(team0: Array, team1: Array, seed_value: int, player_mods: Dictionary = {}, apply_traits: bool = true, stall: bool = true) -> void:
 	_rng = DeterministicRng.new(seed_value)
 	_cfg = GameDatabase.cfg("combat", {})
 	var tick_rate := int(_cfg.get("tick_rate", 30))
 	_dt = 1.0 / float(tick_rate)
 	_max_ticks = int(float(_cfg.get("max_duration_sec", 30.0)) * tick_rate)
+	_stall_enabled = stall
+	_stall_start = float(_cfg.get("stall_start_sec", 15.0))
+	_stall_ramp = float(_cfg.get("stall_dps_pct_ramp", 0.06))
 	_spawn_team(team0, 0, false)
 	_spawn_team(team1, 1, true)
 	# Apply traits per team after all units exist.
@@ -144,15 +155,26 @@ func step() -> void:
 	if finished:
 		return
 	events = []
+	# Sudden death: escalating true damage past the stall threshold so fights always
+	# resolve decisively (no HP-tiebreak timeouts) and over-tanky boards can't stall.
+	var stall_over: float = (elapsed - _stall_start) if _stall_enabled else -1.0
+	if stall_over > 0.0 and not _stall_announced:
+		_stall_announced = true
+		events.append({"type": "sudden_death"})
 	# Deterministic iteration order: stable slot order.
 	for slot in range(_next_slot):
 		var u: CombatUnit = _by_slot.get(slot, null)
 		if u == null or not u.alive:
 			continue
-		# 1) Status effects (buffs, burn DoT, regen).
+		# 1) Status effects (buffs, burn DoT, regen), then sudden-death chip.
 		var burn := u.tick_status(_dt)
 		if burn > 0.0:
 			u.take_final_damage(burn)
+			if not u.alive:
+				_on_death(u)
+				continue
+		if stall_over > 0.0:
+			u.take_final_damage(u.max_hp * _stall_ramp * stall_over * _dt)
 			if not u.alive:
 				_on_death(u)
 				continue

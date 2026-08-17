@@ -54,6 +54,13 @@ seedable `DeterministicRng` (xorshift128+). Same seed + same inputs ⇒ identica
 fight, every time and on every platform. This is what makes balance regression
 tests possible today and server-side ranked validation possible later.
 
+**Sudden death:** from `combat.stall_start_sec` on, every unit takes escalating
+true damage (`max_hp * stall_dps_pct_ramp * seconds_past_threshold` per second),
+so fights always resolve decisively instead of timing out on an HP tiebreak, and
+over-tanky boards can't stall. It's deterministic (a pure function of elapsed
+time) and data-driven; the DPS/package benches pass `stall=false` so the chip
+doesn't corrupt their full-duration measurement against a giant dummy.
+
 ### Folder structure
 
 ```

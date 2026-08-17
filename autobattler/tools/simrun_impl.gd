@@ -37,6 +37,8 @@ func run() -> void:
 	var sum_final_hp := 0.0
 	var sum_ticks := 0.0
 	var tick_n := 0
+	var timeouts := 0
+	var cap_ticks := int(GameDatabase.cfg("combat", {}).get("max_duration_sec", 30.0)) * int(GameDatabase.cfg("combat", {}).get("tick_rate", 30))
 	var l4 := []
 	var l6 := []
 	var l8 := []
@@ -48,6 +50,8 @@ func run() -> void:
 		for r in run.rounds:
 			sum_ticks += r.ticks
 			tick_n += 1
+			if r.ticks >= cap_ticks:
+				timeouts += 1
 		if run.reached.has(4): l4.append(run.reached[4])
 		if run.reached.has(6): l6.append(run.reached[6])
 		if run.reached.has(8): l8.append(run.reached[8])
@@ -55,6 +59,7 @@ func run() -> void:
 	print("  avg final level:  %.1f" % (sum_final_level / all_runs.size()))
 	print("  avg final HP:     %.1f" % (sum_final_hp / all_runs.size()))
 	print("  avg fight length: %.1f ticks (%.1fs @30tps)" % [sum_ticks / maxf(1, tick_n), sum_ticks / maxf(1, tick_n) / 30.0])
+	print("  fights hitting cap (timeouts): %d/%d (%.1f%%)" % [timeouts, tick_n, 100.0 * timeouts / maxf(1, tick_n)])
 	print("  reached L4 by round (avg): %s" % _avg_str(l4))
 	print("  reached L6 by round (avg): %s" % _avg_str(l6))
 	print("  reached L8 by round (avg): %s" % _avg_str(l8))
