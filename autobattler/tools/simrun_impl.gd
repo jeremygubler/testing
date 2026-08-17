@@ -80,6 +80,11 @@ func _play_run(seed_value: int) -> Dictionary:
 	var reached: Dictionary = {}
 
 	while gs.round_number <= ROUND_CAP and gs.phase != GameState.Phase.GAME_OVER:
+		# Draft rounds: take the first offer, no combat, advance.
+		if gs.phase == GameState.Phase.DRAFT:
+			gs.choose_draft(0)
+			gs.begin_next_round()
+			continue
 		_bot_shop_phase(gs)
 		# Record level milestones (first round we hit them).
 		for milestone in [4, 6, 8]:

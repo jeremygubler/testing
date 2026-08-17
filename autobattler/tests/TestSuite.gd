@@ -44,6 +44,7 @@ func run() -> int:
 	_run("recipe_grid_complete", test_recipe_grid_complete)
 	_run("augment_new_effects", test_augment_new_effects)
 	_run("boss_rounds", test_boss_rounds)
+	_run("draft_round", test_draft_round)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -467,6 +468,28 @@ func _creep_ids(r: int) -> Dictionary:
 	for u in team:
 		s[u.hero.id] = true
 	return s
+
+
+func test_draft_round() -> void:
+	# A scheduled draft round enters the DRAFT phase with 3 offers; choosing one
+	# grants the unit (carrying its component) to the bench and resolves the round.
+	var g := GameState.new(7)
+	g.round_number = 6
+	g.begin_next_round()  # -> round 7, a scheduled draft round
+	_eq(g.round_number, 7, "advanced to round 7")
+	_check(g.is_draft_round(7), "round 7 is a draft round")
+	_check(not g.is_draft_round(8), "round 8 is not a draft round")
+	_eq(g.phase, GameState.Phase.DRAFT, "entered the DRAFT phase")
+	var offers := g.draft_offers()
+	_eq(offers.size(), 3, "three draft offers")
+	for o in offers:
+		_check(GameDatabase.get_hero(String(o.get("hero", ""))) != null, "offer hero is valid")
+	var before := g.roster.size()
+	_check(g.choose_draft(0), "choose a draft offer")
+	_eq(g.roster.size(), before + 1, "drafted unit added to the roster")
+	_check(g.draft_offers().is_empty(), "offers cleared after choosing")
+	var drafted: GameUnit = g.roster[g.roster.size() - 1]
+	_check(drafted.items.size() >= 1, "drafted unit carries its component")
 
 
 func test_boss_rounds() -> void:

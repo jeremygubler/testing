@@ -6,7 +6,7 @@ extends RefCounted
 ## presentation layer drives it via these methods and reads state back. Fully
 ## deterministic given the initial seed.
 
-enum Phase { SHOP, COMBAT, RESULT, GAME_OVER }
+enum Phase { SHOP, COMBAT, RESULT, GAME_OVER, DRAFT }
 
 const BENCH_SIZE := 9
 
@@ -30,6 +30,7 @@ var roster: Array = []          # Array[GameUnit] (bench + board)
 var item_inventory: Array[String] = []  # unassigned item ids the player holds
 var augments: Array[String] = []        # chosen augment ids
 var pending_augments: Array[String] = []  # augment ids currently offered (choose one)
+var pending_draft: Array = []             # draft offers this round: [{hero, item}] (choose one)
 var last_result: Dictionary = {}
 var last_replay: Dictionary = {}         # deterministic record of the last fight
 var last_match_signature: String = ""    # canonical outcome signature of the last fight
@@ -68,7 +69,13 @@ func begin_next_round() -> Dictionary:
 	last_result = {}
 	shop.roll(economy.level)  # free roll at the start of each round
 	_maybe_offer_augments()
-	_set_phase(Phase.SHOP)
+	# Draft rounds replace the combat with a free unit pick (carousel-style tempo).
+	if is_draft_round(round_number):
+		_build_draft_offers()
+		_set_phase(Phase.DRAFT)
+	else:
+		pending_draft = []
+		_set_phase(Phase.SHOP)
 	return income
 
 
@@ -477,6 +484,65 @@ func player_combat_mods() -> Dictionary:
 	return mods
 
 
+# --- Draft rounds ------------------------------------------------------------
+
+## True if the given round (default: current) is a scheduled draft round.
+func is_draft_round(r: int = -999) -> bool:
+	var check: int = round_number if r == -999 else r
+	var dr: Array = GameDatabase.cfg("rounds", {}).get("draft_rounds", [])
+	return _int_array_has(dr, check)
+
+
+## The offers presented this draft round: an Array of {hero, item} dictionaries.
+func draft_offers() -> Array:
+	return pending_draft
+
+
+## Build N deterministic draft offers: a cost-banded hero, each carrying one random
+## item component. Drafts are "found" units — they bypass gold and the shared pool.
+func _build_draft_offers() -> void:
+	var count: int = int(GameDatabase.cfg("rounds", {}).get("draft_choices", 3))
+	var max_cost: int = clampi(1 + round_number / 4, 1, 5)
+	var components: Array = GameDatabase.all_components()
+	pending_draft = []
+	for i in count:
+		var cost := _rng.randi_range(1, max_cost)
+		var pool_heroes: Array = GameDatabase.heroes_of_cost(cost)
+		if pool_heroes.is_empty():
+			pool_heroes = GameDatabase.heroes_of_cost(1)
+		var hero: HeroDef = pool_heroes[_rng.randi_below(pool_heroes.size())]
+		var item_id := ""
+		if not components.is_empty():
+			item_id = components[_rng.randi_below(components.size())].id
+		pending_draft.append({"hero": hero.id, "item": item_id})
+
+
+## Take draft offer `index`: grant the unit (with its component) to the bench, or if
+## the bench is full drop the component into the inventory. Resolves the round.
+func choose_draft(index: int) -> bool:
+	if index < 0 or index >= pending_draft.size():
+		return false
+	var offer: Dictionary = pending_draft[index]
+	var hero := GameDatabase.get_hero(String(offer.get("hero", "")))
+	var item_id := String(offer.get("item", ""))
+	var idx := _first_free_bench_index()
+	if hero != null and idx >= 0:
+		var gu := GameUnit.new(_uid, hero, 1)
+		_uid += 1
+		gu.bench_index = idx
+		if item_id != "":
+			gu.items.append(item_id)
+		roster.append(gu)
+		_combine(hero.id)
+	elif item_id != "":
+		item_inventory.append(item_id)  # bench full: keep at least the item
+	pending_draft = []
+	roster_changed.emit()
+	items_changed.emit()
+	_set_phase(Phase.RESULT)
+	return true
+
+
 # --- Save / load -------------------------------------------------------------
 # Pure serialization: no platform access here. The presentation layer persists
 # the returned Dictionary through ISaveService and restores it on launch, so the
@@ -503,6 +569,7 @@ func serialize() -> Dictionary:
 		"item_inventory": item_inventory.duplicate(),
 		"augments": augments.duplicate(),
 		"pending_augments": pending_augments.duplicate(),
+		"pending_draft": pending_draft.duplicate(true),
 		"augment_offered_round": _augment_offered_round,
 		"shop_offers": shop.offer_ids(),
 		"pool": pool.snapshot(),
@@ -545,6 +612,9 @@ func load_from(data: Dictionary) -> void:
 	pending_augments.clear()
 	for a in data.get("pending_augments", []):
 		pending_augments.append(String(a))
+	pending_draft = []
+	for offer in data.get("pending_draft", []):
+		pending_draft.append({"hero": String(offer.get("hero", "")), "item": String(offer.get("item", ""))})
 	_augment_offered_round = int(data.get("augment_offered_round", -1))
 
 	shop.set_offers(data.get("shop_offers", []))
