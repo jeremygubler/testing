@@ -163,6 +163,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_action(action: int) -> void:
+	# NEXT doubles as "advance from the post-combat result screen", so it must
+	# work in the RESULT phase too — not only while shopping.
+	if action == IInputService.Action.NEXT and game.phase == GameState.Phase.RESULT:
+		_continue_to_next_round()
+		return
 	if not _in_shop():
 		return
 	match action:
@@ -824,6 +829,7 @@ func _refresh_ui() -> void:
 
 	if game.phase == GameState.Phase.RESULT:
 		_fight_button.text = "NEXT ROUND"
+		_fight_button.disabled = false
 	elif game.phase == GameState.Phase.GAME_OVER:
 		_fight_button.text = "GAME OVER"
 		_fight_button.disabled = true
