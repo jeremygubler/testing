@@ -75,6 +75,13 @@ func _apply_global_mods(team_units: Array, mods: Dictionary) -> void:
 	var mr_add := float(mods.get("mr_add", 0.0))
 	var omnivamp := float(mods.get("omnivamp", 0.0))
 	var shield_pct := float(mods.get("start_shield_pct", 0.0))
+	# Extended augment effects (share key names with the trait system).
+	var ap_pct := float(mods.get("ability_power_pct", 0.0))
+	var crit_add := float(mods.get("crit_bonus_pct", 0.0))
+	var true_add := float(mods.get("true_damage_pct", 0.0))
+	var regen_add := float(mods.get("regen_pct", 0.0))
+	var dstrike_add := float(mods.get("double_strike_chance", 0.0))
+	var mana_add := float(mods.get("mana_start_add", 0.0))
 	for u in team_units:
 		if hp_pct != 0.0:
 			u.max_hp *= (1.0 + hp_pct)
@@ -83,9 +90,18 @@ func _apply_global_mods(team_units: Array, mods: Dictionary) -> void:
 			u.attack_damage *= (1.0 + ad_pct)
 		if as_pct != 0.0:
 			u.attack_speed *= (1.0 + as_pct)
+		if ap_pct != 0.0:
+			u.ability_power *= (1.0 + ap_pct)
+			u.ability_power_pct += ap_pct
 		u.armor += armor_add
 		u.magic_resist += mr_add
 		u.omnivamp_pct += omnivamp
+		u.crit_bonus_pct += crit_add
+		u.true_damage_pct += true_add
+		u.regen_pct += regen_add
+		u.double_strike_chance += dstrike_add
+		if mana_add != 0.0:
+			u.mana = minf(u.mana_max, u.mana + mana_add)
 		if shield_pct != 0.0:
 			u.shield += u.max_hp * shield_pct
 
