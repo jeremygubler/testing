@@ -65,8 +65,12 @@
   },
 
   "rounds": {
-    "_comment": "creep_rounds are PvE rounds vs neutral creeps; winning one always drops an item component. boss_round_threshold: from this round on, creep rounds include a Void Maw.",
-    "creep_rounds": [1, 5, 9],
+    "_comment": "creep_rounds are PvE rounds vs neutral creeps; winning one always drops an item component. bosses: a creep round leads with the strongest boss whose min_round it has reached (mid-boss Emberlord from 5, Void Maw from 9). boss_round_threshold is the legacy fallback if bosses is absent.",
+    "creep_rounds": [1, 5, 9, 13],
+    "bosses": [
+      {"id": "emberlord", "min_round": 5},
+      {"id": "void_maw", "min_round": 9}
+    ],
     "boss_round_threshold": 9
   },
 
