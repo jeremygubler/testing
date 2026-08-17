@@ -125,6 +125,11 @@ round**.
   **Emberlord Vharr** with a fire nova from round 5, **Void Maw** from round 9), set
   in `rounds.bosses`. Beating a creep round always drops an item component. Creeps
   are cost-0 and never appear in the shop.
+- **Draft rounds (`rounds.draft_rounds`):** a carousel-style tempo beat — instead
+  of a fight you're offered 3 free units, each carrying an item component, and pick
+  one (cost-banded by round; drafted units bypass gold and the shared pool). Handled
+  in the sim via `GameState.draft_offers()` / `choose_draft()`; a `DraftPanel` UI is a
+  follow-up (the headless sim + full-run bot already resolve it).
 - **Augments (`augments.json`, 19 of them):** at set rounds you're offered 3
   augments and pick 1 for a persistent bonus. *Economy* augments boost income /
   interest cap / gold / XP; *combat* augments apply a global effect bundle to all
