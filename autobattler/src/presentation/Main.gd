@@ -34,6 +34,15 @@ var _attack_fx: Array = []         # [{from:Vector2, to:Vector2, ttl:float}]
 var _floats: Array = []            # floating combat texts [{pos,text,color,size,ttl,max}]
 var _result_overlay := ""
 
+# Preparation countdown (planning phase before a combat round). Presentation-only
+# pacing: the sim stays deterministic and combat is still started by the player —
+# this just gives a fixed planning window that auto-starts the fight at zero.
+const PREP_SECONDS := 15.0
+const PREP_ARM_DELAY := 1.5   # FIGHT/Space is locked during the first 1.5s so a
+                              #  reflex press right after advancing can't fire.
+var _prep_left := 0.0
+var _prep_active := false
+
 # UI references.
 var _hud: CanvasLayer
 var _cosmetics: CanvasLayer
@@ -98,10 +107,11 @@ func _connect_game_signals() -> void:
 	game.economy.gold_changed.connect(func(_g): _refresh_ui())
 	game.economy.level_changed.connect(func(_l, _x, _n): _refresh_ui())
 	game.items_changed.connect(func(): _sel_item_idx = -1; queue_redraw())
-	game.augment_chosen.connect(func(_id): _refresh_ui())
+	game.augment_chosen.connect(_on_augment_chosen)
 	# A draft pick resolves to RESULT; advance straight to the next round.
 	game.draft_chosen.connect(func(_i): _continue_to_next_round())
 	game.phase_changed.connect(_autosave_on_phase)
+	game.phase_changed.connect(_on_phase_for_prep)
 
 
 func _connect_input() -> void:
@@ -176,7 +186,8 @@ func _on_action(action: int) -> void:
 		IInputService.Action.BUY_XP:
 			game.buy_xp()
 		IInputService.Action.NEXT:
-			_start_combat_playback()
+			if _can_start_combat():
+				_start_combat_playback()
 		IInputService.Action.SELL:
 			_sell_selected_or_hovered()
 
@@ -251,6 +262,7 @@ func _buy_slot(i: int) -> void:
 # --- Combat playback ---------------------------------------------------------
 
 func _start_combat_playback() -> void:
+	_prep_active = false
 	selected = null
 	var pack := game.begin_combat_engine()
 	_engine = pack.engine
@@ -274,6 +286,15 @@ func _process(delta: float) -> void:
 		f.ttl -= delta
 		f.pos = f.pos + Vector2(0, -delta * 30.0)  # drift upward
 	_floats = _floats.filter(func(f): return f.ttl > 0.0)
+
+	# Planning countdown: tick down, keep the button label live, and auto-start the
+	# fight at zero — but only once at least one unit is on the board, so the timer
+	# never auto-loses an empty board.
+	if _prep_active and _is_prep_phase():
+		_prep_left = maxf(0.0, _prep_left - delta)
+		_update_fight_button()
+		if _prep_left <= 0.0 and game.board_count() > 0:
+			_start_combat_playback()
 
 	if _playing and _engine != null:
 		_sim_accum += delta * _playback_speed
@@ -784,9 +805,49 @@ func _build_hud() -> void:
 
 func _on_fight_pressed() -> void:
 	if _in_shop():
-		_start_combat_playback()
+		if _can_start_combat():
+			_start_combat_playback()
 	elif game.phase == GameState.Phase.RESULT:
 		_continue_to_next_round()
+
+
+# --- Preparation countdown ---------------------------------------------------
+
+## The planning window is only active while the player can actually act: the SHOP
+## phase, with no augment picker blocking the board.
+func _is_prep_phase() -> bool:
+	return game.phase == GameState.Phase.SHOP and game.pending_augments.is_empty()
+
+
+func _begin_prep() -> void:
+	_prep_left = PREP_SECONDS
+	_prep_active = true
+	_update_fight_button()
+
+
+## Manual fight is blocked during the short arming window so a reflex Space right
+## after advancing from the result screen can't launch straight into combat.
+func _can_start_combat() -> bool:
+	if not _is_prep_phase():
+		return false
+	if _prep_active and _prep_left > PREP_SECONDS - PREP_ARM_DELAY:
+		return false
+	return true
+
+
+func _on_phase_for_prep(p: int) -> void:
+	if p == GameState.Phase.SHOP and game.pending_augments.is_empty():
+		_begin_prep()
+	else:
+		_prep_active = false
+
+
+func _on_augment_chosen(_id: String) -> void:
+	_refresh_ui()
+	# Once the last augment is picked the player is back to a plain shop — start
+	# (or restart) the planning window from full.
+	if game.phase == GameState.Phase.SHOP and game.pending_augments.is_empty():
+		_begin_prep()
 
 
 func _on_reroll_pressed() -> void:
@@ -827,15 +888,37 @@ func _refresh_ui() -> void:
 				_short(hero.perks[0]), _short(hero.perks[1]) if hero.perks.size() > 1 else "-"]
 			b.disabled = not (_in_shop() and e.can_afford(hero.cost))
 
-	if game.phase == GameState.Phase.RESULT:
-		_fight_button.text = "NEXT ROUND"
-		_fight_button.disabled = false
-	elif game.phase == GameState.Phase.GAME_OVER:
-		_fight_button.text = "GAME OVER"
-		_fight_button.disabled = true
-	else:
-		_fight_button.text = "FIGHT"
-		_fight_button.disabled = not _in_shop()
+	_update_fight_button()
+
+
+## Drives the fight/next button text + enabled state. Called on state changes and
+## every frame while the prep countdown is running (so the timer ticks visibly).
+func _update_fight_button() -> void:
+	if _fight_button == null:
+		return
+	match game.phase:
+		GameState.Phase.RESULT:
+			_fight_button.text = "NEXT ROUND  [Space]"
+			_fight_button.disabled = false
+		GameState.Phase.GAME_OVER:
+			_fight_button.text = "GAME OVER"
+			_fight_button.disabled = true
+		GameState.Phase.SHOP:
+			if not game.pending_augments.is_empty():
+				_fight_button.text = "CHOOSE AUGMENT"
+				_fight_button.disabled = true
+			elif _prep_active and _prep_left > PREP_SECONDS - PREP_ARM_DELAY:
+				_fight_button.text = "PREP…  %ds" % ceili(_prep_left)
+				_fight_button.disabled = true
+			elif _prep_active:
+				_fight_button.text = "FIGHT ▶  (%ds)" % maxi(0, ceili(_prep_left))
+				_fight_button.disabled = false
+			else:
+				_fight_button.text = "FIGHT ▶"
+				_fight_button.disabled = false
+		_:
+			_fight_button.text = "FIGHT"
+			_fight_button.disabled = true
 
 
 # trait_id -> number of DISTINCT heroes on the board owning that trait.
