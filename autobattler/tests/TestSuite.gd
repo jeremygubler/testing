@@ -42,6 +42,7 @@ func run() -> int:
 	_run("stall_breaker_resolves_stalls", test_stall_breaker_resolves_stalls)
 	_run("ability_damage_tracked", test_ability_damage_tracked)
 	_run("recipe_grid_complete", test_recipe_grid_complete)
+	_run("augment_new_effects", test_augment_new_effects)
 
 	print("\n== %d passed, %d failed ==" % [_passed, _failed])
 	return _failed
@@ -436,6 +437,27 @@ func test_ability_damage_tracked() -> void:
 	_check(caster != null, "caster present after combat")
 	if caster != null:
 		_check(caster.ability_damage_dealt > 0.0, "caster accumulated ability damage from casts")
+
+
+func test_augment_new_effects() -> void:
+	# The extended combat-augment effects (crit / ability power) must propagate
+	# through player_combat_mods() into the CombatEngine's global-mod application.
+	var g := GameState.new(4)
+	g.pending_augments = ["sharpshooter"]  # +25% crit
+	_check(g.choose_augment("sharpshooter"), "choose crit augment")
+	g.pending_augments = ["arcanesurge"]   # +30% ability power (stacks as a second pick)
+	_check(g.choose_augment("arcanesurge"), "choose ability-power augment")
+	var mods := g.player_combat_mods()
+	_approx(float(mods.get("crit_bonus_pct", 0.0)), 0.25, "crit mod aggregated", 0.001)
+	_approx(float(mods.get("ability_power_pct", 0.0)), 0.30, "ability-power mod aggregated", 0.001)
+	var hero: HeroDef = GameDatabase.get_hero("abyssia")  # has ability power
+	var gu := GameUnit.new(8100, hero, 1)
+	gu.board_pos = Vector2i(0, 0)
+	var base_ap := hero.ability_power
+	var eng := CombatEngine.new([gu], [], 1, mods)
+	_check(eng.units.size() == 1, "unit present")
+	_approx(eng.units[0].crit_bonus_pct, 0.25, "crit applied to unit", 0.001)
+	_approx(eng.units[0].ability_power, base_ap * 1.30, "ability power scaled on unit", 0.5)
 
 
 func test_recipe_grid_complete() -> void:

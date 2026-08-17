@@ -4,8 +4,8 @@
   "offer_rounds": [2, 4, 6],
   "choices_per_offer": 3,
 
-  "combat_effect_keys": ["hp_pct", "ad_pct", "as_pct", "armor_add", "mr_add", "omnivamp", "start_shield_pct"],
-  "economy_effect_keys": ["income_bonus", "interest_cap_bonus", "gold_now", "xp_per_round_bonus"],
+  "combat_effect_keys": ["hp_pct", "ad_pct", "as_pct", "armor_add", "mr_add", "omnivamp", "start_shield_pct", "ability_power_pct", "crit_bonus_pct", "true_damage_pct", "regen_pct", "double_strike_chance", "mana_start_add"],
+  "economy_effect_keys": ["income_bonus", "interest_cap_bonus", "gold_now", "xp_per_round_bonus", "xp_now"],
 
   "augments": [
     {"id": "prosperity",  "name": "Prosperity",   "tier": "gold",     "kind": "economy", "description": "+2 gold income each round.",              "effects": {"income_bonus": 2}},
@@ -16,6 +16,17 @@
     {"id": "onslaught",   "name": "Onslaught",     "tier": "gold",     "kind": "combat",  "description": "+12% Attack Damage and +10% Attack Speed to all your units.", "effects": {"ad_pct": 0.12, "as_pct": 0.10}},
     {"id": "aegis",       "name": "Aegis",         "tier": "silver",   "kind": "combat",  "description": "+20 Armor and +20 Magic Resist to all your units.", "effects": {"armor_add": 20, "mr_add": 20}},
     {"id": "wardstorm",   "name": "Wardstorm",     "tier": "prismatic","kind": "combat",  "description": "All your units start combat with a shield worth 15% of their max HP.", "effects": {"start_shield_pct": 0.15}},
-    {"id": "vampirism",   "name": "Vampirism",     "tier": "gold",     "kind": "combat",  "description": "All your units gain 12% omnivamp (heal for a share of damage dealt).", "effects": {"omnivamp": 0.12}}
+    {"id": "vampirism",   "name": "Vampirism",     "tier": "gold",     "kind": "combat",  "description": "All your units gain 12% omnivamp (heal for a share of damage dealt).", "effects": {"omnivamp": 0.12}},
+
+    {"id": "sharpshooter", "name": "Sharpshooter",  "tier": "gold",     "kind": "combat",  "description": "+25% crit chance to all your units.",                          "effects": {"crit_bonus_pct": 0.25}},
+    {"id": "arcanesurge",  "name": "Arcane Surge",  "tier": "gold",     "kind": "combat",  "description": "+30% Ability Power to all your units.",                         "effects": {"ability_power_pct": 0.30}},
+    {"id": "executioner",  "name": "Executioner",   "tier": "gold",     "kind": "combat",  "description": "All your units deal 12% of their damage as true damage.",        "effects": {"true_damage_pct": 0.12}},
+    {"id": "regeneration", "name": "Regeneration",  "tier": "silver",   "kind": "combat",  "description": "All your units regenerate 6% max HP per second.",               "effects": {"regen_pct": 0.06}},
+    {"id": "overclock",    "name": "Overclock",     "tier": "prismatic","kind": "combat",  "description": "20% chance for your units' attacks to strike twice.",           "effects": {"double_strike_chance": 0.20}},
+    {"id": "battlemage",   "name": "Battlemage",    "tier": "prismatic","kind": "combat",  "description": "+20% Ability Power and units start combat with +20 mana.",       "effects": {"ability_power_pct": 0.20, "mana_start_add": 20}},
+    {"id": "fortress",     "name": "Fortress",      "tier": "prismatic","kind": "combat",  "description": "+25 Armor, +25 Magic Resist and +10% HP to all your units.",     "effects": {"armor_add": 25, "mr_add": 25, "hp_pct": 0.10}},
+    {"id": "berserkrage",  "name": "Berserker's Rage","tier": "gold",   "kind": "combat",  "description": "+25% Attack Speed to all your units.",                          "effects": {"as_pct": 0.25}},
+    {"id": "veteran",      "name": "Veteran",       "tier": "silver",   "kind": "economy", "description": "Gain 6 XP immediately.",                                        "effects": {"xp_now": 6}},
+    {"id": "investment",   "name": "Investment",    "tier": "gold",     "kind": "economy", "description": "Interest cap +3 (bank up to 80 gold).",                         "effects": {"interest_cap_bonus": 3}}
   ]
 }

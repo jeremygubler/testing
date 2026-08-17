@@ -122,11 +122,12 @@ round**.
   Spawn, and a boss Void Maw from `boss_round_threshold`) instead of a PvP-style
   board. Beating a creep round always drops an item component. Creeps are cost-0
   and never appear in the shop.
-- **Augments (`augments.json`):** at set rounds you're offered 3 augments and
-  pick 1 for a persistent bonus. *Economy* augments boost income / interest cap /
-  gold / XP; *combat* augments apply a global stat bundle (HP, AD, AS, armor, MR,
-  omnivamp, start-shield) to all your units each fight, passed into the
-  `CombatEngine` alongside trait effects. Offers are deterministic per seed.
+- **Augments (`augments.json`, 19 of them):** at set rounds you're offered 3
+  augments and pick 1 for a persistent bonus. *Economy* augments boost income /
+  interest cap / gold / XP; *combat* augments apply a global effect bundle to all
+  your units each fight — HP, AD, AS, armor, MR, omnivamp, start-shield, plus
+  ability power, crit, true damage, regen, double-strike and start-mana — passed
+  into the `CombatEngine` alongside trait effects. Offers are deterministic per seed.
 - **Deterministic replays / ranked-ready:** `Replay.capture()` records a fight's
   inputs (seed + both teams + player mods) as a JSON-safe record; `Replay.run()`
   reproduces the exact fight anywhere, and `Replay.verify(record, signature)`
