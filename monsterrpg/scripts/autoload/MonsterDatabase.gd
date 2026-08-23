@@ -33,7 +33,7 @@ var _loaded: bool = false
 
 
 func _ready() -> void:
-	load_all()
+	_ensure_loaded()
 
 
 ## Lädt (bzw. lädt neu) alle Inhalte. Idempotent -- praktisch für Tests.
@@ -54,7 +54,19 @@ func load_all() -> void:
 
 
 func is_loaded() -> bool:
+	_ensure_loaded()
 	return _loaded
+
+
+## Lädt bei Bedarf nach.
+##
+## Wichtig für Skripte, die per `godot -s ...` laufen (Tests, tools/): dort wird
+## der Autoload zwar registriert, sein `_ready()` kommt aber erst NACH
+## `SceneTree._initialize()`. Ohne diese Absicherung wäre die Datenbank in
+## Tests und Werkzeugen leer. Kostet im Normalbetrieb einen bool-Vergleich.
+func _ensure_loaded() -> void:
+	if not _loaded:
+		load_all()
 
 
 # ---------------------------------------------------------------------------
@@ -62,34 +74,42 @@ func is_loaded() -> bool:
 # ---------------------------------------------------------------------------
 
 func get_species(id: String) -> MonsterSpecies:
+	_ensure_loaded()
 	return _species.get(id, null) as MonsterSpecies
 
 
 func get_move(id: String) -> MoveDefinition:
+	_ensure_loaded()
 	return _moves.get(id, null) as MoveDefinition
 
 
 func get_item(id: String) -> ItemDefinition:
+	_ensure_loaded()
 	return _items.get(id, null) as ItemDefinition
 
 
 func get_encounter_table(id: String) -> EncounterTable:
+	_ensure_loaded()
 	return _encounter_tables.get(id, null) as EncounterTable
 
 
 func species_ids() -> Array[String]:
+	_ensure_loaded()
 	return _sorted_keys(_species)
 
 
 func move_ids() -> Array[String]:
+	_ensure_loaded()
 	return _sorted_keys(_moves)
 
 
 func item_ids() -> Array[String]:
+	_ensure_loaded()
 	return _sorted_keys(_items)
 
 
 func encounter_table_ids() -> Array[String]:
+	_ensure_loaded()
 	return _sorted_keys(_encounter_tables)
 
 
@@ -122,6 +142,7 @@ func all_items() -> Array[ItemDefinition]:
 ## z.B. [code]cfg("combat/crit_chance", 0.0625)[/code].
 ## Rückgabetyp ist Variant -- lokale Variablen deshalb IMMER explizit typen.
 func cfg(path: String, default_value: Variant) -> Variant:
+	_ensure_loaded()
 	var node: Variant = _config
 	for part in path.split("/", false):
 		if node is Dictionary and (node as Dictionary).has(part):
@@ -161,6 +182,7 @@ func storage_size() -> int:
 
 ## Effektivität eines Angriffstyps gegen einen Verteidigungstyp.
 func type_multiplier(attacker: int, defender: int) -> float:
+	_ensure_loaded()
 	var row: Dictionary = _type_chart.get(attacker, {}) as Dictionary
 	return float(row.get(defender, 1.0))
 
@@ -175,6 +197,7 @@ func type_multiplier_against(attacker: int, defender_types: Array[int]) -> float
 
 ## Rohe Matrix (zum Debuggen / für Tests).
 func type_chart() -> Dictionary:
+	_ensure_loaded()
 	return _type_chart.duplicate(true)
 
 

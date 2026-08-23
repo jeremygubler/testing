@@ -17,6 +17,10 @@ var _state_backup: Dictionary = {}
 
 func run() -> int:
 	print("=== Monster-RPG Testsuite ===")
+	# Inhalte und Startspielstand erzwingen: bei `godot -s ...` laufen die
+	# _ready()-Methoden der Autoloads erst nach _initialize().
+	MonsterDatabase.load_all()
+	GameState.new_game(20260823)
 	_state_backup = GameState.to_dict()
 
 	_run("Datenbank vollständig", test_database_loaded)

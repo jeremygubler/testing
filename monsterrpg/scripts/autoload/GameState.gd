@@ -45,6 +45,15 @@ var _initialized: bool = false
 func _ready() -> void:
 	# Ohne Speicherstand startet ein Standardspiel, damit sowohl Overworld als
 	# auch Battle.tscn direkt per F6 lauffähig sind.
+	_ensure_ready()
+
+
+## Legt bei Bedarf einen Startspielstand an.
+##
+## Nötig, weil bei `godot -s ...` (Tests, tools/) das `_ready()` der Autoloads
+## erst NACH `SceneTree._initialize()` läuft -- ohne diese Absicherung wäre das
+## Team dort leer.
+func _ensure_ready() -> void:
 	if not _initialized:
 		new_game()
 
@@ -60,6 +69,9 @@ func _process(delta: float) -> void:
 ## Setzt alles auf den Startzustand aus `data/game_config.json` zurück.
 ## [param p_seed] = 0 bedeutet "zufälliger Seed".
 func new_game(p_seed: int = 0) -> void:
+	# Früh setzen: add_to_party()/add_item() unten rufen _ensure_ready() auf und
+	# würden sich sonst rekursiv erneut auf new_game() stürzen.
+	_initialized = true
 	party.clear()
 	storage.clear()
 	inventory.clear()
@@ -83,7 +95,6 @@ func new_game(p_seed: int = 0) -> void:
 	for item_id in start_items.keys():
 		add_item(String(item_id), int(start_items[item_id]))
 
-	_initialized = true
 	party_changed.emit()
 	inventory_changed.emit()
 	money_changed.emit(money)
@@ -94,16 +105,19 @@ func new_game(p_seed: int = 0) -> void:
 # ---------------------------------------------------------------------------
 
 func party_size() -> int:
+	_ensure_ready()
 	return party.size()
 
 
 func party_is_full() -> bool:
+	_ensure_ready()
 	return party.size() >= MonsterDatabase.max_party_size()
 
 
 ## Nimmt ein Monster ins Team auf; ist das Team voll, geht es in die Box.
 ## Rückgabe: true, wenn es im *Team* landet.
 func add_to_party(monster: MonsterInstance) -> bool:
+	_ensure_ready()
 	if monster == null:
 		return false
 	if party_is_full():
@@ -154,6 +168,7 @@ func party_leader() -> MonsterInstance:
 
 
 func first_healthy_index() -> int:
+	_ensure_ready()
 	for i in party.size():
 		if not party[i].is_fainted():
 			return i
@@ -174,6 +189,7 @@ func heal_party() -> void:
 ## Kopie des Teams für einen Kampf -- Kämpfe arbeiten auf den *echten*
 ## Instanzen (Schaden bleibt bestehen), Gegner-Teams dagegen sind Kopien.
 func battle_party() -> Array[MonsterInstance]:
+	_ensure_ready()
 	var out: Array[MonsterInstance] = []
 	for mon in party:
 		out.append(mon)
@@ -185,6 +201,7 @@ func battle_party() -> Array[MonsterInstance]:
 # ---------------------------------------------------------------------------
 
 func add_item(item_id: String, count: int = 1) -> void:
+	_ensure_ready()
 	if item_id == "" or count <= 0:
 		return
 	if MonsterDatabase.get_item(item_id) == null:
@@ -208,6 +225,7 @@ func remove_item(item_id: String, count: int = 1) -> bool:
 
 
 func item_count(item_id: String) -> int:
+	_ensure_ready()
 	return int(inventory.get(item_id, 0))
 
 
@@ -217,6 +235,7 @@ func has_item(item_id: String) -> bool:
 
 ## Alle Item-IDs mit Bestand, alphabetisch (stabile UI-Reihenfolge).
 func inventory_ids() -> Array[String]:
+	_ensure_ready()
 	var out: Array[String] = []
 	for k in inventory.keys():
 		if int(inventory[k]) > 0:
@@ -264,6 +283,7 @@ func get_flag(key: String, default_value: Variant = false) -> Variant:
 # ---------------------------------------------------------------------------
 
 func to_dict() -> Dictionary:
+	_ensure_ready()
 	var party_data: Array = []
 	for mon in party:
 		party_data.append(mon.to_dict())
