@@ -1,0 +1,165 @@
+import Phaser from 'phaser';
+import type { MonsterSpecies } from '../data/monsters';
+import { TYPE_COLORS } from '../data/types';
+
+/** Was der Gegner in diesem Frame tun möchte — GameScene setzt es um. */
+export interface EnemyIntent {
+  kind: 'nichts' | 'schuss' | 'nahkampf';
+  angle: number;
+}
+
+/** Bevorzugte Kampfdistanz je Angriffsmuster. */
+const PREFERRED_RANGE: Record<string, number> = {
+  melee: 26,
+  single: 230,
+  spread3: 200,
+  burst3: 240,
+  homing: 280,
+  lob: 210,
+};
+
+/**
+ * Ein Gegner-Monster.
+ *
+ * Die KI ist absichtlich simpel und lesbar: Wunschdistanz halten, seitlich
+ * ausweichen, auf Cooldown feuern. Der Schwierigkeitsgrad kommt aus der
+ * Etagen-Skalierung und der Gegneranzahl, nicht aus KI-Tricks.
+ */
+export class Enemy extends Phaser.Physics.Arcade.Sprite {
+  species: MonsterSpecies;
+  hp: number;
+  maxHp: number;
+  readonly isBoss: boolean;
+  /** Etagen-Skalierung für den Schaden. */
+  damageScale: number;
+  /** Aufblinken, wenn fangbar. */
+  catchable = false;
+
+  private nextShotAt = 0;
+  private burstLeft = 0;
+  private nextBurstAt = 0;
+  private burstAngle = 0;
+  /** Ausweichrichtung, wird gelegentlich gewürfelt. */
+  private strafeSign = 1;
+  private nextStrafeFlip = 0;
+
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    species: MonsterSpecies,
+    maxHp: number,
+    damageScale: number,
+    isBoss: boolean,
+  ) {
+    super(scene, x, y, isBoss ? 'orb_big' : 'orb');
+    scene.add.existing(this);
+    scene.physics.add.existing(this);
+
+    this.species = species;
+    this.maxHp = maxHp;
+    this.hp = maxHp;
+    this.isBoss = isBoss;
+    this.damageScale = damageScale;
+
+    const size = isBoss ? 58 : 26;
+    this.setTint(TYPE_COLORS[species.type]);
+    this.setDisplaySize(size, size);
+    this.setDepth(15);
+
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    body.setCircle(isBoss ? 24 : 14, 0, 0);
+    body.setAllowGravity(false);
+    // Bosse lassen sich kaum wegschieben.
+    body.setDrag(isBoss ? 900 : 300);
+
+    // Gegner starten mit versetztem Cooldown, damit nicht alle gleichzeitig feuern.
+    this.nextShotAt = scene.time.now + 700 + Math.random() * 1100;
+  }
+
+  get radius(): number {
+    return this.isBoss ? 29 : 13;
+  }
+
+  /**
+   * Bewegung + Angriffsabsicht für diesen Frame.
+   * `targetX/Y` ist das aktuelle Ziel (Trainer oder Begleitmonster).
+   */
+  think(time: number, targetX: number, targetY: number, attackSpeed: number): EnemyIntent {
+    const dist = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
+    const angle = Math.atan2(targetY - this.y, targetX - this.x);
+    const want = PREFERRED_RANGE[this.species.pattern] ?? 200;
+
+    // --- Bewegung ---------------------------------------------------------
+    const speed = this.species.moveSpeed;
+    if (time > this.nextStrafeFlip) {
+      this.strafeSign = Math.random() < 0.5 ? -1 : 1;
+      this.nextStrafeFlip = time + 900 + Math.random() * 1400;
+    }
+
+    let vx = 0;
+    let vy = 0;
+    if (dist > want * 1.15) {
+      // Zu weit weg: annähern.
+      vx = Math.cos(angle) * speed;
+      vy = Math.sin(angle) * speed;
+    } else if (dist < want * 0.7 && this.species.pattern !== 'melee') {
+      // Zu nah: Abstand herstellen (Nahkämpfer bleiben dran).
+      vx = -Math.cos(angle) * speed * 0.8;
+      vy = -Math.sin(angle) * speed * 0.8;
+    } else {
+      // Auf Wunschdistanz: seitlich kreisen, schwerer zu treffen.
+      vx = Math.cos(angle + (Math.PI / 2) * this.strafeSign) * speed * 0.6;
+      vy = Math.sin(angle + (Math.PI / 2) * this.strafeSign) * speed * 0.6;
+    }
+    this.setVelocity(vx, vy);
+
+    // --- Angriff ----------------------------------------------------------
+    const burst = this.tickBurst(time);
+    if (burst !== null) return { kind: 'schuss', angle: burst };
+
+    if (time < this.nextShotAt || this.burstLeft > 0) return { kind: 'nichts', angle };
+
+    const inRange = dist <= want * 1.4;
+    if (!inRange) return { kind: 'nichts', angle };
+
+    this.nextShotAt = time + 1000 / Math.max(0.1, attackSpeed);
+
+    if (this.species.pattern === 'melee') {
+      return { kind: dist <= 40 ? 'nahkampf' : 'nichts', angle };
+    }
+    if (this.species.pattern === 'burst3') {
+      this.beginBurst(3, angle, time);
+      const first = this.tickBurst(time);
+      return first !== null ? { kind: 'schuss', angle: first } : { kind: 'nichts', angle };
+    }
+    return { kind: 'schuss', angle };
+  }
+
+  private beginBurst(count: number, angle: number, time: number): void {
+    this.burstLeft = count;
+    this.burstAngle = angle;
+    this.nextBurstAt = time;
+  }
+
+  private tickBurst(time: number): number | null {
+    if (this.burstLeft <= 0 || time < this.nextBurstAt) return null;
+    this.burstLeft--;
+    this.nextBurstAt = time + 130;
+    return this.burstAngle;
+  }
+
+  takeDamage(amount: number): void {
+    this.hp = Math.max(0, this.hp - amount);
+    this.scene.tweens.add({
+      targets: this,
+      alpha: { from: 0.35, to: 1 },
+      duration: 140,
+      ease: 'Sine.easeOut',
+    });
+  }
+
+  get hpRatio(): number {
+    return this.maxHp > 0 ? this.hp / this.maxHp : 0;
+  }
+}
