@@ -213,7 +213,7 @@ Text-Pacing macht allein `ui/BattleUI.gd`, das die Log-Zeilen puffert.
 
 ```
 level_term = 2 * Level / 5 + 2
-roh        = level_term * Power * ANG / VET / 50 + 2
+roh        = level_term * Power * ANG / VET / damage_divisor + 2
 Schaden    = floor(roh * STAB * Effektivität * Volltreffer * Streuung)
 ```
 
@@ -225,6 +225,11 @@ Schaden    = floor(roh * STAB * Effektivität * Volltreffer * Streuung)
 * `Streuung` = 0.85 … 1.00 aus dem Kampf-RNG
 
 Alle Konstanten stehen in `data/game_config.json` unter `combat`.
+
+**Der wichtigste Regler ist `combat/damage_divisor`** (Standard 100): er
+bestimmt die Kampflänge. Gemessen mit `tools/battle_sim.gd` (200 Kämpfe,
+Level 12): bei 50 dauert ein Kampf 3,1 Runden — zu kurz, um das Menü überhaupt
+zu benutzen — bei 100 rund 6. Höher = längere, taktischere Kämpfe.
 
 ### Typenmatrix
 

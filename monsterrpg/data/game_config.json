@@ -11,6 +11,7 @@
 		"storage_size": 60
 	},
 	"combat": {
+		"damage_divisor": 100.0,
 		"crit_chance": 0.0625,
 		"high_crit_chance": 0.125,
 		"crit_multiplier": 1.5,

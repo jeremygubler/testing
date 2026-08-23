@@ -6,7 +6,7 @@ extends RefCounted
 ## [b]Formel[/b] (eigene, aber genre-typische Kurve):
 ## [codeblock]
 ## level_term = 2 * level / 5 + 2
-## roh        = level_term * power * ANG / VET / 50 + 2
+## roh        = level_term * power * ANG / VET / TEILER + 2
 ## schaden    = floor(roh * STAB * Effektivität * Volltreffer * Streuung)
 ## [/codeblock]
 ## * ANG/VET = ATK/DEF bei physischen, SPA/SPD bei speziellen Attacken
@@ -15,6 +15,9 @@ extends RefCounted
 ## * Effektivität: Produkt aus der Typenmatrix (0 / 0.5 / 1 / 2 pro Zieltyp).
 ## * Volltreffer: 1.5 mit 1/16 Chance (1/8 bei `high_crit`).
 ## * Streuung: 0.85..1.00, gezogen aus dem übergebenen RNG.
+## * TEILER (`combat/damage_divisor`, Standard 100) ist der zentrale Regler für
+##   die Kampflänge: höher = mehr Runden. Bei 50 dauert ein Kampf ~3 Runden,
+##   bei 100 ~6 -- gemessen mit `tools/battle_sim.gd`.
 ##
 ## Der RNG kommt IMMER von außen ([member BattleManager.rng]) -- nie `randf()`.
 ## Nur so ist ein Kampf bei gleichem Seed exakt reproduzierbar.
@@ -98,8 +101,10 @@ static func _raw_damage(attacker: BattleCombatant, defender: BattleCombatant,
 		Stats.Stat.DEF if physical else Stats.Stat.SPD)
 
 	var level_term: float = 2.0 * float(attacker.monster.level) / 5.0 + 2.0
+	var divisor: float = maxf(1.0, MonsterDatabase.cfg_float(
+		"combat/damage_divisor", 100.0))
 	var raw: float = level_term * float(move.power) * float(atk) \
-		/ maxf(1.0, float(dfd)) / 50.0 + 2.0
+		/ maxf(1.0, float(dfd)) / divisor + 2.0
 
 	var stab: float = 1.0
 	if attacker.types().has(int(move.element)):
