@@ -1,0 +1,111 @@
+; Godot 4 Projektdatei -- 3D-Monster-Sammel-RPG (Grundgerüst, eigene IP).
+;
+; Zielversion: Godot 4.3+ (getestet mit 4.3 headless in der CI)
+;
+; Reihenfolge der Autoloads ist wichtig:
+;   1. InputActions    legt fehlende Eingabe-Aktionen an
+;   2. MonsterDatabase lädt Inhalte (.tres) + data/*.json
+;   3. GameState       baut daraus den Startspielstand
+;   4. SaveSystem      speichert/lädt den GameState
+;   5. GameFlow        wechselt zwischen Overworld und Kampf
+;
+; Hinweis für Exporte: die JSON-Dateien unter data/ werden per FileAccess
+; gelesen. Im Export-Dialog unter "Ressourcen -> Filter für nicht-Ressourcen-
+; Dateien" `data/*.json` eintragen, sonst fehlen sie im fertigen Build.
+
+config_version=5
+
+[application]
+
+config/name="Monster RPG Grundgerüst"
+config/description="3D-Monster-Sammel-RPG: Overworld, rundenbasierter Kampf, Party/Inventar, Speichern. Platzhalter-Assets, eigene IP."
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+
+[autoload]
+
+InputActions="*res://scripts/autoload/InputActions.gd"
+MonsterDatabase="*res://scripts/autoload/MonsterDatabase.gd"
+GameState="*res://scripts/autoload/GameState.gd"
+SaveSystem="*res://scripts/autoload/SaveSystem.gd"
+GameFlow="*res://scripts/autoload/GameFlow.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.09, 0.11, 0.16, 1)
+
+[physics]
+
+3d/default_gravity=12.0
+
+[input]
+
+move_forward={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":87), Object(InputEventKey,"physical_keycode":4194320), Object(InputEventJoypadMotion,"axis":1,"axis_value":-1.0)]
+}
+move_back={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":83), Object(InputEventKey,"physical_keycode":4194322), Object(InputEventJoypadMotion,"axis":1,"axis_value":1.0)]
+}
+move_left={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":65), Object(InputEventKey,"physical_keycode":4194319), Object(InputEventJoypadMotion,"axis":0,"axis_value":-1.0)]
+}
+move_right={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":68), Object(InputEventKey,"physical_keycode":4194321), Object(InputEventJoypadMotion,"axis":0,"axis_value":1.0)]
+}
+look_left={
+"deadzone": 0.2,
+"events": [Object(InputEventJoypadMotion,"axis":2,"axis_value":-1.0)]
+}
+look_right={
+"deadzone": 0.2,
+"events": [Object(InputEventJoypadMotion,"axis":2,"axis_value":1.0)]
+}
+look_up={
+"deadzone": 0.2,
+"events": [Object(InputEventJoypadMotion,"axis":3,"axis_value":-1.0)]
+}
+look_down={
+"deadzone": 0.2,
+"events": [Object(InputEventJoypadMotion,"axis":3,"axis_value":1.0)]
+}
+jump={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":32), Object(InputEventJoypadButton,"button_index":0)]
+}
+sprint={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194325), Object(InputEventJoypadButton,"button_index":1)]
+}
+interact={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":69), Object(InputEventJoypadButton,"button_index":0)]
+}
+toggle_mouse={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194305), Object(InputEventJoypadButton,"button_index":6)]
+}
+quick_save={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194336)]
+}
+quick_load={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194340)]
+}
+debug_battle={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194332)]
+}

@@ -1,0 +1,57 @@
+{
+	"_comment": [
+		"Zentrale Tuning-Werte. Wird von MonsterDatabase geladen und ist ueber",
+		"MonsterDatabase.cfg(\"combat/crit_chance\", 0.0625) erreichbar.",
+		"Hinweis: JSON-Zahlen kommen als float an - im GDScript explizit casten."
+	],
+	"party": {
+		"max_size": 6,
+		"max_moves": 4,
+		"max_level": 100,
+		"storage_size": 60
+	},
+	"combat": {
+		"crit_chance": 0.0625,
+		"high_crit_chance": 0.125,
+		"crit_multiplier": 1.5,
+		"stab_multiplier": 1.5,
+		"variance_min": 0.85,
+		"variance_max": 1.0,
+		"burn_attack_multiplier": 0.5,
+		"paralyze_speed_multiplier": 0.5,
+		"paralyze_skip_chance": 0.25,
+		"sleep_min_turns": 1,
+		"sleep_max_turns": 3,
+		"switch_priority": 6,
+		"max_turns": 300
+	},
+	"experience": {
+		"yield_divisor": 7.0
+	},
+	"capture": {
+		"hp_weight": 0.66,
+		"min_chance": 0.03,
+		"max_chance": 0.95
+	},
+	"flee": {
+		"base_chance": 0.30,
+		"speed_weight": 0.35,
+		"attempt_bonus": 0.15
+	},
+	"encounters": {
+		"distance_per_check": 4.0,
+		"chance": 0.18,
+		"cooldown_seconds": 6.0
+	},
+	"start": {
+		"money": 1500,
+		"party": [
+			{ "species_id": "cindercub", "level": 5 }
+		],
+		"inventory": {
+			"potion": 5,
+			"capture_orb": 8,
+			"salve": 2
+		}
+	}
+}

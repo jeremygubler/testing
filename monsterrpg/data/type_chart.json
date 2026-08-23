@@ -1,0 +1,24 @@
+{
+	"_comment": [
+		"Typen-Effektivitaetsmatrix. Aussen = angreifender Typ, innen = verteidigender Typ.",
+		"Nur Werte != 1.0 werden aufgefuehrt; alles nicht Genannte ist neutral (1.0).",
+		"Erlaubte Werte: 0.0 (immun), 0.5 (nicht sehr effektiv), 2.0 (sehr effektiv).",
+		"Reine Daten - Balancing passiert hier, nicht im Code."
+	],
+	"types": [
+		"neutral", "ember", "tide", "verdant", "spark",
+		"frost", "stone", "gale", "toxin", "umbra"
+	],
+	"matrix": {
+		"neutral": { "stone": 0.5, "umbra": 0.0 },
+		"ember":   { "verdant": 2.0, "frost": 2.0, "ember": 0.5, "tide": 0.5, "stone": 0.5 },
+		"tide":    { "ember": 2.0, "stone": 2.0, "tide": 0.5, "verdant": 0.5, "spark": 0.5 },
+		"verdant": { "tide": 2.0, "stone": 2.0, "verdant": 0.5, "ember": 0.5, "frost": 0.5, "gale": 0.5, "toxin": 0.5 },
+		"spark":   { "tide": 2.0, "gale": 2.0, "verdant": 0.5, "spark": 0.5, "stone": 0.0 },
+		"frost":   { "verdant": 2.0, "gale": 2.0, "frost": 0.5, "ember": 0.5, "tide": 0.5 },
+		"stone":   { "ember": 2.0, "frost": 2.0, "gale": 2.0, "verdant": 0.5, "tide": 0.5 },
+		"gale":    { "verdant": 2.0, "toxin": 2.0, "spark": 0.5, "stone": 0.5 },
+		"toxin":   { "verdant": 2.0, "tide": 2.0, "toxin": 0.5, "stone": 0.5, "umbra": 0.5 },
+		"umbra":   { "gale": 2.0, "toxin": 0.5, "umbra": 0.5, "neutral": 0.0 }
+	}
+}

@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="MonsterSpecies" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MonsterSpecies.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/LearnsetEntry.gd" id="2_l"]
+[ext_resource type="Resource" path="res://resources/moves/bloom_drain.tres" id="m0_bloom_drain"]
+[ext_resource type="Resource" path="res://resources/moves/leaf_cutter.tres" id="m1_leaf_cutter"]
+[ext_resource type="Resource" path="res://resources/moves/rock_toss.tres" id="m2_rock_toss"]
+[ext_resource type="Resource" path="res://resources/moves/stone_guard.tres" id="m3_stone_guard"]
+[ext_resource type="Resource" path="res://resources/moves/tackle.tres" id="m4_tackle"]
+
+[sub_resource type="Resource" id="LE0"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m1_leaf_cutter")
+
+[sub_resource type="Resource" id="LE1"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m4_tackle")
+
+[sub_resource type="Resource" id="LE2"]
+script = ExtResource("2_l")
+level = 15
+move = ExtResource("m2_rock_toss")
+
+[sub_resource type="Resource" id="LE3"]
+script = ExtResource("2_l")
+level = 19
+move = ExtResource("m3_stone_guard")
+
+[sub_resource type="Resource" id="LE4"]
+script = ExtResource("2_l")
+level = 25
+move = ExtResource("m0_bloom_drain")
+
+[resource]
+script = ExtResource("1_s")
+id = "thornmane"
+display_name = "Dornmähne"
+codex_text = "Seine Mähne besteht aus verholzten Dornen, die Steinschlag abfangen."
+primary_type = 3
+has_secondary_type = true
+secondary_type = 6
+base_hp = 80
+base_atk = 85
+base_def = 85
+base_spa = 60
+base_spd = 70
+base_spe = 45
+catch_rate = 85
+base_exp = 150
+learnset = Array[LearnsetEntry]([SubResource("LE0"), SubResource("LE1"), SubResource("LE2"), SubResource("LE3"), SubResource("LE4")])
+evolves_into = ""
+evolve_level = 0
+placeholder_color = Color(0.28, 0.58, 0.3, 1)
+placeholder_scale = Vector3(1.35, 1.35, 1.35)

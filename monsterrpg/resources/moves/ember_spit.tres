@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="MoveDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MoveDefinition.gd" id="1_s"]
+
+[resource]
+script = ExtResource("1_s")
+id = "ember_spit"
+display_name = "Glutspucke"
+description = "Ein Funkenstoß, der leichte Verbrennungen verursachen kann."
+element = 1
+category = 1
+power = 45
+accuracy = 100
+max_pp = 25
+priority = 0
+high_crit = false
+effect = 2
+effect_chance = 10
+targets_self = false
+effect_stat = 1
+effect_stages = 0
+effect_status = 1
+effect_ratio = 0.5

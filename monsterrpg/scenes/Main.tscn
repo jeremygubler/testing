@@ -1,0 +1,53 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/Main.gd" id="1_main"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_main")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Box" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Center/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+horizontal_alignment = 1
+text = "Monster-Grundgerüst"
+
+[node name="StatusLabel" type="Label" parent="Center/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+text = "..."
+
+[node name="NewGameButton" type="Button" parent="Center/Box"]
+layout_mode = 2
+text = "Neues Spiel"
+
+[node name="ContinueButton" type="Button" parent="Center/Box"]
+layout_mode = 2
+text = "Fortsetzen (Slot 0)"
+
+[node name="OverworldButton" type="Button" parent="Center/Box"]
+layout_mode = 2
+text = "Nur Overworld testen"
+
+[node name="BattleButton" type="Button" parent="Center/Box"]
+layout_mode = 2
+text = "Nur Kampf testen"
+
+[node name="QuitButton" type="Button" parent="Center/Box"]
+layout_mode = 2
+text = "Beenden"

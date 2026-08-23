@@ -1,0 +1,14 @@
+# Godot 4 Import- und Cache-Artefakte
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+*.translation
+
+# Build-Ausgaben
+build/
+*.tmp
+
+# Betriebssystem-Müll
+.DS_Store
+Thumbs.db

@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="MonsterSpecies" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MonsterSpecies.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/LearnsetEntry.gd" id="2_l"]
+[ext_resource type="Resource" path="res://resources/moves/bite.tres" id="m0_bite"]
+[ext_resource type="Resource" path="res://resources/moves/lull_hymn.tres" id="m1_lull_hymn"]
+[ext_resource type="Resource" path="res://resources/moves/shadow_claw.tres" id="m2_shadow_claw"]
+[ext_resource type="Resource" path="res://resources/moves/tackle.tres" id="m3_tackle"]
+
+[sub_resource type="Resource" id="LE0"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m0_bite")
+
+[sub_resource type="Resource" id="LE1"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m3_tackle")
+
+[sub_resource type="Resource" id="LE2"]
+script = ExtResource("2_l")
+level = 13
+move = ExtResource("m2_shadow_claw")
+
+[sub_resource type="Resource" id="LE3"]
+script = ExtResource("2_l")
+level = 19
+move = ExtResource("m1_lull_hymn")
+
+[resource]
+script = ExtResource("1_s")
+id = "shadepup"
+display_name = "Schattenwelpe"
+codex_text = "Schlüpft durch Schatten und taucht dort auf, wo man es nicht erwartet."
+primary_type = 9
+has_secondary_type = false
+secondary_type = 9
+base_hp = 50
+base_atk = 60
+base_def = 45
+base_spa = 55
+base_spd = 50
+base_spe = 70
+catch_rate = 150
+base_exp = 72
+learnset = Array[LearnsetEntry]([SubResource("LE0"), SubResource("LE1"), SubResource("LE2"), SubResource("LE3")])
+evolves_into = ""
+evolve_level = 0
+placeholder_color = Color(0.3, 0.26, 0.4, 1)
+placeholder_scale = Vector3(0.9, 0.9, 0.9)

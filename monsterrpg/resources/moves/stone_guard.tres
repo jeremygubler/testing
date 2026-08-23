@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="MoveDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MoveDefinition.gd" id="1_s"]
+
+[resource]
+script = ExtResource("1_s")
+id = "stone_guard"
+display_name = "Steinpanzer"
+description = "Eine Steinschicht erhöht die Verteidigung deutlich."
+element = 6
+category = 2
+power = 0
+accuracy = 0
+max_pp = 15
+priority = 0
+high_crit = false
+effect = 1
+effect_chance = 100
+targets_self = true
+effect_stat = 2
+effect_stages = 2
+effect_status = 0
+effect_ratio = 0.5

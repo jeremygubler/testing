@@ -1,0 +1,60 @@
+name: Monster RPG CI
+
+# Validiert das 3D-Monster-Sammel-RPG-Grundgerüst headless: Skripte
+# compile-checken, Szenen/Resources laden, Testsuite und Kampfsimulator laufen
+# lassen. Läuft nur bei Änderungen an monsterrpg/.
+
+on:
+  push:
+    paths:
+      - "monsterrpg/**"
+      - ".github/workflows/monsterrpg-ci.yml"
+  pull_request:
+    paths:
+      - "monsterrpg/**"
+      - ".github/workflows/monsterrpg-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: "4.3-stable"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot ${{ env.GODOT_VERSION }} (headless)
+        run: |
+          set -e
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          echo "Downloading $url"
+          curl -fL -o godot.zip "$url"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}_linux.x86_64" godot
+          chmod +x godot
+          ./godot --version
+
+      - name: Inhalts-Generator ist mit resources/ synchron
+        run: |
+          python3 monsterrpg/tools/gen_content.py
+          git diff --exit-code -- monsterrpg/resources
+
+      - name: Fresh import (globalen Klassen-Cache aufbauen)
+        run: |
+          rm -rf monsterrpg/.godot
+          # Erster Durchlauf registriert die class_name-Globals, der zweite löst
+          # Querverweise zwischen Skripten auf (typisierte Arrays in .tres!).
+          timeout 300 ./godot --headless --path monsterrpg --import || true
+          timeout 300 ./godot --headless --path monsterrpg --import || true
+
+      - name: Parse-Check aller Skripte
+        run: ./godot --headless --path monsterrpg -s res://tools/parse_check.gd
+
+      - name: Szenen- und Resource-Check
+        run: ./godot --headless --path monsterrpg -s res://tools/scene_check.gd
+
+      - name: Testsuite
+        run: ./godot --headless --path monsterrpg -s res://tests/TestRunner.gd
+
+      - name: Kampfsimulator (Determinismus + Balance)
+        run: ./godot --headless --path monsterrpg -s res://tools/battle_sim.gd
