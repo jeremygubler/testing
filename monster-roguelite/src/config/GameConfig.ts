@@ -101,8 +101,12 @@ export const CATCH = {
 
 /** Etagen-/Progressionskurve. */
 export const FLOOR = {
-  /** Anzahl normaler Räume auf Etage n = base + n * growth (gedeckelt). */
-  baseRooms: 6,
+  /**
+   * Anzahl Räume auf Etage n = base + n * growth (gedeckelt). Einer davon ist
+   * der Laden — er belegt einen Slot, der sonst ein Kampfraum wäre, also ist
+   * `baseRooms` um eins höher als vor Einführung des Ladens.
+   */
+  baseRooms: 7,
   roomGrowth: 1,
   maxRooms: 12,
   /** Gegner-Skalierung pro Etage. */
@@ -114,6 +118,33 @@ export const FLOOR = {
 } as const;
 
 /** Belohnungen (Meta-Währung "Ätherstaub"). */
+/**
+ * Elite-Gegner: seltene, deutlich stärkere Varianten normaler Arten. Sie geben
+ * Kampfräumen eine Spitze, ohne dass es dafür neue Arten braucht.
+ */
+export const ELITE = {
+  /**
+   * Erste Etage mit Elites. Etage 1 bleibt bewusst frei: dort hat man ein
+   * Startmonster auf Stufe 1 und noch kein einziges Relikt — ein Gegner mit
+   * doppelter Lebensleiste ist dann keine Spitze, sondern eine Sackgasse.
+   */
+  minFloor: 2,
+  /** Auftrittswahrscheinlichkeit pro Gegner auf `minFloor`. */
+  baseChance: 0.08,
+  /** Zuwachs je weiterer Etage. */
+  chanceGrowth: 0.05,
+  maxChance: 0.26,
+  /** Höchstens so viele Elites pro Raum. */
+  maxPerRoom: 2,
+  hpMultiplier: 2.0,
+  damageMultiplier: 1.35,
+  speedMultiplier: 1.1,
+  /** Faktor auf die Währungsbelohnung. */
+  rewardMultiplier: 5,
+  /** Chance auf ein zusätzliches Relikt. */
+  relicChance: 0.35,
+} as const;
+
 /** Erholung nach einem geräumten Raum, als Anteil der maximalen HP. */
 export const ROOM_RECOVERY = {
   trainer: 0.06,

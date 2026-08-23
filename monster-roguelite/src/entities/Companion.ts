@@ -14,6 +14,8 @@ export class Companion extends Phaser.Physics.Arcade.Sprite {
   species: MonsterSpecies;
   hp: number;
   maxHp: number;
+  /** Angriffswert inkl. Stufenskalierung — nicht `species.attack` verwenden. */
+  attack: number;
   private nextShotAt = 0;
   /** Für Salven (`burst3`): verbleibende Schüsse und nächster Zeitpunkt. */
   private burstLeft = 0;
@@ -23,7 +25,15 @@ export class Companion extends Phaser.Physics.Arcade.Sprite {
   /** Zeitpunkt, bis zu dem das Monster unverwundbar ist. */
   private invulnUntil = 0;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, species: MonsterSpecies, hp: number, maxHp: number) {
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    species: MonsterSpecies,
+    hp: number,
+    maxHp: number,
+    attack: number,
+  ) {
     super(scene, x, y, 'orb');
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -31,6 +41,7 @@ export class Companion extends Phaser.Physics.Arcade.Sprite {
     this.species = species;
     this.hp = hp;
     this.maxHp = maxHp;
+    this.attack = attack;
 
     this.setTint(TYPE_COLORS[species.type]);
     this.setDisplaySize(COMPANION.radius * 2.2, COMPANION.radius * 2.2);
@@ -50,10 +61,11 @@ export class Companion extends Phaser.Physics.Arcade.Sprite {
   }
 
   /** Art wechseln, ohne das Objekt neu zu erzeugen. */
-  swapTo(species: MonsterSpecies, hp: number, maxHp: number): void {
+  swapTo(species: MonsterSpecies, hp: number, maxHp: number, attack: number): void {
     this.species = species;
     this.hp = hp;
     this.maxHp = maxHp;
+    this.attack = attack;
     this.setTint(TYPE_COLORS[species.type]);
     this.burstLeft = 0;
     this.nextShotAt = this.scene.time.now + 200;

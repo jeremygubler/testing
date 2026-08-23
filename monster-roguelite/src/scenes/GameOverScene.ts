@@ -12,7 +12,7 @@ export interface GameOverData {
   floor: number;
   earned: number;
   relics: { relic: Relic; stacks: number }[];
-  team: string[];
+  team: { speciesId: string; level: number }[];
 }
 
 /**
@@ -54,13 +54,15 @@ export class GameOverScene extends Phaser.Scene {
       ['Räume geräumt', String(data.stats.roomsCleared)],
       ['Gegner besiegt', String(data.stats.kills)],
       ['Bosse besiegt', String(data.stats.bossesDefeated)],
+      ['Elite-Gegner besiegt', String(data.stats.elitesDefeated)],
       ['Monster gefangen', String(data.stats.catches)],
       ['Relikte eingesammelt', String(data.stats.relicsFound)],
+      ['Im Laden gekauft', String(data.stats.purchases)],
       ['Schaden verursacht', String(Math.round(data.stats.damageDealt))],
       ['Dauer', `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`],
     ];
     rows.forEach(([label, value], i) => {
-      const y = 168 + i * 24;
+      const y = 166 + i * 22;
       this.add.text(90, y, label, { fontFamily: FONT, fontSize: '13px', color: COLORS.textDim });
       this.add
         .text(430, y, value, { fontFamily: FONT, fontSize: '13px', color: COLORS.text })
@@ -95,11 +97,11 @@ export class GameOverScene extends Phaser.Scene {
 
     // --- Team --------------------------------------------------------------
     heading(this, 90, 386, 'TEAM AM ENDE', VIEW_W - 180);
-    data.team.forEach((id, i) => {
-      const species = getSpecies(id);
+    data.team.forEach((member, i) => {
+      const species = getSpecies(member.speciesId);
       const x = 96 + i * 190;
       this.add.image(x + 10, 434, 'orb').setTint(TYPE_COLORS[species.type]).setDisplaySize(22, 22);
-      this.add.text(x + 28, 424, species.name, {
+      this.add.text(x + 28, 424, `${species.name}  Lv ${member.level}`, {
         fontFamily: FONT,
         fontSize: '14px',
         color: COLORS.text,

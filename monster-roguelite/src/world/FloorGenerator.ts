@@ -1,6 +1,7 @@
-import { FLOOR } from '../config/GameConfig';
+import { ELITE, FLOOR } from '../config/GameConfig';
 import type { Rng } from '../core/Rng';
 import { BOSS_SPECIES, spawnableOn, type MonsterSpecies } from '../data/monsters';
+import { getRelic, RARITY_WEIGHTS, type RelicRarity } from '../data/relics';
 import {
   DIRECTIONS,
   DIR_DELTA,
@@ -12,13 +13,76 @@ import {
   type RoomTiles,
 } from './RoomLayout';
 
-export type RoomKind = 'start' | 'kampf' | 'schatz' | 'boss';
+export type RoomKind = 'start' | 'kampf' | 'schatz' | 'boss' | 'laden';
+
+/** Ein Angebot im Laden-Raum. */
+export interface ShopOffer {
+  kind: 'relikt' | 'heilung';
+  /** Bei 'relikt': die Relikt-Id. */
+  relicId?: string;
+  name: string;
+  price: number;
+  color: number;
+  sold: boolean;
+}
+
+/** Grundpreise je Seltenheit, vor der Etagen-Skalierung. */
+const RELIC_BASE_PRICE: Record<RelicRarity, number> = {
+  gewoehnlich: 32,
+  selten: 58,
+  legendaer: 92,
+};
+
+const HEAL_BASE_PRICE = 30;
+
+/** Preise steigen mit der Etage, sonst ist der Laden ab Etage 3 geschenkt. */
+function priceScale(floor: number): number {
+  return 1 + (floor - 1) * 0.18;
+}
+
+/**
+ * Baut das Angebot eines Laden-Raums: zwei Relikte plus eine Heilung.
+ *
+ * Der Laden verkauft gegen dieselbe Währung, die am Ende in den Meta-Fortschritt
+ * fliesst. Das ist die eigentliche Entscheidung: jetzt Stärke kaufen und den
+ * Run weiter treiben, oder sparen und im Basislager dauerhaft freischalten.
+ */
+function buildShopOffers(rng: Rng, floor: number, pool: readonly string[]): ShopOffer[] {
+  const offers: ShopOffer[] = [];
+  const remaining = [...pool];
+
+  for (let i = 0; i < 2 && remaining.length > 0; i++) {
+    const relics = remaining.map(getRelic);
+    const relic = rng.pickWeighted(relics, (r) => RARITY_WEIGHTS[r.rarity]);
+    remaining.splice(remaining.indexOf(relic.id), 1);
+    offers.push({
+      kind: 'relikt',
+      relicId: relic.id,
+      name: relic.name,
+      price: Math.round(RELIC_BASE_PRICE[relic.rarity] * priceScale(floor)),
+      color: relic.color,
+      sold: false,
+    });
+  }
+
+  offers.push({
+    kind: 'heilung',
+    name: 'Heiltrank',
+    price: Math.round(HEAL_BASE_PRICE * priceScale(floor)),
+    color: 0x4ade80,
+    sold: false,
+  });
+
+  return offers;
+}
 
 export interface EnemySpawn {
   speciesId: string;
   col: number;
   row: number;
   isBoss: boolean;
+  /** Verstärkte Variante — mehr HP, mehr Schaden, mehr Beute. */
+  isElite?: boolean;
 }
 
 export interface RoomNode {
@@ -32,6 +96,8 @@ export interface RoomNode {
   enemies: EnemySpawn[];
   /** Truhe im Raum? (Schatzräume immer, Kampfräume mit Chance.) */
   chest: { col: number; row: number } | null;
+  /** Angebote, falls es ein Laden-Raum ist. */
+  shop: ShopOffer[];
   /** Wird zur Laufzeit gesetzt, sobald der Raum leergekämpft ist. */
   cleared: boolean;
   /** Wurde die Truhe schon geöffnet? */
@@ -58,7 +124,7 @@ const key = (x: number, y: number) => `${x},${y}`;
  * Weg dorthin nie trivial kurz ist. Ein bis zwei Sackgassen werden zu
  * Schatzräumen — dort gibt es garantiert ein Relikt.
  */
-export function generateFloor(rng: Rng, floor: number): FloorPlan {
+export function generateFloor(rng: Rng, floor: number, relicPool: readonly string[] = []): FloorPlan {
   const roomCount = Math.min(
     FLOOR.maxRooms,
     FLOOR.baseRooms + (floor - 1) * FLOOR.roomGrowth,
@@ -133,10 +199,34 @@ export function generateFloor(rng: Rng, floor: number): FloorPlan {
     if (candidates.length > 0) treasures.add(rng.pick(candidates));
   }
 
+  // --- 4b) Laden-Raum ------------------------------------------------------
+  // Bevorzugt eine freie Sackgasse, und darunter die vom Start am weitesten
+  // entfernte: Wer den Laden auf den ersten Metern passiert, hat noch nichts
+  // verdient und läuft an einem Angebot vorbei, das er sich nicht leisten kann.
+  let shopIndex = -1;
+  if (relicPool.length > 0 && order.length > 3) {
+    const freeDeadEnds = deadEnds.filter((i) => !treasures.has(i));
+    const candidates =
+      freeDeadEnds.length > 0
+        ? freeDeadEnds
+        : order.map((_, i) => i).filter((i) => i !== 0 && i !== bossIndex && !treasures.has(i));
+    if (candidates.length > 0) {
+      shopIndex = candidates.reduce((best, i) => (dist[i]! > dist[best]! ? i : best), candidates[0]!);
+    }
+  }
+
   // --- 5) Räume ausbauen ---------------------------------------------------
   const rooms: RoomNode[] = order.map((pos, i) => {
     const kind: RoomKind =
-      i === 0 ? 'start' : i === bossIndex ? 'boss' : treasures.has(i) ? 'schatz' : 'kampf';
+      i === 0
+        ? 'start'
+        : i === bossIndex
+          ? 'boss'
+          : treasures.has(i)
+            ? 'schatz'
+            : i === shopIndex
+              ? 'laden'
+              : 'kampf';
     const exits = Object.keys(neighborLists[i]!) as Direction[];
     const tiles = buildRoomTiles(rng, exits, kind === 'kampf');
 
@@ -146,16 +236,27 @@ export function generateFloor(rng: Rng, floor: number): FloorPlan {
         FLOOR.minEnemies,
         Math.min(FLOOR.maxEnemies, FLOOR.minEnemies + Math.floor(floor / 2) + 1),
       );
+      const eliteChance =
+        floor < ELITE.minFloor
+          ? 0
+          : Math.min(
+              ELITE.maxChance,
+              ELITE.baseChance + (floor - ELITE.minFloor) * ELITE.chanceGrowth,
+            );
+      let elitesPlaced = 0;
       for (let e = 0; e < count; e++) {
         const spot = findFreeTile(rng, tiles.grid, [
           { col: ROOM_CENTER.col, row: ROOM_CENTER.row, minDist: 4 },
           ...enemies.map((x) => ({ col: x.col, row: x.row, minDist: 2 })),
         ]);
+        const isElite = elitesPlaced < ELITE.maxPerRoom && rng.chance(eliteChance);
+        if (isElite) elitesPlaced++;
         enemies.push({
           speciesId: pickWildSpecies(rng, floor).id,
           col: spot.col,
           row: spot.row,
           isBoss: false,
+          isElite,
         });
       }
     } else if (kind === 'boss') {
@@ -196,7 +297,8 @@ export function generateFloor(rng: Rng, floor: number): FloorPlan {
       tiles,
       enemies,
       chest,
-      cleared: kind === 'start' || kind === 'schatz',
+      shop: kind === 'laden' ? buildShopOffers(rng, floor, relicPool) : [],
+      cleared: kind === 'start' || kind === 'schatz' || kind === 'laden',
       chestOpened: false,
       visited: i === 0,
     };

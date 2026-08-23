@@ -81,10 +81,15 @@ const snapshot = () =>
         ? { x: Math.round(scene.companion.x), y: Math.round(scene.companion.y), hp: Math.round(scene.companion.hp), maxHp: scene.companion.maxHp, id: scene.companion.species.id }
         : null,
       chest: scene.chest ? { x: Math.round(scene.chest.x), y: Math.round(scene.chest.y), opened: scene.chest.opened } : null,
+      stands: (scene.stands ?? []).map((st) => ({
+        x: Math.round(st.x), y: Math.round(st.y),
+        price: st.offer.price, sold: st.offer.sold, name: st.offer.name,
+      })),
+      elites: enemies.filter((e) => e.isElite).length,
       portal: scene.portal ? { x: Math.round(scene.portal.x), y: Math.round(scene.portal.y) } : null,
       currency: run.currency,
       relics: [...run.relics.entries()],
-      team: run.team.map((m) => `${m.speciesId}:${Math.round(m.hp)}`),
+      team: run.team.map((m) => `${m.speciesId} Lv${m.level}:${Math.round(m.hp)}`),
       stats: run.stats,
       roomsTotal: plan.rooms.length,
       roomsVisited: plan.rooms.filter((r) => r.visited).length,
@@ -122,6 +127,56 @@ const log = [];
 const say = (m) => { log.push(m); console.log(m); };
 
 say(`Szenen im Hub: ${(await page.evaluate(() => window.__game.scene.getScenes(true).map((s) => s.scene.key))).join(', ')}`);
+
+// --- Generator-Check: viele Etagen erzeugen und die Struktur nachmessen ----
+// Unabhängig davon, wie weit der Bot im Spiel kommt.
+const gen = await page.evaluate(() => {
+  const { generateFloor, Rng, DEFAULT_RELIC_IDS } = window.__debug;
+  const out = { floors: 0, rooms: 0, kinds: {}, elites: 0, enemies: 0, unreachable: 0, shopOffers: 0, perFloor: {}, shopDist: 0, shopCount: 0, bossDist: 0, maxDist: 0 };
+  for (let floor = 1; floor <= 8; floor++) {
+    for (let seed = 1; seed <= 40; seed++) {
+      const plan = generateFloor(new Rng(floor * 1000 + seed), floor, DEFAULT_RELIC_IDS);
+      out.floors++;
+      out.rooms += plan.rooms.length;
+      out.perFloor[floor] = out.perFloor[floor] ?? { elites: 0, enemies: 0 };
+      for (const r of plan.rooms) {
+        out.kinds[r.kind] = (out.kinds[r.kind] ?? 0) + 1;
+        out.enemies += r.enemies.length;
+        const el = r.enemies.filter((e) => e.isElite).length;
+        out.elites += el;
+        out.perFloor[floor].enemies += r.enemies.length;
+        out.perFloor[floor].elites += el;
+        out.shopOffers += r.shop.length;
+      }
+      // Erreichbarkeit + Distanzen: ist jeder Raum vom Start aus erreichbar,
+      // und wie weit liegen Laden und Boss vom Start entfernt?
+      const d = new Array(plan.rooms.length).fill(-1);
+      d[0] = 0;
+      const queue = [0];
+      while (queue.length) {
+        const cur = queue.shift();
+        for (const n of Object.values(plan.rooms[cur].neighbors)) {
+          if (d[n] === -1) { d[n] = d[cur] + 1; queue.push(n); }
+        }
+      }
+      if (d.some((x) => x === -1)) out.unreachable++;
+      const shopIdx = plan.rooms.findIndex((r) => r.kind === 'laden');
+      if (shopIdx >= 0) { out.shopDist += d[shopIdx]; out.shopCount++; }
+      out.bossDist += d[plan.bossIndex];
+      out.maxDist += Math.max(...d);
+    }
+  }
+  return out;
+});
+say(`Generator: ${gen.floors} Etagen, ${gen.rooms} Räume, Typen ${JSON.stringify(gen.kinds)}`);
+say(`Generator: ${gen.elites}/${gen.enemies} Gegner sind Elite (${(100 * gen.elites / gen.enemies).toFixed(1)} %), ${gen.shopOffers} Laden-Angebote`);
+say(`Generator: Elite-Quote je Etage ${Object.entries(gen.perFloor).map(([f, v]) => `E${f}:${(100 * v.elites / v.enemies).toFixed(0)}%`).join(' ')}`);
+say(`Generator: mittlere Start-Distanz — Laden ${(gen.shopDist / gen.shopCount).toFixed(1)}, Boss ${(gen.bossDist / gen.floors).toFixed(1)}, Etagen-Maximum ${(gen.maxDist / gen.floors).toFixed(1)}`);
+say(`Generator: nicht erreichbare Etagen: ${gen.unreachable}${gen.unreachable === 0 ? ' ✓' : ' ✗'}`);
+if ((gen.perFloor[1]?.elites ?? 0) > 0) errors.push('Elites auf Etage 1 — sollen erst ab Etage 2 auftauchen');
+if (gen.unreachable > 0 || gen.elites === 0 || !gen.kinds.laden || !gen.kinds.boss) {
+  errors.push('Generator-Check fehlgeschlagen: ' + JSON.stringify(gen));
+}
 await page.screenshot({ path: `${SHOT_DIR}/01-hub.png` });
 
 await clickGame(480, 534); // RUN STARTEN
@@ -138,9 +193,24 @@ let minTrainerHp = Infinity;
 let minCompanionHp = Infinity;
 let maxFloor = 1;
 let lastGood = null;
+let maxElitesSeen = 0;
+let sawShop = false;
+let maxLevel = 1;
 const MAX_STEPS = Number(process.env.SMOKE_STEPS ?? 420);
 const DEADLINE = Date.now() + Number(process.env.SMOKE_BUDGET_MS ?? 150000);
 const visitedRooms = new Set();
+
+// Optional direkt auf eine höhere Etage springen: Elites und Laden-Räume
+// tauchen auf Etage 1 kaum auf, sollen aber trotzdem getestet werden.
+const startFloor = Number(process.env.SMOKE_FLOOR ?? 1);
+if (startFloor > 1) {
+  await page.evaluate((target) => {
+    const scene = window.__game.scene.getScene('Game');
+    while (window.__game.registry.get('run').floor < target) scene.nextFloor();
+  }, startFloor);
+  await page.waitForTimeout(600);
+  say(`Direkt auf Etage ${startFloor} gesprungen (SMOKE_FLOOR)`);
+}
 
 let firing = true;
 await page.mouse.down();    // Dauerfeuer
@@ -150,19 +220,29 @@ while (step++ < MAX_STEPS && Date.now() < DEADLINE) {
   if (!next) break;
   s = next;
   lastGood = s;
-  if (s.runOver || !s.scenes.includes('Game')) { say('Run vorbei (Trainer gefallen).'); break; }
+  if (s.runOver || !s.scenes.includes('Game')) {
+    say(`Run vorbei (Trainer gefallen) — Etage ${lastGood?.floor}, Raum ${lastGood?.roomIndex} (${lastGood?.roomKind}), ${lastGood?.enemies.length ?? '?'} Gegner davon ${lastGood?.elites ?? 0} Elite`);
+    break;
+  }
   visitedRooms.add(`${s.floor}:${s.roomIndex}`);
 
-  if (s.floor >= 3) { say('Etage 3 erreicht ✓'); break; }
+  if (s.floor >= startFloor + 2) { say(`Etage ${s.floor} erreicht ✓`); break; }
 
   // Minima mitschreiben — belegt, dass Trainer UND Monster wirklich Schaden nehmen.
   minTrainerHp = Math.min(minTrainerHp, s.trainerHp);
   if (s.companion) minCompanionHp = Math.min(minCompanionHp, s.companion.hp);
   if (s.floor > maxFloor) { maxFloor = s.floor; say(`→ Etage ${s.floor}`); }
+  maxElitesSeen = Math.max(maxElitesSeen, s.elites ?? 0);
+  if (s.roomKind === 'laden') sawShop = true;
+  maxLevel = Math.max(maxLevel, ...(s.team ?? ['x Lv1:0']).map((t) => Number(/Lv(\d+)/.exec(t)?.[1] ?? 1)));
 
-  // 1a) Geschwächter Gegner in Sicht? → heranlaufen und fangen.
-  //     (Fangreichweite ist 150 px, die Kampfdistanz liegt darüber.)
-  const catchable = (s.team ?? []).length < 4 ? s.enemies.find((e) => !e.boss && e.ratio <= 0.34) : null;
+  // 1a) Fangen wie ein Mensch: erst den Raum entschärfen, dann den letzten
+  //     Gegner holen. Mitten im Gefecht das Feuer einzustellen ist Selbstmord
+  //     — dieses Verhalten hätte sonst als "zu schwer" fehlinterpretiert.
+  const catchable =
+    (s.team ?? []).length < 4 && s.enemies.length === 1
+      ? s.enemies.find((e) => !e.boss && e.ratio <= 0.34)
+      : null;
   if (catchable) {
     await aimAt(catchable.x, catchable.y);
     const d = Math.hypot(catchable.x - s.player.x, catchable.y - s.player.y);
@@ -201,11 +281,32 @@ while (step++ < MAX_STEPS && Date.now() < DEADLINE) {
     const gx = s.player.x + Math.cos(ang) * 80 * radial + Math.cos(ang + Math.PI / 2) * 70 * strafe;
     const gy = s.player.y + Math.sin(ang) * 80 * radial + Math.sin(ang + Math.PI / 2) * 70 * strafe;
     await steerTowards(gx, gy, s.player.x, s.player.y);
+    // Nebenbei fangen, falls das Ziel ohnehin geschwächt und nah genug ist.
+    if (!target.boss && target.ratio <= 0.3 && dist <= 140 && (s.team ?? []).length < 4) {
+      await page.keyboard.press('e');
+    }
     goal = null;
     continue;
   }
 
-  // 2) Portal vorhanden? → hin.
+  // 2a) Laden: bezahlbare Angebote mitnehmen.
+  const buyable = (s.stands ?? []).find((st) => !st.sold && st.price <= s.currency);
+  if (buyable) {
+    if (firing) { await page.mouse.up(); firing = false; }
+    // Gekauft wird per E, wenn man auf dem Podest steht (nicht durchs Laufen).
+    const d = Math.hypot(buyable.x - s.player.x, buyable.y - s.player.y);
+    if (d < 26) {
+      await releaseAll();
+      await page.keyboard.press('e');
+      await page.waitForTimeout(160);
+    } else {
+      await steerTowards(buyable.x, buyable.y - 4, s.player.x, s.player.y);
+    }
+    await page.waitForTimeout(70);
+    continue;
+  }
+
+  // 2b) Portal vorhanden? → hin.
   if (s.portal) { goal = s.portal; goalKind = 'portal'; }
   // 3) Truhe offen und unberührt? → hin.
   else if (s.chest && !s.chest.opened) { goal = s.chest; goalKind = 'truhe'; }
@@ -238,12 +339,18 @@ say('---');
 say(`Ergebnis:            ${final.runOver || !final.floor ? 'Trainer gefallen' : 'noch am Leben'}`);
 say(`Schritte:            ${step}`);
 say(`Räume besucht:       ${visitedRooms.size}`);
+say(`Abbruchgrund:        ${step >= MAX_STEPS ? 'Schrittlimit' : Date.now() >= DEADLINE ? 'Zeitbudget' : 'Run beendet'}`);
 say(`Etage erreicht:      ${final.floor ?? '—'}`);
 say(`Gegner besiegt:      ${final.stats?.kills ?? 0}`);
 say(`Monster gefangen:    ${final.stats?.catches ?? 0}`);
 say(`Räume geräumt:       ${final.stats?.roomsCleared ?? 0}`);
 say(`Bosse besiegt:       ${final.stats?.bossesDefeated ?? 0}`);
 say(`Relikte:             ${JSON.stringify(final.relics ?? [])}`);
+say(`Elites gleichzeitig: ${maxElitesSeen}`);
+say(`Elites besiegt:      ${final.stats?.elitesDefeated ?? 0}`);
+say(`Laden besucht:       ${sawShop ? 'ja' : 'nein'}`);
+say(`Im Laden gekauft:    ${final.stats?.purchases ?? 0}`);
+say(`Höchste Stufe:       ${maxLevel}`);
 say(`Team:                ${JSON.stringify(final.team ?? [])}`);
 say(`Ätherstaub:          ${final.currency ?? 0}`);
 say(`Trainer-HP:          ${final.trainerHp ?? '—'}/${final.trainerMaxHp ?? '—'}  (Minimum ${minTrainerHp === Infinity ? '—' : minTrainerHp})`);

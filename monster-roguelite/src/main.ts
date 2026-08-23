@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 import { COLORS, VIEW_H, VIEW_W } from './config/GameConfig';
+import { Rng } from './core/Rng';
+import { DEFAULT_RELIC_IDS } from './data/relics';
+import { generateFloor } from './world/FloorGenerator';
 import { BootScene } from './scenes/BootScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { GameScene } from './scenes/GameScene';
@@ -37,5 +40,10 @@ const game = new Phaser.Game(config);
 // Debug-Zugriff für automatisierte Browser-Tests (siehe tools/smoke.mjs).
 // Im Produktionsbuild von Vite wird der Zweig herausoptimiert.
 if (import.meta.env.DEV) {
-  (window as unknown as { __game: Phaser.Game }).__game = game;
+  const w = window as unknown as Record<string, unknown>;
+  w.__game = game;
+  // Der Etagen-Generator ist auch ohne laufendes Spiel prüfbar: der Bot lässt
+  // ihn über viele Seeds laufen und misst die Verteilung der Raumtypen und
+  // Elite-Gegner. Auf Spielglück zu warten wäre kein Nachweis.
+  w.__debug = { generateFloor, Rng, DEFAULT_RELIC_IDS };
 }

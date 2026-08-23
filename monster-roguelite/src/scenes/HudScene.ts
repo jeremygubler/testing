@@ -57,7 +57,7 @@ export class HudScene extends Phaser.Scene {
       .text(
         VIEW_W - 14,
         VIEW_H - 26,
-        'WASD bewegen · Maus zielen/schiessen · E fangen · Q/1-4 Monster',
+        'WASD bewegen · Maus zielen/schiessen · E fangen · Q/1-4 Monster · M Ton',
         { ...dim, fontSize: '11px' },
       )
       .setOrigin(1, 0)
@@ -99,7 +99,7 @@ export class HudScene extends Phaser.Scene {
     const active = this.run.active;
     if (species && active) {
       this.txtMonster.setText(
-        `${species.name}  [${TYPE_LABELS[species.type]}]   ${Math.ceil(active.hp)}/${this.run.monsterMaxHp(species)}`,
+        `${species.name}  Lv ${active.level}  [${TYPE_LABELS[species.type]}]   ${Math.ceil(active.hp)}/${this.run.maxHpOf(active)}`,
       );
       this.txtMonster.setColor('#' + TYPE_COLORS[species.type].toString(16).padStart(6, '0'));
     } else {
@@ -115,7 +115,7 @@ export class HudScene extends Phaser.Scene {
               .map((m, i) => {
                 const s = getSpecies(m.speciesId);
                 const marker = i === this.run.activeIndex ? '▶' : ' ';
-                return `${marker}${i + 1} ${s.name}${m.hp <= 0 ? ' (K.O.)' : ''}`;
+                return `${marker}${i + 1} ${s.name} Lv${m.level}${m.hp <= 0 ? ' (K.O.)' : ''}`;
               })
               .join('   ')),
     );
@@ -176,7 +176,7 @@ export class HudScene extends Phaser.Scene {
     const species = this.run.activeSpecies;
     const active = this.run.active;
     if (species && active) {
-      const mRatio = Phaser.Math.Clamp(active.hp / this.run.monsterMaxHp(species), 0, 1);
+      const mRatio = Phaser.Math.Clamp(active.hp / this.run.maxHpOf(active), 0, 1);
       g.fillStyle(0x1e2437, 1);
       g.fillRect(x, y + 40, w, 8);
       g.fillStyle(TYPE_COLORS[species.type], 1);
@@ -203,6 +203,7 @@ export class HudScene extends Phaser.Scene {
       if (room.visited) color = room.cleared ? 0x475569 : 0x7f1d1d;
       if (room.kind === 'boss' && room.visited) color = 0xb91c1c;
       if (room.kind === 'schatz' && room.visited) color = 0xb45309;
+      if (room.kind === 'laden' && room.visited) color = 0xca8a04;
       if (isCurrent) color = 0x8ad7ff;
 
       g.fillStyle(color, room.visited || isCurrent ? 1 : 0.35);

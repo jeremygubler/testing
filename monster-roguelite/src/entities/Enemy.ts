@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ELITE } from '../config/GameConfig';
 import type { MonsterSpecies } from '../data/monsters';
 import { TYPE_COLORS } from '../data/types';
 
@@ -30,6 +31,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   hp: number;
   maxHp: number;
   readonly isBoss: boolean;
+  readonly isElite: boolean;
+  /** Goldener Ring, der Elites auf einen Blick kenntlich macht. */
+  private auraRing: Phaser.GameObjects.Image | null = null;
   /** Etagen-Skalierung für den Schaden. */
   damageScale: number;
   /** Aufblinken, wenn fangbar. */
@@ -51,6 +55,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     maxHp: number,
     damageScale: number,
     isBoss: boolean,
+    isElite = false,
   ) {
     super(scene, x, y, isBoss ? 'orb_big' : 'orb');
     scene.add.existing(this);
@@ -60,9 +65,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.maxHp = maxHp;
     this.hp = maxHp;
     this.isBoss = isBoss;
+    this.isElite = isElite;
     this.damageScale = damageScale;
 
-    const size = isBoss ? 58 : 26;
+    const size = isBoss ? 58 : isElite ? 38 : 26;
     this.setTint(TYPE_COLORS[species.type]);
     this.setDisplaySize(size, size);
     this.setDepth(15);
@@ -70,6 +76,21 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setCircle(isBoss ? 24 : 14, 0, 0);
     body.setAllowGravity(false);
+
+    if (isElite) {
+      this.auraRing = scene.add
+        .image(x, y, 'ring')
+        .setTint(0xfbbf24)
+        .setDisplaySize(size + 14, size + 14)
+        .setDepth(14);
+      scene.tweens.add({
+        targets: this.auraRing,
+        alpha: { from: 0.45, to: 1 },
+        duration: 620,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
     // Bosse lassen sich kaum wegschieben.
     body.setDrag(isBoss ? 900 : 300);
 
@@ -78,7 +99,18 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   get radius(): number {
-    return this.isBoss ? 29 : 13;
+    return this.isBoss ? 29 : this.isElite ? 19 : 13;
+  }
+
+  /** Aura an die Position nachführen (aus GameScene pro Frame gerufen). */
+  syncAura(): void {
+    this.auraRing?.setPosition(this.x, this.y);
+  }
+
+  override destroy(fromScene?: boolean): void {
+    this.auraRing?.destroy();
+    this.auraRing = null;
+    super.destroy(fromScene);
   }
 
   /**
@@ -91,7 +123,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const want = PREFERRED_RANGE[this.species.pattern] ?? 200;
 
     // --- Bewegung ---------------------------------------------------------
-    const speed = this.species.moveSpeed;
+    const speed = this.species.moveSpeed * (this.isElite ? ELITE.speedMultiplier : 1);
     if (time > this.nextStrafeFlip) {
       this.strafeSign = Math.random() < 0.5 ? -1 : 1;
       this.nextStrafeFlip = time + 900 + Math.random() * 1400;

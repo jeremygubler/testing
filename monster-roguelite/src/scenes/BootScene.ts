@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
+import { sfx } from '../audio/Sfx';
 import { TILE } from '../config/GameConfig';
+import { loadMeta } from '../meta/MetaSave';
 
 /**
  * Erzeugt alle Platzhalter-Texturen prozedural — das Projekt kommt bewusst
@@ -24,6 +26,11 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Phasers WebAudio-Context übernehmen, statt einen zweiten aufzumachen.
+    const manager = this.sound as Partial<Phaser.Sound.WebAudioSoundManager>;
+    sfx.init(manager.context ?? null);
+    sfx.setMuted(loadMeta().muted);
+
     this.scene.start('Hub');
   }
 

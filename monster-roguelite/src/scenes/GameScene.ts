@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
+import { sfx } from '../audio/Sfx';
 import {
   CATCH,
   COLORS,
   COMPANION,
+  ELITE,
   REWARDS,
   ROOM_COLS,
   ROOM_RECOVERY,
@@ -16,12 +18,14 @@ import { bus } from '../core/EventBus';
 import { RunState } from '../core/RunState';
 import { pctMul } from '../core/StatBlock';
 import { getSpecies } from '../data/monsters';
+import { getRelic } from '../data/relics';
 import { TYPE_COLORS, effectivenessLabel } from '../data/types';
 import { Chest } from '../entities/Chest';
 import { Companion } from '../entities/Companion';
 import { Enemy } from '../entities/Enemy';
 import { Projectile, type ProjectileOptions } from '../entities/Projectile';
 import { Player } from '../entities/Player';
+import { ShopStand } from '../entities/ShopStand';
 import { loadMeta, recordDex, saveMeta, type MetaSave } from '../meta/MetaSave';
 import { CATCH_FAIL_TEXT, evaluateCatch, rollCatch } from '../systems/CatchSystem';
 import { computeDamage, patternDamage, spreadAngles } from '../systems/CombatSystem';
@@ -62,6 +66,7 @@ export class GameScene extends Phaser.Scene {
   private walls!: Phaser.Physics.Arcade.StaticGroup;
   private chest: Chest | null = null;
   private portal: Phaser.GameObjects.Image | null = null;
+  private stands: ShopStand[] = [];
 
   private roomGfx!: Phaser.GameObjects.Graphics;
   private barGfx!: Phaser.GameObjects.Graphics;
@@ -73,6 +78,7 @@ export class GameScene extends Phaser.Scene {
     right: Phaser.Input.Keyboard.Key;
     catch: Phaser.Input.Keyboard.Key;
     cycle: Phaser.Input.Keyboard.Key;
+    mute: Phaser.Input.Keyboard.Key;
     slots: Phaser.Input.Keyboard.Key[];
   };
 
@@ -134,7 +140,7 @@ export class GameScene extends Phaser.Scene {
     this.setupInput();
     this.setupColliders();
 
-    this.plan = generateFloor(this.run.rng, this.run.floor);
+    this.plan = generateFloor(this.run.rng, this.run.floor, this.run.relicPool);
     this.registry.set('plan', this.plan);
     this.enterRoom(this.plan.startIndex, null);
 
@@ -155,6 +161,7 @@ export class GameScene extends Phaser.Scene {
       right: kb.addKey(Phaser.Input.Keyboard.KeyCodes.D),
       catch: kb.addKey(Phaser.Input.Keyboard.KeyCodes.E),
       cycle: kb.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
+      mute: kb.addKey(Phaser.Input.Keyboard.KeyCodes.M),
       slots: [
         kb.addKey(Phaser.Input.Keyboard.KeyCodes.ONE),
         kb.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
@@ -166,6 +173,12 @@ export class GameScene extends Phaser.Scene {
     this.keys.catch.on('down', () => this.tryCatch());
     this.keys.cycle.on('down', () => this.switchMonster(this.run.activeIndex + 1));
     this.keys.slots.forEach((key, i) => key.on('down', () => this.switchMonster(i)));
+    this.keys.mute.on('down', () => {
+      sfx.setMuted(!sfx.muted);
+      this.meta.muted = sfx.muted;
+      saveMeta(this.meta);
+      bus.emit('log', { text: sfx.muted ? 'Ton aus' : 'Ton an', color: '#94a3b8' });
+    });
   }
 
   private setupColliders(): void {
@@ -234,21 +247,25 @@ export class GameScene extends Phaser.Scene {
       for (const spawn of room.enemies) {
         const species = getSpecies(spawn.speciesId);
         const pos = tileToWorld(spawn.col, spawn.row);
-        const maxHp = Math.round(species.maxHp * this.run.enemyHpScale * (spawn.isBoss ? 1 : 1));
+        const maxHp = Math.round(
+          species.maxHp * this.run.enemyHpScale * (spawn.isElite ? ELITE.hpMultiplier : 1),
+        );
         const enemy = new Enemy(
           this,
           pos.x,
           pos.y,
           species,
           maxHp,
-          this.run.enemyDamageScale,
+          this.run.enemyDamageScale * (spawn.isElite ? ELITE.damageMultiplier : 1),
           spawn.isBoss,
+          spawn.isElite ?? false,
         );
         this.enemies.add(enemy);
       }
       if (room.kind === 'boss') {
         bus.emit('log', { text: `⚠ Boss: ${getSpecies(room.enemies[0]!.speciesId).name}`, color: '#f87171' });
         bus.emit('shake', { intensity: 0.006, duration: 500 });
+        sfx.play('boss');
       }
     }
 
@@ -257,6 +274,8 @@ export class GameScene extends Phaser.Scene {
       this.chest = new Chest(this, pos.x, pos.y);
       this.physics.add.overlap(this.player, this.chest, () => this.openChest());
     }
+
+    if (room.kind === 'laden') this.buildShop(room);
 
     // Boss besiegt → Portal zur nächsten Etage.
     if (room.kind === 'boss' && room.cleared) this.spawnPortal();
@@ -270,6 +289,70 @@ export class GameScene extends Phaser.Scene {
     bus.emit('hud:dirty', undefined);
   }
 
+  /** Baut die Verkaufspodeste eines Laden-Raums auf. */
+  private buildShop(room: RoomNode): void {
+    const spacing = 5;
+    const startCol = ROOM_CENTER.col - Math.floor((room.shop.length - 1) / 2) * spacing;
+
+    room.shop.forEach((offer, i) => {
+      const pos = tileToWorld(startCol + i * spacing, ROOM_CENTER.row + 1);
+      const stand = new ShopStand(this, pos.x, pos.y, offer);
+      if (offer.sold) stand.markSold();
+      this.stands.push(stand);
+    });
+
+    bus.emit('log', { text: 'Laden — stell dich auf ein Podest und drücke E.', color: '#fbbf24' });
+  }
+
+  /** Podest, auf dem der Trainer gerade steht — per Abstand, nicht per Overlap. */
+  private standInReach(): ShopStand | null {
+    for (const stand of this.stands) {
+      if (stand.offer.sold) continue;
+      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, stand.x, stand.y) <= 34) {
+        return stand;
+      }
+    }
+    return null;
+  }
+
+  /** Kaufversuch an einem Podest. */
+  private tryBuy(stand: ShopStand): void {
+    const offer = stand.offer;
+    if (offer.sold) return;
+
+    if (this.run.currency < offer.price) {
+      sfx.play('abgelehnt');
+      bus.emit('log', {
+        text: `Zu teuer: ${offer.name} kostet ✦ ${offer.price} (du hast ✦ ${this.run.currency}).`,
+        color: '#94a3b8',
+      });
+      return;
+    }
+
+    sfx.play('kauf');
+    this.run.currency -= offer.price;
+    stand.markSold();
+    this.run.stats.purchases++;
+
+    if (offer.kind === 'heilung') {
+      this.player.maxHp = this.run.trainerMaxHp;
+      this.player.heal(this.player.maxHp * 0.45);
+      this.run.trainerHp = this.player.hp;
+      const member = this.run.active;
+      if (this.companion && member) {
+        this.companion.maxHp = this.run.maxHpOf(member);
+        this.companion.heal(this.companion.maxHp * 0.45);
+        member.hp = this.companion.hp;
+      }
+      this.burst(this.player.x, this.player.y, 0x4ade80, 10);
+      bus.emit('log', { text: 'Aufgetankt.', color: '#4ade80' });
+    } else if (offer.relicId) {
+      this.grantRelic(offer.relicId);
+    }
+
+    bus.emit('hud:dirty', undefined);
+  }
+
   private clearRoomObjects(): void {
     this.enemies.clear(true, true);
     this.projectiles.getChildren().forEach((p) => (p as Projectile).kill());
@@ -277,6 +360,8 @@ export class GameScene extends Phaser.Scene {
     this.chest = null;
     this.portal?.destroy();
     this.portal = null;
+    this.stands.forEach((st) => st.destroy());
+    this.stands = [];
   }
 
   /** Zeichnet Boden, Wände, Hindernisse und Türen des Raums. */
@@ -387,8 +472,9 @@ export class GameScene extends Phaser.Scene {
     this.player.heal(this.player.maxHp * ROOM_RECOVERY.trainer);
     this.run.trainerHp = this.player.hp;
 
-    if (this.companion) {
-      this.companion.maxHp = this.run.monsterMaxHp(this.companion.species);
+    const member = this.run.active;
+    if (this.companion && member) {
+      this.companion.maxHp = this.run.maxHpOf(member);
       this.companion.heal(this.companion.maxHp * ROOM_RECOVERY.monster);
       const active = this.run.active;
       if (active) active.hp = this.companion.hp;
@@ -423,13 +509,13 @@ export class GameScene extends Phaser.Scene {
     this.player.maxHp = this.run.trainerMaxHp;
     this.player.heal(Math.round(this.player.maxHp * 0.3));
     for (const m of this.run.team) {
-      const max = this.run.monsterMaxHp(getSpecies(m.speciesId));
+      const max = this.run.maxHpOf(m);
       m.hp = Math.min(max, m.hp + Math.round(max * 0.4));
       // Ohnmächtige Monster kommen mit einem Rest an HP zurück.
       if (m.hp <= 0) m.hp = Math.round(max * 0.25);
     }
 
-    this.plan = generateFloor(this.run.rng, this.run.floor);
+    this.plan = generateFloor(this.run.rng, this.run.floor, this.run.relicPool);
     this.registry.set('plan', this.plan);
     bus.emit('floor:cleared', { floor: this.run.floor - 1 });
     bus.emit('log', { text: `Etage ${this.run.floor} (+${gained} Ätherstaub)`, color: '#fbbf24' });
@@ -601,6 +687,7 @@ export class GameScene extends Phaser.Scene {
 
   private damageEnemy(enemy: Enemy, amount: number, crit: boolean, typeMult: number): void {
     enemy.takeDamage(amount);
+    sfx.play('treffer');
     this.run.stats.damageDealt += amount;
 
     this.floater(
@@ -634,13 +721,41 @@ export class GameScene extends Phaser.Scene {
   }
 
   private killEnemy(enemy: Enemy): void {
-    const gained = this.run.award(REWARDS.perKill * (enemy.isBoss ? 4 : 1));
+    const gained = this.run.award(
+      REWARDS.perKill * (enemy.isBoss ? 4 : enemy.isElite ? ELITE.rewardMultiplier : 1),
+    );
     this.run.stats.kills++;
+    if (enemy.isElite) this.run.stats.elitesDefeated++;
     recordDex(this.meta, enemy.species.id, 'defeated', this.run.floor);
 
+    // Erfahrung: stärkere Gegner geben mehr, Bosse ein Vielfaches.
+    const xp =
+      (6 + enemy.species.maxHp * 0.08 + enemy.species.attack * 0.4) * (enemy.isBoss ? 5 : 1);
+    for (const member of this.run.grantXp(xp)) {
+      const species = getSpecies(member.speciesId);
+      sfx.play('aufstieg');
+      bus.emit('log', { text: `${species.name} erreicht Stufe ${member.level}!`, color: '#4ade80' });
+      if (member === this.run.active && this.companion) {
+        this.companion.maxHp = this.run.maxHpOf(member);
+        this.companion.hp = member.hp;
+        this.companion.attack = this.run.attackOf(member);
+        this.burst(this.companion.x, this.companion.y, 0x4ade80, 8);
+      }
+    }
+
+    sfx.play('kill');
     this.floater(enemy.x, enemy.y - 26, `+${gained}`, COLORS.gold, false);
     this.burst(enemy.x, enemy.y, TYPE_COLORS[enemy.species.type], enemy.isBoss ? 16 : 7);
     if (enemy.isBoss) bus.emit('shake', { intensity: 0.012, duration: 400 });
+
+    if (enemy.isElite) {
+      this.burst(enemy.x, enemy.y, 0xfbbf24, 12);
+      bus.emit('shake', { intensity: 0.006, duration: 220 });
+      if (this.run.rng.chance(ELITE.relicChance)) {
+        bus.emit('log', { text: 'Elite lässt ein Relikt fallen!', color: '#fbbf24' });
+        this.grantRelic();
+      }
+    }
 
     enemy.destroy();
     bus.emit('hud:dirty', undefined);
@@ -657,6 +772,7 @@ export class GameScene extends Phaser.Scene {
     proj.kill();
     if (!applied) return;
 
+    sfx.play('schaden');
     this.floater(player.x, player.y - 22, `-${damage}`, 0xef4444, false);
     this.cameras.main.shake(150, 0.006);
     bus.emit('hud:dirty', undefined);
@@ -679,6 +795,7 @@ export class GameScene extends Phaser.Scene {
 
     const damage = Math.max(1, Math.round(result.amount * TRAINER.damageTaken));
     if (this.player.takeDamage(damage, this.time.now)) {
+      sfx.play('schaden');
       this.floater(this.player.x, this.player.y - 22, `-${damage}`, 0xef4444, false);
       this.cameras.main.shake(160, 0.007);
       bus.emit('hud:dirty', undefined);
@@ -706,7 +823,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     const species = getSpecies(active.speciesId);
-    const maxHp = this.run.monsterMaxHp(species);
+    const maxHp = this.run.maxHpOf(active);
+    const attack = this.run.attackOf(active);
 
     if (!this.companion) {
       this.companion = new Companion(
@@ -716,6 +834,7 @@ export class GameScene extends Phaser.Scene {
         species,
         active.hp,
         maxHp,
+        attack,
       );
       this.physics.add.collider(this.companion, this.walls);
       // Achtung: bei overlap(group, sprite) ruft Phaser die Callback-Argumente
@@ -728,10 +847,11 @@ export class GameScene extends Phaser.Scene {
         /* Begleiter blockt Gegner nur physisch, kein Kontaktschaden. */
       });
     } else if (this.companion.species.id !== species.id) {
-      this.companion.swapTo(species, active.hp, maxHp);
+      this.companion.swapTo(species, active.hp, maxHp, attack);
     } else {
       this.companion.hp = active.hp;
       this.companion.maxHp = maxHp;
+      this.companion.attack = attack;
     }
   }
 
@@ -798,7 +918,14 @@ export class GameScene extends Phaser.Scene {
   // =======================================================================
 
   private tryCatch(): void {
-    if (this.runOver || this.time.now < this.nextCatchAt) return;
+    if (this.runOver) return;
+    // Im Laden hat E Vorrang als Kauftaste — dort gibt es keine Gegner.
+    const stand = this.standInReach();
+    if (stand) {
+      this.tryBuy(stand);
+      return;
+    }
+    if (this.time.now < this.nextCatchAt) return;
     this.nextCatchAt = this.time.now + CATCH.cooldown;
 
     // Schwächsten fangbaren Gegner in Reichweite wählen.
@@ -839,6 +966,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Ballwurf-Animation; die Auswertung passiert beim Aufprall. */
   private throwBall(target: Enemy, chance: number): void {
+    sfx.play('wurf');
     const ball = this.add.image(this.player.x, this.player.y, 'ball').setDepth(30).setTint(0xef4444);
     const tx = target.x;
     const ty = target.y;
@@ -862,6 +990,7 @@ export class GameScene extends Phaser.Scene {
     const success = rollCatch(this.run.rng, { possible: true, chance });
 
     if (!success) {
+      sfx.play('fang_fehl');
       this.floater(target.x, target.y - 30, 'ausgebrochen!', 0xf87171, false);
       bus.emit('log', {
         text: `${target.species.name} bricht aus (${Math.round(chance * 100)} %).`,
@@ -870,10 +999,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    sfx.play('fang_ok');
     this.burst(target.x, target.y, 0xfde047, 12);
     this.floater(target.x, target.y - 30, 'gefangen!', 0xfde047, true);
 
-    this.run.addToTeam(target.species.id);
+    // Auf Höhe der Etage gefangen — sonst ist ein später Fang wertlos.
+    this.run.addToTeam(target.species.id, this.run.floor);
     this.run.stats.catches++;
     const gained = this.run.award(REWARDS.perCatch);
     recordDex(this.meta, target.species.id, 'caught', this.run.floor);
@@ -909,19 +1040,20 @@ export class GameScene extends Phaser.Scene {
     this.grantRelic();
   }
 
-  private grantRelic(): void {
-    const relic = rollRelic(this.run.rng, this.run.relicPool);
+  /** Vergibt ein Relikt — zufällig aus dem Pool oder ein bestimmtes (Laden). */
+  private grantRelic(relicId?: string): void {
+    const relic = relicId ? getRelic(relicId) : rollRelic(this.run.rng, this.run.relicPool);
     const stacks = this.run.addRelic(relic.id);
 
     // Relikte, die maximale HP ändern, wirken sofort.
     this.player.maxHp = this.run.trainerMaxHp;
     if (relic.effect.maxHp) {
       this.player.heal(Math.max(0, relic.effect.maxHp));
-      if (this.companion) {
-        this.companion.maxHp = this.run.monsterMaxHp(this.companion.species);
+      const active = this.run.active;
+      if (this.companion && active) {
+        this.companion.maxHp = this.run.maxHpOf(active);
         this.companion.heal(Math.max(0, relic.effect.maxHp));
-        const active = this.run.active;
-        if (active) active.hp = this.companion.hp;
+        active.hp = this.companion.hp;
       }
     }
 
@@ -938,6 +1070,7 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => icon.destroy(),
     });
 
+    sfx.play('relikt');
     bus.emit('relic:picked', { relic, stacks });
     bus.emit('log', {
       text: `${relic.name}${stacks > 1 ? ` ×${stacks}` : ''} — ${relic.desc}`,
@@ -960,6 +1093,12 @@ export class GameScene extends Phaser.Scene {
     this.updateHoming(dt);
     this.updateRegen(dt);
     this.drawHealthBars();
+    if (this.stands.length > 0) {
+      const reachable = this.standInReach();
+      for (const stand of this.stands) {
+        stand.refreshLabels(this.run.currency >= stand.offer.price, stand === reachable);
+      }
+    }
     this.checkTransitions();
   }
 
@@ -973,6 +1112,7 @@ export class GameScene extends Phaser.Scene {
     if (pointer.isDown && this.player.canShoot(time)) {
       const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
       this.player.registerShot(time, this.run.trainerFireRate);
+      sfx.play('schuss');
       const species = this.run.activeSpecies;
       this.firePattern(
         'single',
@@ -1033,7 +1173,7 @@ export class GameScene extends Phaser.Scene {
       { x: comp.x, y: comp.y },
       angle,
       {
-        damage: comp.species.attack,
+        damage: comp.attack,
         element: comp.species.type,
         faction: 'spieler',
         speed: COMPANION.projectileSpeed * pctMul(this.run.mods.projectileSpeedPct),
@@ -1048,6 +1188,7 @@ export class GameScene extends Phaser.Scene {
       const enemy = obj as Enemy;
       if (!enemy.active) continue;
 
+      enemy.syncAura();
       // Fangbarkeits-Markierung pulsieren lassen (unabhängig vom Angriff).
       if (enemy.catchable) enemy.setAlpha(0.6 + 0.4 * Math.sin(time / 120));
 
@@ -1084,6 +1225,7 @@ export class GameScene extends Phaser.Scene {
       bounces: 0,
       pierce: 0,
     };
+    sfx.play('gegnerschuss');
     this.firePattern(melee ? 'melee' : enemy.species.pattern, { x: enemy.x, y: enemy.y }, angle, base);
   }
 
@@ -1180,6 +1322,7 @@ export class GameScene extends Phaser.Scene {
       if (targetIndex === undefined) continue;
 
       this.transitioning = true;
+      sfx.play('tuer');
       this.cameras.main.fadeOut(110, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         this.enterRoom(targetIndex, OPPOSITE[dir]);
@@ -1299,7 +1442,7 @@ export class GameScene extends Phaser.Scene {
         floor: this.run.floor,
         earned: this.run.currency,
         relics: this.run.relicList(),
-        team: this.run.team.map((m) => m.speciesId),
+        team: this.run.team.map((m) => ({ speciesId: m.speciesId, level: m.level })),
       });
     });
   }

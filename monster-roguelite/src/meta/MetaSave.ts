@@ -38,6 +38,8 @@ export interface MetaSave {
   unlockedStarters: string[];
   unlockedRelics: string[];
   upgrades: PermUpgrades;
+  /** Ton stummgeschaltet? Wird zwischen Sitzungen gemerkt. */
+  muted: boolean;
   lifetime: {
     runs: number;
     kills: number;
@@ -109,6 +111,7 @@ function emptySave(): MetaSave {
     unlockedStarters: [...DEFAULT_STARTERS],
     unlockedRelics: [...DEFAULT_RELIC_IDS],
     upgrades: { vitalitaet: 0, ausbildung: 0, laufschuhe: 0, koeder: 0 },
+    muted: false,
     lifetime: {
       runs: 0,
       kills: 0,
@@ -164,6 +167,7 @@ export function loadMeta(): MetaSave {
     const relics = new Set([...DEFAULT_RELIC_IDS, ...save.unlockedRelics]);
     save.unlockedRelics = [...relics];
     save.currency = Math.max(0, Math.floor(save.currency) || 0);
+    save.muted = save.muted === true;
     return save;
   } catch {
     return fresh;
