@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="MonsterSpecies" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MonsterSpecies.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/LearnsetEntry.gd" id="2_l"]
+[ext_resource type="Resource" path="res://resources/moves/gale_slash.tres" id="m0_gale_slash"]
+[ext_resource type="Resource" path="res://resources/moves/quick_gust.tres" id="m1_quick_gust"]
+[ext_resource type="Resource" path="res://resources/moves/reckless_dive.tres" id="m2_reckless_dive"]
+[ext_resource type="Resource" path="res://resources/moves/tackle.tres" id="m3_tackle"]
+
+[sub_resource type="Resource" id="LE0"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m1_quick_gust")
+
+[sub_resource type="Resource" id="LE1"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m3_tackle")
+
+[sub_resource type="Resource" id="LE2"]
+script = ExtResource("2_l")
+level = 12
+move = ExtResource("m0_gale_slash")
+
+[sub_resource type="Resource" id="LE3"]
+script = ExtResource("2_l")
+level = 18
+move = ExtResource("m2_reckless_dive")
+
+[resource]
+script = ExtResource("1_s")
+id = "gustwing"
+display_name = "Windschwinge"
+codex_text = "Segelt tagelang auf Aufwinden und landet nur zum Fressen."
+primary_type = 7
+has_secondary_type = true
+secondary_type = 0
+base_hp = 50
+base_atk = 55
+base_def = 45
+base_spa = 45
+base_spd = 45
+base_spe = 80
+catch_rate = 175
+base_exp = 64
+learnset = Array[LearnsetEntry]([SubResource("LE0"), SubResource("LE1"), SubResource("LE2"), SubResource("LE3")])
+evolves_into = ""
+evolve_level = 0
+placeholder_color = Color(0.74, 0.88, 0.82, 1)
+placeholder_scale = Vector3(0.9, 0.9, 0.9)

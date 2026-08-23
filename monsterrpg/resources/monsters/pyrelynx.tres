@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="MonsterSpecies" load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MonsterSpecies.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/LearnsetEntry.gd" id="2_l"]
+[ext_resource type="Resource" path="res://resources/moves/bite.tres" id="m0_bite"]
+[ext_resource type="Resource" path="res://resources/moves/ember_spit.tres" id="m1_ember_spit"]
+[ext_resource type="Resource" path="res://resources/moves/flame_lash.tres" id="m2_flame_lash"]
+[ext_resource type="Resource" path="res://resources/moves/quick_gust.tres" id="m3_quick_gust"]
+[ext_resource type="Resource" path="res://resources/moves/reckless_dive.tres" id="m4_reckless_dive"]
+[ext_resource type="Resource" path="res://resources/moves/tackle.tres" id="m5_tackle"]
+
+[sub_resource type="Resource" id="LE0"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m1_ember_spit")
+
+[sub_resource type="Resource" id="LE1"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m5_tackle")
+
+[sub_resource type="Resource" id="LE2"]
+script = ExtResource("2_l")
+level = 12
+move = ExtResource("m0_bite")
+
+[sub_resource type="Resource" id="LE3"]
+script = ExtResource("2_l")
+level = 16
+move = ExtResource("m3_quick_gust")
+
+[sub_resource type="Resource" id="LE4"]
+script = ExtResource("2_l")
+level = 20
+move = ExtResource("m2_flame_lash")
+
+[sub_resource type="Resource" id="LE5"]
+script = ExtResource("2_l")
+level = 28
+move = ExtResource("m4_reckless_dive")
+
+[resource]
+script = ExtResource("1_s")
+id = "pyrelynx"
+display_name = "Flammenluchs"
+codex_text = "Jagt in der Abendhitze und bewegt sich schneller als der Rauch, den es hinterlässt."
+primary_type = 1
+has_secondary_type = true
+secondary_type = 7
+base_hp = 65
+base_atk = 80
+base_def = 60
+base_spa = 85
+base_spd = 65
+base_spe = 95
+catch_rate = 90
+base_exp = 142
+learnset = Array[LearnsetEntry]([SubResource("LE0"), SubResource("LE1"), SubResource("LE2"), SubResource("LE3"), SubResource("LE4"), SubResource("LE5")])
+evolves_into = ""
+evolve_level = 0
+placeholder_color = Color(0.95, 0.3, 0.18, 1)
+placeholder_scale = Vector3(1.2, 1.2, 1.2)

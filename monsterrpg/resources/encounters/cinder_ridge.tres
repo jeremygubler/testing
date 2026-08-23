@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="EncounterTable" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/EncounterTable.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/EncounterEntry.gd" id="2_e"]
+
+[sub_resource type="Resource" id="EE0"]
+script = ExtResource("2_e")
+species_id = "cindercub"
+weight = 25
+min_level = 5
+max_level = 8
+
+[sub_resource type="Resource" id="EE1"]
+script = ExtResource("2_e")
+species_id = "pebbling"
+weight = 25
+min_level = 5
+max_level = 8
+
+[sub_resource type="Resource" id="EE2"]
+script = ExtResource("2_e")
+species_id = "mirefang"
+weight = 25
+min_level = 6
+max_level = 9
+
+[sub_resource type="Resource" id="EE3"]
+script = ExtResource("2_e")
+species_id = "shadepup"
+weight = 15
+min_level = 6
+max_level = 9
+
+[sub_resource type="Resource" id="EE4"]
+script = ExtResource("2_e")
+species_id = "frostkit"
+weight = 10
+min_level = 5
+max_level = 7
+
+[resource]
+script = ExtResource("1_s")
+id = "cinder_ridge"
+display_name = "Glutkamm"
+entries = Array[EncounterEntry]([SubResource("EE0"), SubResource("EE1"), SubResource("EE2"), SubResource("EE3"), SubResource("EE4")])
+distance_per_check = 5.0
+encounter_chance = 0.22
+cooldown_seconds = 6.0

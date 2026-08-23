@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="EncounterTable" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/EncounterTable.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/EncounterEntry.gd" id="2_e"]
+
+[sub_resource type="Resource" id="EE0"]
+script = ExtResource("2_e")
+species_id = "sproutle"
+weight = 30
+min_level = 2
+max_level = 5
+
+[sub_resource type="Resource" id="EE1"]
+script = ExtResource("2_e")
+species_id = "voltnip"
+weight = 25
+min_level = 2
+max_level = 4
+
+[sub_resource type="Resource" id="EE2"]
+script = ExtResource("2_e")
+species_id = "gustwing"
+weight = 25
+min_level = 3
+max_level = 5
+
+[sub_resource type="Resource" id="EE3"]
+script = ExtResource("2_e")
+species_id = "pebbling"
+weight = 20
+min_level = 3
+max_level = 6
+
+[resource]
+script = ExtResource("1_s")
+id = "meadow"
+display_name = "Blütenwiese"
+entries = Array[EncounterEntry]([SubResource("EE0"), SubResource("EE1"), SubResource("EE2"), SubResource("EE3")])
+distance_per_check = 4.0
+encounter_chance = 0.18
+cooldown_seconds = 6.0

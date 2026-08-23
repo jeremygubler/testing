@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="MonsterSpecies" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MonsterSpecies.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/LearnsetEntry.gd" id="2_l"]
+[ext_resource type="Resource" path="res://resources/moves/fury_focus.tres" id="m0_fury_focus"]
+[ext_resource type="Resource" path="res://resources/moves/quick_gust.tres" id="m1_quick_gust"]
+[ext_resource type="Resource" path="res://resources/moves/spark_bolt.tres" id="m2_spark_bolt"]
+[ext_resource type="Resource" path="res://resources/moves/tackle.tres" id="m3_tackle"]
+[ext_resource type="Resource" path="res://resources/moves/thunder_fang.tres" id="m4_thunder_fang"]
+
+[sub_resource type="Resource" id="LE0"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m2_spark_bolt")
+
+[sub_resource type="Resource" id="LE1"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m3_tackle")
+
+[sub_resource type="Resource" id="LE2"]
+script = ExtResource("2_l")
+level = 10
+move = ExtResource("m1_quick_gust")
+
+[sub_resource type="Resource" id="LE3"]
+script = ExtResource("2_l")
+level = 16
+move = ExtResource("m4_thunder_fang")
+
+[sub_resource type="Resource" id="LE4"]
+script = ExtResource("2_l")
+level = 22
+move = ExtResource("m0_fury_focus")
+
+[resource]
+script = ExtResource("1_s")
+id = "voltnip"
+display_name = "Voltbiss"
+codex_text = "Nagt an Blitzableitern und lädt sich dabei wie eine Batterie auf."
+primary_type = 4
+has_secondary_type = false
+secondary_type = 4
+base_hp = 45
+base_atk = 50
+base_def = 40
+base_spa = 65
+base_spd = 50
+base_spe = 85
+catch_rate = 170
+base_exp = 66
+learnset = Array[LearnsetEntry]([SubResource("LE0"), SubResource("LE1"), SubResource("LE2"), SubResource("LE3"), SubResource("LE4")])
+evolves_into = ""
+evolve_level = 0
+placeholder_color = Color(0.96, 0.84, 0.26, 1)
+placeholder_scale = Vector3(0.8, 0.8, 0.8)

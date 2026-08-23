@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="MonsterSpecies" load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MonsterSpecies.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/LearnsetEntry.gd" id="2_l"]
+[ext_resource type="Resource" path="res://resources/moves/bite.tres" id="m0_bite"]
+[ext_resource type="Resource" path="res://resources/moves/ember_spit.tres" id="m1_ember_spit"]
+[ext_resource type="Resource" path="res://resources/moves/flame_lash.tres" id="m2_flame_lash"]
+[ext_resource type="Resource" path="res://resources/moves/fury_focus.tres" id="m3_fury_focus"]
+[ext_resource type="Resource" path="res://resources/moves/mend.tres" id="m4_mend"]
+[ext_resource type="Resource" path="res://resources/moves/tackle.tres" id="m5_tackle"]
+
+[sub_resource type="Resource" id="LE0"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m1_ember_spit")
+
+[sub_resource type="Resource" id="LE1"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m5_tackle")
+
+[sub_resource type="Resource" id="LE2"]
+script = ExtResource("2_l")
+level = 7
+move = ExtResource("m3_fury_focus")
+
+[sub_resource type="Resource" id="LE3"]
+script = ExtResource("2_l")
+level = 12
+move = ExtResource("m0_bite")
+
+[sub_resource type="Resource" id="LE4"]
+script = ExtResource("2_l")
+level = 18
+move = ExtResource("m2_flame_lash")
+
+[sub_resource type="Resource" id="LE5"]
+script = ExtResource("2_l")
+level = 24
+move = ExtResource("m4_mend")
+
+[resource]
+script = ExtResource("1_s")
+id = "cindercub"
+display_name = "Glutwelp"
+codex_text = "Ein verspielter Welpe, dessen Fell bei Aufregung Funken schlägt."
+primary_type = 1
+has_secondary_type = false
+secondary_type = 1
+base_hp = 45
+base_atk = 55
+base_def = 45
+base_spa = 60
+base_spd = 50
+base_spe = 60
+catch_rate = 190
+base_exp = 62
+learnset = Array[LearnsetEntry]([SubResource("LE0"), SubResource("LE1"), SubResource("LE2"), SubResource("LE3"), SubResource("LE4"), SubResource("LE5")])
+evolves_into = "pyrelynx"
+evolve_level = 16
+placeholder_color = Color(0.9, 0.4, 0.22, 1)
+placeholder_scale = Vector3(0.95, 0.95, 0.95)

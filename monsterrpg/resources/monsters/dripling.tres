@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="MonsterSpecies" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MonsterSpecies.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/LearnsetEntry.gd" id="2_l"]
+[ext_resource type="Resource" path="res://resources/moves/frost_breath.tres" id="m0_frost_breath"]
+[ext_resource type="Resource" path="res://resources/moves/mend.tres" id="m1_mend"]
+[ext_resource type="Resource" path="res://resources/moves/tackle.tres" id="m2_tackle"]
+[ext_resource type="Resource" path="res://resources/moves/tide_crush.tres" id="m3_tide_crush"]
+[ext_resource type="Resource" path="res://resources/moves/water_jet.tres" id="m4_water_jet"]
+
+[sub_resource type="Resource" id="LE0"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m2_tackle")
+
+[sub_resource type="Resource" id="LE1"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m4_water_jet")
+
+[sub_resource type="Resource" id="LE2"]
+script = ExtResource("2_l")
+level = 8
+move = ExtResource("m1_mend")
+
+[sub_resource type="Resource" id="LE3"]
+script = ExtResource("2_l")
+level = 14
+move = ExtResource("m3_tide_crush")
+
+[sub_resource type="Resource" id="LE4"]
+script = ExtResource("2_l")
+level = 20
+move = ExtResource("m0_frost_breath")
+
+[resource]
+script = ExtResource("1_s")
+id = "dripling"
+display_name = "Tropfling"
+codex_text = "Sammelt Morgentau in seiner Rücken-Mulde und teilt ihn mit Artgenossen."
+primary_type = 2
+has_secondary_type = false
+secondary_type = 2
+base_hp = 50
+base_atk = 45
+base_def = 55
+base_spa = 60
+base_spd = 60
+base_spe = 45
+catch_rate = 190
+base_exp = 60
+learnset = Array[LearnsetEntry]([SubResource("LE0"), SubResource("LE1"), SubResource("LE2"), SubResource("LE3"), SubResource("LE4")])
+evolves_into = "tidalmaw"
+evolve_level = 18
+placeholder_color = Color(0.24, 0.56, 0.9, 1)
+placeholder_scale = Vector3(0.85, 0.85, 0.85)

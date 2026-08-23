@@ -1,0 +1,174 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/BattleUI.gd" id="1_ui"]
+
+[node name="BattleUI" type="CanvasLayer"]
+layer = 2
+script = ExtResource("1_ui")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="EnemyPanel" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -400.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 128.0
+
+[node name="Box" type="VBoxContainer" parent="Root/EnemyPanel"]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="Root/EnemyPanel/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Gegner"
+
+[node name="HPBar" type="ProgressBar" parent="Root/EnemyPanel/Box"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+show_percentage = false
+
+[node name="InfoLabel" type="Label" parent="Root/EnemyPanel/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "-"
+
+[node name="PlayerPanel" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -340.0
+offset_right = 400.0
+offset_bottom = -232.0
+
+[node name="Box" type="VBoxContainer" parent="Root/PlayerPanel"]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="Root/PlayerPanel/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Eigenes Monster"
+
+[node name="HPBar" type="ProgressBar" parent="Root/PlayerPanel/Box"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+show_percentage = false
+
+[node name="InfoLabel" type="Label" parent="Root/PlayerPanel/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "-"
+
+[node name="LogPanel" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -212.0
+offset_right = -380.0
+offset_bottom = -20.0
+
+[node name="Margin" type="MarginContainer" parent="Root/LogPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="LogLabel" type="RichTextLabel" parent="Root/LogPanel/Margin"]
+layout_mode = 2
+bbcode_enabled = false
+scroll_following = true
+text = "Der Kampf beginnt ..."
+
+[node name="ActionPanel" type="PanelContainer" parent="Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -360.0
+offset_top = -212.0
+offset_right = -20.0
+offset_bottom = -20.0
+
+[node name="Grid" type="GridContainer" parent="Root/ActionPanel"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 2
+
+[node name="SubMenu" type="PanelContainer" parent="Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -620.0
+offset_top = -330.0
+offset_right = -20.0
+offset_bottom = -20.0
+
+[node name="Box" type="VBoxContainer" parent="Root/SubMenu"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Root/SubMenu/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Auswahl"
+
+[node name="List" type="VBoxContainer" parent="Root/SubMenu/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="BackButton" type="Button" parent="Root/SubMenu/Box"]
+layout_mode = 2
+text = "Zurück"
+
+[node name="ResultPanel" type="PanelContainer" parent="Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -90.0
+offset_right = 200.0
+offset_bottom = 90.0
+
+[node name="Box" type="VBoxContainer" parent="Root/ResultPanel"]
+layout_mode = 2
+alignment = 1
+
+[node name="ResultLabel" type="Label" parent="Root/ResultPanel/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+text = "Kampf beendet"
+
+[node name="ContinueButton" type="Button" parent="Root/ResultPanel/Box"]
+layout_mode = 2
+text = "Weiter"

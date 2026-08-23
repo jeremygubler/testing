@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="MonsterSpecies" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MonsterSpecies.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/LearnsetEntry.gd" id="2_l"]
+[ext_resource type="Resource" path="res://resources/moves/fury_focus.tres" id="m0_fury_focus"]
+[ext_resource type="Resource" path="res://resources/moves/rock_toss.tres" id="m1_rock_toss"]
+[ext_resource type="Resource" path="res://resources/moves/stone_guard.tres" id="m2_stone_guard"]
+[ext_resource type="Resource" path="res://resources/moves/tackle.tres" id="m3_tackle"]
+
+[sub_resource type="Resource" id="LE0"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m1_rock_toss")
+
+[sub_resource type="Resource" id="LE1"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m3_tackle")
+
+[sub_resource type="Resource" id="LE2"]
+script = ExtResource("2_l")
+level = 10
+move = ExtResource("m2_stone_guard")
+
+[sub_resource type="Resource" id="LE3"]
+script = ExtResource("2_l")
+level = 16
+move = ExtResource("m0_fury_focus")
+
+[resource]
+script = ExtResource("1_s")
+id = "pebbling"
+display_name = "Kieselchen"
+codex_text = "Rollt bergab schneller als es laufen kann -- was es selten bereut."
+primary_type = 6
+has_secondary_type = false
+secondary_type = 6
+base_hp = 60
+base_atk = 70
+base_def = 85
+base_spa = 35
+base_spd = 45
+base_spe = 30
+catch_rate = 180
+base_exp = 68
+learnset = Array[LearnsetEntry]([SubResource("LE0"), SubResource("LE1"), SubResource("LE2"), SubResource("LE3")])
+evolves_into = ""
+evolve_level = 0
+placeholder_color = Color(0.64, 0.56, 0.42, 1)
+placeholder_scale = Vector3(0.8, 0.8, 0.8)

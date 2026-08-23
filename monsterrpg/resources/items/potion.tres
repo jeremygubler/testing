@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/ItemDefinition.gd" id="1_s"]
+
+[resource]
+script = ExtResource("1_s")
+id = "potion"
+display_name = "Heiltrank"
+description = "Stellt 25 KP eines Monsters wieder her."
+kind = 0
+amount = 25
+ratio = 0.0
+catch_multiplier = 1.0
+usable_in_battle = true
+usable_in_overworld = true
+price = 200

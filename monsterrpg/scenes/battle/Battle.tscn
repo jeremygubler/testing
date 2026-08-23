@@ -1,0 +1,75 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/battle/Battle.gd" id="1_battle"]
+[ext_resource type="Script" path="res://scripts/battle/BattleManager.gd" id="2_manager"]
+[ext_resource type="PackedScene" path="res://scenes/battle/MonsterView.tscn" id="3_view"]
+[ext_resource type="PackedScene" path="res://ui/BattleUI.tscn" id="4_ui"]
+
+[sub_resource type="Environment" id="Env_battle"]
+background_mode = 1
+background_color = Color(0.13, 0.16, 0.24, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.75, 0.78, 0.85, 1)
+ambient_light_energy = 0.7
+
+[sub_resource type="BoxMesh" id="Mesh_arena"]
+size = Vector3(26, 0.5, 18)
+
+[sub_resource type="StandardMaterial3D" id="Mat_arena"]
+albedo_color = Color(0.26, 0.3, 0.34, 1)
+roughness = 0.85
+
+[sub_resource type="CylinderMesh" id="Mesh_pad"]
+top_radius = 1.6
+bottom_radius = 1.6
+height = 0.12
+
+[sub_resource type="StandardMaterial3D" id="Mat_pad"]
+albedo_color = Color(0.42, 0.46, 0.5, 1)
+
+[node name="Battle" type="Node3D"]
+script = ExtResource("1_battle")
+
+[node name="BattleManager" type="Node" parent="."]
+script = ExtResource("2_manager")
+
+[node name="Stage" type="Node3D" parent="."]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Stage"]
+environment = SubResource("Env_battle")
+
+[node name="Sun" type="DirectionalLight3D" parent="Stage"]
+transform = Transform3D(0.866, -0.25, 0.433, 0, 0.866, 0.5, -0.5, -0.433, 0.75, 0, 8, 0)
+light_energy = 1.2
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 0.966, -0.259, 0, 0.259, 0.966, 0, 3.6, 8.6)
+fov = 62.0
+
+[node name="Ground" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+mesh = SubResource("Mesh_arena")
+surface_material_override/0 = SubResource("Mat_arena")
+
+[node name="PlayerSlot" type="Node3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.2, 0, 2.2)
+
+[node name="Pad" type="MeshInstance3D" parent="Stage/PlayerSlot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
+mesh = SubResource("Mesh_pad")
+surface_material_override/0 = SubResource("Mat_pad")
+
+[node name="MonsterView" parent="Stage/PlayerSlot" instance=ExtResource("3_view")]
+
+[node name="EnemySlot" type="Node3D" parent="Stage"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 3.6, 0, -2.6)
+
+[node name="Pad" type="MeshInstance3D" parent="Stage/EnemySlot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
+mesh = SubResource("Mesh_pad")
+surface_material_override/0 = SubResource("Mat_pad")
+
+[node name="MonsterView" parent="Stage/EnemySlot" instance=ExtResource("3_view")]
+
+[node name="BattleUI" parent="." instance=ExtResource("4_ui")]

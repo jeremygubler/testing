@@ -1,0 +1,67 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/OverworldHUD.gd" id="1_hud"]
+
+[node name="OverworldHUD" type="CanvasLayer"]
+layer = 1
+script = ExtResource("1_hud")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="TopLeft" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 360.0
+offset_bottom = 200.0
+mouse_filter = 2
+
+[node name="PartyLabel" type="Label" parent="Root/TopLeft"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Team"
+
+[node name="TopRight" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -320.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 56.0
+mouse_filter = 2
+
+[node name="ZoneLabel" type="Label" parent="Root/TopRight"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 2
+text = ""
+
+[node name="Bottom" type="VBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -80.0
+offset_right = -16.0
+offset_bottom = -16.0
+mouse_filter = 2
+
+[node name="ToastLabel" type="Label" parent="Root/Bottom"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = ""
+
+[node name="HintLabel" type="Label" parent="Root/Bottom"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "WASD Laufen"

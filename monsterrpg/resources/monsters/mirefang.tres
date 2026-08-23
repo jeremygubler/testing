@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="MonsterSpecies" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/monsters/MonsterSpecies.gd" id="1_s"]
+[ext_resource type="Script" path="res://scripts/monsters/LearnsetEntry.gd" id="2_l"]
+[ext_resource type="Resource" path="res://resources/moves/bite.tres" id="m0_bite"]
+[ext_resource type="Resource" path="res://resources/moves/mend.tres" id="m1_mend"]
+[ext_resource type="Resource" path="res://resources/moves/tackle.tres" id="m2_tackle"]
+[ext_resource type="Resource" path="res://resources/moves/toxic_spore.tres" id="m3_toxic_spore"]
+[ext_resource type="Resource" path="res://resources/moves/venom_fang.tres" id="m4_venom_fang"]
+
+[sub_resource type="Resource" id="LE0"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m2_tackle")
+
+[sub_resource type="Resource" id="LE1"]
+script = ExtResource("2_l")
+level = 1
+move = ExtResource("m4_venom_fang")
+
+[sub_resource type="Resource" id="LE2"]
+script = ExtResource("2_l")
+level = 11
+move = ExtResource("m3_toxic_spore")
+
+[sub_resource type="Resource" id="LE3"]
+script = ExtResource("2_l")
+level = 17
+move = ExtResource("m0_bite")
+
+[sub_resource type="Resource" id="LE4"]
+script = ExtResource("2_l")
+level = 23
+move = ExtResource("m1_mend")
+
+[resource]
+script = ExtResource("1_s")
+id = "mirefang"
+display_name = "Sumpfzahn"
+codex_text = "Lauert im Schlamm und markiert sein Revier mit bitterem Nebel."
+primary_type = 8
+has_secondary_type = false
+secondary_type = 8
+base_hp = 60
+base_atk = 65
+base_def = 60
+base_spa = 50
+base_spd = 55
+base_spe = 50
+catch_rate = 150
+base_exp = 78
+learnset = Array[LearnsetEntry]([SubResource("LE0"), SubResource("LE1"), SubResource("LE2"), SubResource("LE3"), SubResource("LE4")])
+evolves_into = ""
+evolve_level = 0
+placeholder_color = Color(0.6, 0.34, 0.7, 1)
+placeholder_scale = Vector3(1.05, 1.05, 1.05)
