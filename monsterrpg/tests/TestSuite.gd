@@ -332,19 +332,22 @@ func test_turn_order() -> void:
 	var fast: BattleCombatant = manager.enemy_active()
 	_check(fast.effective_speed() > slow.effective_speed(),
 		"gustwing ist schneller als pebbling")
+
+	# Beide Seiten auf dieselbe Attacke ohne Priorität setzen -- sonst würde der
+	# Vergleich zufällig von den Standard-Movesets abhängen.
+	var tackle: MoveDefinition = MonsterDatabase.get_move("tackle")
+	slow.monster.moves[0] = MoveSlot.create(tackle)
+	fast.monster.moves[0] = MoveSlot.create(tackle)
 	var order: Array = manager._order_actions(
 		BattleAction.attack(0), BattleAction.attack(0))
-	_check(order[0]["actor"] == fast, "der schnellere handelt zuerst")
+	_check(order[0]["actor"] == fast, "bei gleicher Priorität gewinnt die Initiative")
 
-	var quick_index: int = _find_move(slow, "quick_gust")
-	if quick_index < 0:
-		# pebbling kennt quick_gust nicht -> Attacke zum Testen einsetzen.
-		slow.monster.moves[0] = MoveSlot.create(MonsterDatabase.get_move("quick_gust"))
-		quick_index = 0
+	# Jetzt bekommt der Langsame eine Prioritätsattacke (+1).
+	slow.monster.moves[0] = MoveSlot.create(MonsterDatabase.get_move("quick_gust"))
 	var priority_order: Array = manager._order_actions(
-		BattleAction.attack(quick_index), BattleAction.attack(0))
+		BattleAction.attack(0), BattleAction.attack(0))
 	_check(priority_order[0]["actor"] == slow,
-		"Priorität schlägt Initiative")
+		"Priorität (+1) schlägt die höhere Initiative")
 	manager.free()
 
 
@@ -528,13 +531,6 @@ func _play_out(manager: BattleManager) -> int:
 			manager.player_active(), manager.enemy_active(), manager.rng))
 	_check(guard < 1000, "Kampf läuft nicht endlos")
 	return int(manager.result)
-
-
-func _find_move(combatant: BattleCombatant, move_id: String) -> int:
-	for i in combatant.monster.moves.size():
-		if combatant.monster.moves[i].move_id == move_id:
-			return i
-	return -1
 
 
 # ---------------------------------------------------------------------------
