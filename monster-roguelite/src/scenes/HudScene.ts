@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, VIEW_H, VIEW_W } from '../config/GameConfig';
+import { BOSS, COLORS, VIEW_H, VIEW_W } from '../config/GameConfig';
 import { bus } from '../core/EventBus';
 import type { RunState } from '../core/RunState';
 import { getSpecies } from '../data/monsters';
@@ -26,6 +26,9 @@ export class HudScene extends Phaser.Scene {
   private txtRelicHeader!: Phaser.GameObjects.Text;
   private relicTexts: Phaser.GameObjects.Text[] = [];
   private logLines: { text: Phaser.GameObjects.Text; until: number }[] = [];
+  /** Aktueller Boss, oder null wenn keiner kämpft. */
+  private boss: { name: string; ratio: number; phase: number } | null = null;
+  private txtBoss!: Phaser.GameObjects.Text;
   private unsubscribes: (() => void)[] = [];
 
   constructor() {
@@ -63,6 +66,18 @@ export class HudScene extends Phaser.Scene {
       .setOrigin(1, 0)
       .setDepth(2);
 
+    this.txtBoss = this.add
+      .text(VIEW_W / 2, VIEW_H - 76, '', {
+        fontFamily: FONT,
+        fontSize: '14px',
+        color: '#f87171',
+        stroke: '#000000',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(3)
+      .setVisible(false);
+
     this.bindEvents();
     this.refresh();
   }
@@ -72,6 +87,10 @@ export class HudScene extends Phaser.Scene {
       bus.on('hud:dirty', () => this.refresh()),
       bus.on('room:changed', () => this.refresh()),
       bus.on('log', (p) => this.pushLog(p.text, p.color ?? COLORS.text)),
+      bus.on('boss:update', (p) => {
+        this.boss = p;
+        this.drawBars();
+      }),
       bus.on('shake', (p) => {
         const game = this.scene.get('Game');
         game?.cameras.main.shake(p.duration, p.intensity);
@@ -172,6 +191,8 @@ export class HudScene extends Phaser.Scene {
     g.lineStyle(1, 0x000000, 0.6);
     g.strokeRect(x, y, w, 12);
 
+    this.drawBossBar(g);
+
     // Monster-HP direkt darunter.
     const species = this.run.activeSpecies;
     const active = this.run.active;
@@ -182,6 +203,42 @@ export class HudScene extends Phaser.Scene {
       g.fillStyle(TYPE_COLORS[species.type], 1);
       g.fillRect(x, y + 40, w * mRatio, 8);
     }
+  }
+
+  /**
+   * Boss-Leiste am unteren Rand mit Phasen-Markierungen.
+   *
+   * Sie steht bewusst unten und nicht oben: der Blick liegt beim Ausweichen
+   * auf der eigenen Figur in der Raummitte, und oben konkurriert sie mit dem
+   * Log um Aufmerksamkeit.
+   */
+  private drawBossBar(g: Phaser.GameObjects.Graphics): void {
+    if (!this.boss) {
+      this.txtBoss.setVisible(false);
+      return;
+    }
+    const w = 420;
+    const x = (VIEW_W - w) / 2;
+    const y = VIEW_H - 70;
+
+    g.fillStyle(0x000000, 0.55);
+    g.fillRect(x - 2, y - 2, w + 4, 14);
+    g.fillStyle(0x1e2437, 1);
+    g.fillRect(x, y, w, 10);
+    // Farbe wechselt mit der Phase — der Zustandswechsel soll auffallen.
+    const color = this.boss.phase >= 3 ? 0xef4444 : this.boss.phase === 2 ? 0xfb923c : 0xf59e0b;
+    g.fillStyle(color, 1);
+    g.fillRect(x, y, w * Phaser.Math.Clamp(this.boss.ratio, 0, 1), 10);
+
+    // Phasengrenzen als Kerben, damit man sieht, wann es gleich umschlägt.
+    // Werte kommen aus der Config — nicht doppelt pflegen.
+    g.fillStyle(0x0b0d16, 1);
+    for (const t of BOSS.phaseThresholds) g.fillRect(x + w * t - 1, y, 2, 10);
+
+    this.txtBoss
+      .setVisible(true)
+      .setText(`${this.boss.name}  ·  Phase ${this.boss.phase}/${BOSS.phaseThresholds.length + 1}`)
+      .setColor(this.boss.phase >= 3 ? '#ef4444' : '#fbbf24');
   }
 
   /** Minikarte oben rechts: besuchte Räume, aktueller Raum, Boss. */

@@ -26,18 +26,25 @@ export interface ShopOffer {
   sold: boolean;
 }
 
-/** Grundpreise je Seltenheit, vor der Etagen-Skalierung. */
+/**
+ * Grundpreise je Seltenheit, vor der Etagen-Skalierung.
+ *
+ * Kalibriert gegen das gemessene Einkommen bis zum Laden (siehe die
+ * Ökonomie-Tabelle in `tools/smoke.mjs`). Mit den ersten Werten war der Laden
+ * auf Etage 1 in 0 % der Layouts bezahlbar — ein Raum, den man auf der ersten
+ * Etage grundsätzlich nur durchquert, ist toter Inhalt.
+ */
 const RELIC_BASE_PRICE: Record<RelicRarity, number> = {
-  gewoehnlich: 32,
-  selten: 58,
-  legendaer: 92,
+  gewoehnlich: 26,
+  selten: 46,
+  legendaer: 76,
 };
 
-const HEAL_BASE_PRICE = 30;
+const HEAL_BASE_PRICE = 18;
 
 /** Preise steigen mit der Etage, sonst ist der Laden ab Etage 3 geschenkt. */
 function priceScale(floor: number): number {
-  return 1 + (floor - 1) * 0.18;
+  return 1 + (floor - 1) * 0.22;
 }
 
 /**

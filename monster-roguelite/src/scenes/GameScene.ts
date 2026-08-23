@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { sfx } from '../audio/Sfx';
 import {
   CATCH,
+  BOSS,
   COLORS,
   COMPANION,
   ELITE,
@@ -83,6 +84,9 @@ export class GameScene extends Phaser.Scene {
   };
 
   private nextCatchAt = 0;
+  /** Letzter ans HUD gemeldeter Boss-Zustand, um Events zu sparen. */
+  private lastBossRatio = -1;
+  private lastBossPhase = -1;
   /** Eigener Cooldown für den "Erst den Raum räumen!"-Hinweis. */
   private nextChestNagAt = 0;
   private regenCarry = 0;
@@ -304,11 +308,17 @@ export class GameScene extends Phaser.Scene {
     bus.emit('log', { text: 'Laden — stell dich auf ein Podest und drücke E.', color: '#fbbf24' });
   }
 
-  /** Podest, auf dem der Trainer gerade steht — per Abstand, nicht per Overlap. */
+  /**
+   * Podest, auf dem der Trainer gerade steht — per Abstand, nicht per Overlap.
+   *
+   * Der Radius ist bewusst grösser als das Podest selbst: Podeste stehen
+   * 160 px auseinander, eine Verwechslung ist also ausgeschlossen, und
+   * millimetergenaues Positionieren ist keine interessante Anforderung.
+   */
   private standInReach(): ShopStand | null {
     for (const stand of this.stands) {
       if (stand.offer.sold) continue;
-      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, stand.x, stand.y) <= 34) {
+      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, stand.x, stand.y) <= 46) {
         return stand;
       }
     }
@@ -362,6 +372,9 @@ export class GameScene extends Phaser.Scene {
     this.portal = null;
     this.stands.forEach((st) => st.destroy());
     this.stands = [];
+    this.lastBossRatio = -1;
+    this.lastBossPhase = -1;
+    bus.emit('boss:update', null);
   }
 
   /** Zeichnet Boden, Wände, Hindernisse und Türen des Raums. */
@@ -757,6 +770,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    if (enemy.isBoss) bus.emit('boss:update', null);
     enemy.destroy();
     bus.emit('hud:dirty', undefined);
     this.checkRoomCleared();
@@ -1205,7 +1219,9 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      const intent = enemy.think(time, tx, ty, enemy.species.attackSpeed);
+      if (enemy.isBoss && this.updateBoss(enemy, time)) continue;
+
+      const intent = enemy.think(time, tx, ty, enemy.effectiveAttackSpeed);
       if (intent.kind === 'nichts') continue;
 
       const damage = Math.max(
@@ -1214,6 +1230,120 @@ export class GameScene extends Phaser.Scene {
       );
       this.fireEnemyPattern(enemy, intent.angle, damage, intent.kind === 'nahkampf');
     }
+  }
+
+  /**
+   * Boss-Sonderverhalten: Phasenwechsel melden und die Nova auslösen.
+   *
+   * Gibt true zurück, während die Vorwarnung läuft — dann greift der Boss
+   * nicht zusätzlich normal an, sonst wäre der Moment nicht lesbar.
+   */
+  private updateBoss(boss: Enemy, time: number): boolean {
+    const newPhase = boss.updatePhase();
+    if (newPhase !== null) {
+      this.onBossPhase(boss, newPhase);
+    }
+    this.emitBossState(boss);
+
+    if (boss.phase < BOSS.nova.fromPhase) return false;
+
+    // Vorwarnung läuft ab → Nova feuert.
+    if (boss.novaFiresAt > 0) {
+      if (time < boss.novaFiresAt) return true;
+      boss.novaFiresAt = 0;
+      this.fireNova(boss);
+      const interval =
+        BOSS.nova.intervalMs *
+        (boss.phase > BOSS.nova.fromPhase ? BOSS.nova.finalPhaseIntervalFactor : 1);
+      boss.nextNovaAt = time + interval;
+      return true;
+    }
+
+    if (boss.nextNovaAt === 0) {
+      // Erste Nova nicht sofort beim Phasenwechsel — sonst überrumpelt sie.
+      boss.nextNovaAt = time + BOSS.nova.intervalMs * 0.5;
+      return false;
+    }
+
+    if (time >= boss.nextNovaAt) {
+      boss.novaFiresAt = time + BOSS.nova.telegraphMs;
+      this.telegraphNova(boss);
+      return true;
+    }
+    return false;
+  }
+
+  private onBossPhase(boss: Enemy, phase: number): void {
+    sfx.play('boss');
+    bus.emit('shake', { intensity: 0.009, duration: 320 });
+    this.burst(boss.x, boss.y, TYPE_COLORS[boss.species.type], 14);
+    // Ab Phase 2 gibt es Novas — der Timer startet frisch.
+    boss.nextNovaAt = 0;
+    boss.novaFiresAt = 0;
+    bus.emit('log', {
+      text:
+        phase >= 3
+          ? `${boss.species.name} rastet aus!`
+          : `${boss.species.name} geht in Phase ${phase}.`,
+      color: phase >= 3 ? '#ef4444' : '#fbbf24',
+    });
+  }
+
+  /** Wachsender Ring als Vorwarnung — die Nova muss man kommen sehen. */
+  private telegraphNova(boss: Enemy): void {
+    const ring = this.add
+      .image(boss.x, boss.y, 'ring')
+      .setTint(0xef4444)
+      .setDisplaySize(20, 20)
+      .setAlpha(0.9)
+      .setDepth(13);
+    this.tweens.add({
+      targets: ring,
+      displayWidth: 230,
+      displayHeight: 230,
+      alpha: 0.15,
+      duration: BOSS.nova.telegraphMs,
+      ease: 'Quad.easeIn',
+      onUpdate: () => ring.setPosition(boss.x, boss.y),
+      onComplete: () => ring.destroy(),
+    });
+  }
+
+  /** Ringförmige Salve in alle Richtungen. */
+  private fireNova(boss: Enemy): void {
+    const extra = (boss.phase - BOSS.nova.fromPhase) * BOSS.nova.projectilesPerPhase;
+    const count = BOSS.nova.projectiles + Math.max(0, extra);
+    const damage = Math.max(
+      1,
+      Math.round(boss.species.attack * boss.damageScale * BOSS.nova.damageFactor),
+    );
+
+    // Zufälliger Startwinkel, damit die Lücken nicht immer gleich liegen.
+    const offset = this.run.rng.float(0, (Math.PI * 2) / count);
+    for (let i = 0; i < count; i++) {
+      this.fire({
+        x: boss.x,
+        y: boss.y,
+        angle: offset + (Math.PI * 2 * i) / count,
+        speed: BOSS.nova.speed,
+        damage,
+        faction: 'gegner',
+        element: boss.species.type,
+        radius: 7,
+        lifespan: 3000,
+      });
+    }
+    sfx.play('boss');
+    bus.emit('shake', { intensity: 0.008, duration: 260 });
+  }
+
+  /** Boss-Zustand ans HUD melden (nur bei spürbarer Änderung). */
+  private emitBossState(boss: Enemy): void {
+    const ratio = Math.round(boss.hpRatio * 200) / 200;
+    if (ratio === this.lastBossRatio && boss.phase === this.lastBossPhase) return;
+    this.lastBossRatio = ratio;
+    this.lastBossPhase = boss.phase;
+    bus.emit('boss:update', { name: boss.species.name, ratio: boss.hpRatio, phase: boss.phase });
   }
 
   private fireEnemyPattern(enemy: Enemy, angle: number, damage: number, melee: boolean): void {

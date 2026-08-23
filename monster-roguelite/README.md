@@ -115,12 +115,27 @@ Schaden, goldener Ring), gestreut ab Etage 2 mit steigender Quote (gemessen:
 man ein Startmonster auf Stufe 1 und kein Relikt. Sie geben das Fünffache an
 Ätherstaub und mit 35 % ein zusätzliches Relikt.
 
+**Boss-Phasen.** Bosse wechseln bei 62 % und 30 % Rest-HP die Phase: schneller
+angreifen, schneller bewegen, und ab Phase 2 kommt die **Nova** dazu — ein
+Projektilring in alle Richtungen. Sie ist mit einem wachsenden Ring
+vorgewarnt, und der Boss hält währenddessen inne: eine Attacke, die den
+ganzen Raum abdeckt, muss man kommen sehen, sonst ist sie nicht ausweichbar,
+sondern nur unfair. Die Leiste am unteren Rand zeigt Phase und die Kerben, an
+denen der nächste Wechsel kommt. Ohne Phasen ist ein Boss nur ein Gegner mit
+langer Lebensleiste — kein Moment, an dem sich das Verhalten des Spielers
+ändern muss.
+
 **Laden im Run.** Ein Raum pro Etage mit zwei Relikten und einem Heiltrank,
 bezahlt mit derselben Währung, die am Ende in den Meta-Fortschritt fliesst.
 Das ist die eigentliche Entscheidung des Systems: jetzt Stärke kaufen und
 weiter kommen, oder sparen und im Basislager dauerhaft freischalten. Gekauft
 wird per `E` auf dem Podest, nicht durchs Drüberlaufen — ein versehentlicher
 Kauf wäre nicht rückgängig zu machen.
+
+Die Preise sind nicht geschätzt, sondern gegen das gemessene Einkommen
+kalibriert (siehe Ökonomie-Harness unten). Zielbild: auf jeder Etage ist meist
+genau ein Angebot erreichbar, nie das ganze Sortiment — sonst gibt es keine
+Wahl mehr, nur noch eine Einkaufsliste.
 
 **Sound.** `audio/Sfx.ts` erzeugt jeden Effekt zur Laufzeit als kurze
 Oszillator-Rampe mit Hüllkurve; das Projekt bleibt damit asset-frei. Der
@@ -138,11 +153,28 @@ Es gibt keinen Unit-Test-Runner — der Validator ist ein Bot, der das Spiel im
 echten Browser spielt (`tools/smoke.mjs`, Playwright + Chromium). Er besteht
 aus zwei Teilen:
 
-**1. Generator-Check.** Erzeugt 320 Etagen (8 Etagen × 40 Seeds) und misst die
-Struktur nach: Verteilung der Raumtypen, Elite-Quote pro Etage,
+**1. Generator- und Ökonomie-Check.** Erzeugt 320 Etagen (8 Etagen × 40 Seeds)
+und misst die Struktur nach: Verteilung der Raumtypen, Elite-Quote pro Etage,
 Start-Distanz von Laden und Boss, und ob jeder Raum vom Start aus erreichbar
-ist. Das läuft unabhängig davon, wie weit der Bot im Spiel kommt — auf
-Spielglück zu warten wäre kein Nachweis.
+ist. Dazu die Ökonomie: wie viel Ätherstaub ein gründlicher Spieler verdient
+hat, wenn er den Laden erreicht, gegen die dortigen Preise. Das läuft
+unabhängig davon, wie weit der Bot im Spiel kommt — auf Spielglück zu warten
+wäre kein Nachweis.
+
+Diese Tabelle hat den Ladenpreis überhaupt erst als Problem sichtbar gemacht:
+mit den ursprünglichen Werten war der Laden auf Etage 1 in **0 %** der Layouts
+bezahlbar. Nach der Kalibrierung:
+
+```
+  Etage | verdient | billigstes | eins bezahlbar | Anteil am Angebot | alles bezahlbar
+      1 |       19 |         18 |           58 % |              24 % |             0 %
+      3 |       49 |         26 |           93 % |              45 % |             0 %
+      5 |       91 |         34 |           95 % |              62 % |             5 %
+      8 |      121 |         46 |           98 % |              60 % |             0 %
+```
+
+Der Check schlägt fehl, wenn Etage 1 unter 25 % fällt — ein Raum, den man auf
+der ersten Etage grundsätzlich nur durchquert, ist toter Inhalt.
 
 **2. Spiel-Durchlauf.** Hub → Run starten → Räume räumen → Türen nehmen →
 Truhen öffnen → fangen → im Laden kaufen → Boss → nächste Etage. Meldet Kills,
@@ -158,23 +190,40 @@ Balance-Indikator.
 **Grenze der Messung:** headless rendert ohne GPU, Phasers Spielzeit läuft dort
 etwa dreimal langsamer als die Wanduhr. Der Bot hat damit weniger
 Entscheidungen pro Spielsekunde als ein Mensch — er ist ein bewusst
-pessimistischer Massstab, kein Referenzspieler.
+pessimistischer Massstab, kein Referenzspieler. Praktisch heisst das: ein
+Kampfraum kostet ihn rund 150 Schritte, und wie weit er auf einer Etage kommt,
+hängt stark vom Layout ab. Fragen nach Wirtschaftlichkeit gehören deshalb an
+den analytischen Check, nicht an den Durchlauf.
+
+Die Latenz hat auch eine echte Falle gestellt: der Bot meldete 772
+Kaufversuche bei 0 px Abstand und kaufte nichts. Der Kaufcode war korrekt —
+seine Regelschleife (~180 ms pro Iteration, 190 px/s Laufgeschwindigkeit)
+überschiesst pro Schritt um 30-38 px, also mehr als der Podestradius. Er
+stand nie dort, wo die Momentaufnahme ihn zeigte. Lehre fürs Instrument: eine
+Messung, die vom Timing des Messgeräts abhängt, muss das Ergebnis
+unmittelbar vor der Aktion noch einmal frisch nachlesen.
 
 ```bash
 npm run dev &
 npm run smoke
-# Optional: CHROMIUM_PATH, SMOKE_URL, SMOKE_STEPS, SMOKE_BUDGET_MS, SMOKE_FLOOR
-# SMOKE_FLOOR=5 springt direkt auf Etage 5 — Elites und Laden ohne langes Spielen
+# Optional: CHROMIUM_PATH, SMOKE_URL, SMOKE_STEPS, SMOKE_BUDGET_MS,
+#           SMOKE_FLOOR, SMOKE_CURRENCY, SMOKE_GOTO_SHOP, SMOKE_TRACE
+# SMOKE_FLOOR=5      springt direkt auf Etage 5 — Elites ohne langes Spielen
+# SMOKE_CURRENCY=300 Startbetrag, nur um den Kaufpfad zu prüfen (nicht die Preise)
+# SMOKE_GOTO_SHOP=1  startet direkt im Laden — prüft die Kaufschleife unabhängig
+#                    vom Etagen-Layout
+# SMOKE_TRACE=45     protokolliert die ersten 45 Schritte der Botschleife
 ```
 
 ## Stand & nächste Schritte
 
 Vollständig spielbar: Bewegung, Kampf, Typensystem, prozedurale Etagen mit
-Boss und Portal, Fangen, Monster-Stufen mit XP, Teamwechsel, 16 stapelbare
-Relikte, Truhen, Elite-Gegner, Laden-Raum, prozeduraler Sound, Meta-Shop,
-Dex, Game-Over mit Statistik.
+Boss und Portal, Bosse mit drei Phasen und telegrafierter Nova, Fangen,
+Monster-Stufen mit XP, Teamwechsel, 16 stapelbare Relikte, Truhen,
+Elite-Gegner, kalibrierter Laden-Raum, prozeduraler Sound, Meta-Shop, Dex,
+Game-Over mit Statistik.
 
 Naheliegende Erweiterungen: Raum-Modifikatoren (Nebel, Dornenboden), aktive
 Fähigkeiten auf einem zweiten Slot, Monster-Entwicklungen im Dex-Stil,
-Ausdauer/Ressource für den Trainer, und mehr Boss-Muster statt nur
-Artwechsel.
+Ausdauer/Ressource für den Trainer, und pro Boss eine eigene Signatur-Attacke
+statt der geteilten Nova.

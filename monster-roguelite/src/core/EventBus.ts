@@ -25,6 +25,8 @@ export interface GameEvents {
   'floor:cleared': { floor: number };
   /** Run vorbei. */
   'run:over': void;
+  /** Boss-Zustand fürs HUD; null blendet die Leiste aus. */
+  'boss:update': { name: string; ratio: number; phase: number } | null;
   /** Kurzer Bildschirm-Shake. */
   'shake': { intensity: number; duration: number };
   /** Typ-Effektivitäts-Hinweis. */

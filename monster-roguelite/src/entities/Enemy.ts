@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ELITE } from '../config/GameConfig';
+import { BOSS, ELITE } from '../config/GameConfig';
 import type { MonsterSpecies } from '../data/monsters';
 import { TYPE_COLORS } from '../data/types';
 
@@ -38,6 +38,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   damageScale: number;
   /** Aufblinken, wenn fangbar. */
   catchable = false;
+
+  /** Aktuelle Boss-Phase (1-basiert). Bei Nicht-Bossen immer 1. */
+  phase = 1;
+  /** Zeitpunkt der nächsten Nova. */
+  nextNovaAt = 0;
+  /** Läuft gerade eine Nova-Vorwarnung? Dann Zeitpunkt der Auslösung. */
+  novaFiresAt = 0;
 
   private nextShotAt = 0;
   private burstLeft = 0;
@@ -107,6 +114,30 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.auraRing?.setPosition(this.x, this.y);
   }
 
+  /**
+   * Phase aus dem HP-Anteil ableiten. Gibt die neue Phase zurück, wenn sich
+   * etwas geändert hat — sonst null.
+   */
+  updatePhase(): number | null {
+    if (!this.isBoss) return null;
+    const ratio = this.hpRatio;
+    let next = 1;
+    for (const threshold of BOSS.phaseThresholds) {
+      if (ratio <= threshold) next++;
+    }
+    if (next === this.phase) return null;
+    this.phase = next;
+    return next;
+  }
+
+  /** Angriffsgeschwindigkeit inkl. Phasen-Beschleunigung. */
+  get effectiveAttackSpeed(): number {
+    const factor = this.isBoss
+      ? (BOSS.attackSpeedPerPhase[this.phase - 1] ?? 1)
+      : 1;
+    return this.species.attackSpeed * factor;
+  }
+
   override destroy(fromScene?: boolean): void {
     this.auraRing?.destroy();
     this.auraRing = null;
@@ -123,7 +154,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const want = PREFERRED_RANGE[this.species.pattern] ?? 200;
 
     // --- Bewegung ---------------------------------------------------------
-    const speed = this.species.moveSpeed * (this.isElite ? ELITE.speedMultiplier : 1);
+    const speed =
+      this.species.moveSpeed *
+      (this.isElite ? ELITE.speedMultiplier : 1) *
+      (this.isBoss ? (BOSS.moveSpeedPerPhase[this.phase - 1] ?? 1) : 1);
     if (time > this.nextStrafeFlip) {
       this.strafeSign = Math.random() < 0.5 ? -1 : 1;
       this.nextStrafeFlip = time + 900 + Math.random() * 1400;

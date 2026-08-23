@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, VIEW_H, VIEW_W } from './config/GameConfig';
+import { COLORS, ELITE, REWARDS, VIEW_H, VIEW_W } from './config/GameConfig';
 import { Rng } from './core/Rng';
 import { DEFAULT_RELIC_IDS } from './data/relics';
 import { generateFloor } from './world/FloorGenerator';
@@ -45,5 +45,5 @@ if (import.meta.env.DEV) {
   // Der Etagen-Generator ist auch ohne laufendes Spiel prüfbar: der Bot lässt
   // ihn über viele Seeds laufen und misst die Verteilung der Raumtypen und
   // Elite-Gegner. Auf Spielglück zu warten wäre kein Nachweis.
-  w.__debug = { generateFloor, Rng, DEFAULT_RELIC_IDS };
+  w.__debug = { generateFloor, Rng, DEFAULT_RELIC_IDS, REWARDS, ELITE };
 }

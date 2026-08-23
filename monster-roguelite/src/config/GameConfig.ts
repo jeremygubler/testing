@@ -145,6 +145,37 @@ export const ELITE = {
   relicChance: 0.35,
 } as const;
 
+/**
+ * Boss-Kampf: Phasen und die Signatur-Attacke.
+ *
+ * Ohne Phasen ist ein Boss nur ein Gegner mit langer Lebensleiste — der Kampf
+ * hat keine Dramaturgie und keinen Moment, in dem sich das Verhalten des
+ * Spielers ändern muss. Die Nova ist bewusst telegrafiert: eine Attacke, die
+ * den ganzen Raum abdeckt, muss man kommen sehen, sonst ist sie nicht
+ * ausweichbar, sondern nur unfair.
+ */
+export const BOSS = {
+  /** HP-Anteile, bei denen die nächste Phase beginnt. */
+  phaseThresholds: [0.62, 0.3],
+  /** Angriffsgeschwindigkeit je Phase (Index 0 = Phase 1). */
+  attackSpeedPerPhase: [1, 1.35, 1.75],
+  moveSpeedPerPhase: [1, 1.12, 1.28],
+  nova: {
+    /** Ab dieser Phase feuert der Boss Novas. */
+    fromPhase: 2,
+    projectiles: 14,
+    /** Zusätzliche Projektile je Phase über `fromPhase`. */
+    projectilesPerPhase: 4,
+    intervalMs: 5200,
+    /** Faktor auf das Intervall in der letzten Phase. */
+    finalPhaseIntervalFactor: 0.62,
+    /** Vorwarnzeit, in der der Ring aufwächst. */
+    telegraphMs: 780,
+    speed: 205,
+    damageFactor: 0.75,
+  },
+} as const;
+
 /** Erholung nach einem geräumten Raum, als Anteil der maximalen HP. */
 export const ROOM_RECOVERY = {
   trainer: 0.06,

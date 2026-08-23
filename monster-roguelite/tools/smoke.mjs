@@ -65,6 +65,9 @@ const snapshot = () =>
       roomKind: room.kind,
       roomCleared: room.cleared,
       neighbors: room.neighbors,
+      neighborKinds: Object.fromEntries(
+        Object.entries(room.neighbors).map(([dir, i]) => [dir, plan.rooms[i].kind]),
+      ),
       doors: room.tiles.doors,
       player: { x: Math.round(scene.player.x), y: Math.round(scene.player.y) },
       trainerHp: Math.round(scene.player.hp),
@@ -91,6 +94,8 @@ const snapshot = () =>
       relics: [...run.relics.entries()],
       team: run.team.map((m) => `${m.speciesId} Lv${m.level}:${Math.round(m.hp)}`),
       stats: run.stats,
+      graph: plan.rooms.map((r) => r.neighbors),
+      kinds: plan.rooms.map((r) => r.kind),
       roomsTotal: plan.rooms.length,
       roomsVisited: plan.rooms.filter((r) => r.visited).length,
       runOver: scene.runOver,
@@ -117,6 +122,33 @@ async function steerTowards(tx, ty, px, py) {
   await setKeys(want);
 }
 
+/**
+ * Erste Richtung auf dem kürzesten Weg von `from` nach `to` im Raumgraphen.
+ *
+ * Der Laden liegt bewusst in einer Sackgasse — ohne Wegfindung läuft der Bot
+ * daran vorbei und meldet dann fälschlich, der Laden sei unbenutzbar.
+ */
+function nextDirTo(graph, from, to) {
+  if (from === to) return null;
+  const prev = new Map([[from, null]]);
+  const queue = [from];
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const [dir, next] of Object.entries(graph[cur] ?? {})) {
+      if (prev.has(next)) continue;
+      prev.set(next, { room: cur, dir });
+      if (next === to) {
+        // Kette bis zum Startraum zurückverfolgen.
+        let node = next;
+        while (prev.get(node).room !== from) node = prev.get(node).room;
+        return prev.get(node).dir;
+      }
+      queue.push(next);
+    }
+  }
+  return null;
+}
+
 // Kacheln → Weltkoordinaten (muss zu GameConfig passen)
 const TILE = 32, OFF_X = 80, OFF_Y = 74;
 const tileWorld = (col, row) => ({ x: OFF_X + col * TILE + TILE / 2, y: OFF_Y + row * TILE + TILE / 2 });
@@ -131,8 +163,8 @@ say(`Szenen im Hub: ${(await page.evaluate(() => window.__game.scene.getScenes(t
 // --- Generator-Check: viele Etagen erzeugen und die Struktur nachmessen ----
 // Unabhängig davon, wie weit der Bot im Spiel kommt.
 const gen = await page.evaluate(() => {
-  const { generateFloor, Rng, DEFAULT_RELIC_IDS } = window.__debug;
-  const out = { floors: 0, rooms: 0, kinds: {}, elites: 0, enemies: 0, unreachable: 0, shopOffers: 0, perFloor: {}, shopDist: 0, shopCount: 0, bossDist: 0, maxDist: 0 };
+  const { generateFloor, Rng, DEFAULT_RELIC_IDS, REWARDS } = window.__debug;
+  const out = { floors: 0, rooms: 0, kinds: {}, elites: 0, enemies: 0, unreachable: 0, shopOffers: 0, perFloor: {}, shopDist: 0, shopCount: 0, bossDist: 0, maxDist: 0, econ: {} };
   for (let floor = 1; floor <= 8; floor++) {
     for (let seed = 1; seed <= 40; seed++) {
       const plan = generateFloor(new Rng(floor * 1000 + seed), floor, DEFAULT_RELIC_IDS);
@@ -161,7 +193,31 @@ const gen = await page.evaluate(() => {
       }
       if (d.some((x) => x === -1)) out.unreachable++;
       const shopIdx = plan.rooms.findIndex((r) => r.kind === 'laden');
-      if (shopIdx >= 0) { out.shopDist += d[shopIdx]; out.shopCount++; }
+      if (shopIdx >= 0) {
+        out.shopDist += d[shopIdx]; out.shopCount++;
+
+        // --- Ökonomie: Was hat man verdient, wenn man den Laden erreicht? ---
+        // Ein gründlicher Spieler räumt alles, was näher am Start liegt als
+        // der Laden. Boss und Etagenbonus zählen nicht — die kommen danach.
+        const income = (rooms) => rooms.reduce((sum, r) => {
+          if (r.kind === 'start' || r.kind === 'laden') return sum;
+          const kills = r.enemies.reduce(
+            (k, e) => k + REWARDS.perKill * (e.isBoss ? 4 : e.isElite ? 5 : 1), 0);
+          const clear = r.kind === 'boss' ? REWARDS.perBoss : REWARDS.perRoomCleared;
+          return sum + kills + clear;
+        }, 0);
+        const before = income(plan.rooms.filter((r, i) => d[i] < d[shopIdx] && i !== plan.bossIndex));
+        const full = income(plan.rooms) + REWARDS.perFloorCleared;
+        const prices = plan.rooms[shopIdx].shop.map((o) => o.price);
+        const cheapest = Math.min(...prices);
+        const dearest = Math.max(...prices);
+        const total = prices.reduce((a, x) => a + x, 0);
+        const e = (out.econ[floor] = out.econ[floor] ?? { before: 0, full: 0, cheapest: 0, dearest: 0, n: 0, affordable: 0, share: 0, all: 0 });
+        e.before += before; e.full += full; e.cheapest += cheapest; e.dearest += dearest; e.n++;
+        e.share += before / total;
+        if (before >= cheapest) e.affordable++;
+        if (before >= total) e.all++;
+      }
       out.bossDist += d[plan.bossIndex];
       out.maxDist += Math.max(...d);
     }
@@ -172,8 +228,19 @@ say(`Generator: ${gen.floors} Etagen, ${gen.rooms} Räume, Typen ${JSON.stringif
 say(`Generator: ${gen.elites}/${gen.enemies} Gegner sind Elite (${(100 * gen.elites / gen.enemies).toFixed(1)} %), ${gen.shopOffers} Laden-Angebote`);
 say(`Generator: Elite-Quote je Etage ${Object.entries(gen.perFloor).map(([f, v]) => `E${f}:${(100 * v.elites / v.enemies).toFixed(0)}%`).join(' ')}`);
 say(`Generator: mittlere Start-Distanz — Laden ${(gen.shopDist / gen.shopCount).toFixed(1)}, Boss ${(gen.bossDist / gen.floors).toFixed(1)}, Etagen-Maximum ${(gen.maxDist / gen.floors).toFixed(1)}`);
+say('Ökonomie je Etage (Mittelwerte über 40 Seeds):');
+say('  Etage | verdient | billigstes | teuerstes | eins bezahlbar | Anteil am Angebot | alles bezahlbar');
+for (const [floor, e] of Object.entries(gen.econ)) {
+  const pct = ((100 * e.affordable) / e.n).toFixed(0);
+  const sharePct = ((100 * e.share) / e.n).toFixed(0);
+  const allPct = ((100 * e.all) / e.n).toFixed(0);
+  say(`  ${floor.padStart(5)} | ${(e.before / e.n).toFixed(0).padStart(8)} | ${(e.cheapest / e.n).toFixed(0).padStart(10)} | ${(e.dearest / e.n).toFixed(0).padStart(9)} | ${(pct + ' %').padStart(14)} | ${(sharePct + ' %').padStart(17)} | ${(allPct + ' %').padStart(15)}`);
+}
 say(`Generator: nicht erreichbare Etagen: ${gen.unreachable}${gen.unreachable === 0 ? ' ✓' : ' ✗'}`);
 if ((gen.perFloor[1]?.elites ?? 0) > 0) errors.push('Elites auf Etage 1 — sollen erst ab Etage 2 auftauchen');
+// Ein Laden, den man auf Etage 1 grundsätzlich nur durchquert, ist toter Inhalt.
+const aff1 = gen.econ[1] ? (100 * gen.econ[1].affordable) / gen.econ[1].n : 0;
+if (aff1 < 25) errors.push(`Laden auf Etage 1 nur in ${aff1.toFixed(0)} % der Layouts bezahlbar (mind. 25 % erwartet)`);
 if (gen.unreachable > 0 || gen.elites === 0 || !gen.kinds.laden || !gen.kinds.boss) {
   errors.push('Generator-Check fehlgeschlagen: ' + JSON.stringify(gen));
 }
@@ -195,10 +262,23 @@ let maxFloor = 1;
 let lastGood = null;
 let maxElitesSeen = 0;
 let sawShop = false;
+const shopVisits = [];
+const shopTries = [];
+const shopDone = new Set();
+const TRACE = Number(process.env.SMOKE_TRACE ?? 0);
 let maxLevel = 1;
 const MAX_STEPS = Number(process.env.SMOKE_STEPS ?? 420);
 const DEADLINE = Date.now() + Number(process.env.SMOKE_BUDGET_MS ?? 150000);
 const visitedRooms = new Set();
+
+// Optionaler Startbetrag: nur zum Prüfen des Kaufpfads. Ob der Laden im
+// normalen Spiel bezahlbar ist, beantwortet die Ökonomie-Tabelle oben —
+// dafür ist dieser Schalter ausdrücklich NICHT gedacht.
+const startCurrency = Number(process.env.SMOKE_CURRENCY ?? 0);
+if (startCurrency > 0) {
+  await page.evaluate((c) => { window.__game.registry.get('run').currency = c; }, startCurrency);
+  say(`Startbetrag ✦${startCurrency} gesetzt (SMOKE_CURRENCY)`);
+}
 
 // Optional direkt auf eine höhere Etage springen: Elites und Laden-Räume
 // tauchen auf Etage 1 kaum auf, sollen aber trotzdem getestet werden.
@@ -212,6 +292,21 @@ if (startFloor > 1) {
   say(`Direkt auf Etage ${startFloor} gesprungen (SMOKE_FLOOR)`);
 }
 
+// Direkt im Laden starten: prüft den Kaufweg des Bots, ohne dass der Lauf vom
+// Etagen-Layout abhängt. Ob der Laden im normalen Spiel bezahlbar ist, sagt
+// weiterhin nur die Ökonomie-Tabelle.
+if (process.env.SMOKE_GOTO_SHOP === '1') {
+  const ok = await page.evaluate(() => {
+    const g = window.__game, sc = g.scene.getScene('Game');
+    const idx = g.registry.get('plan').rooms.findIndex((r) => r.kind === 'laden');
+    if (idx < 0) return false;
+    sc.enterRoom(idx, null);
+    return true;
+  });
+  await page.waitForTimeout(700);
+  say(ok ? 'Direkt im Laden gestartet (SMOKE_GOTO_SHOP)' : 'Kein Laden auf dieser Etage');
+}
+
 let firing = true;
 await page.mouse.down();    // Dauerfeuer
 
@@ -220,6 +315,11 @@ while (step++ < MAX_STEPS && Date.now() < DEADLINE) {
   if (!next) break;
   s = next;
   lastGood = s;
+  if (TRACE && step <= TRACE) {
+    console.log(`[${step}] E${s.floor} R${s.roomIndex}(${s.roomKind}${s.roomCleared ? ',frei' : ',besetzt'}) ` +
+      `Gegner=${s.enemies.length} Podeste=${(s.stands ?? []).length} ✦${s.currency} ` +
+      `Pos=${s.player.x},${s.player.y}`);
+  }
   if (s.runOver || !s.scenes.includes('Game')) {
     say(`Run vorbei (Trainer gefallen) — Etage ${lastGood?.floor}, Raum ${lastGood?.roomIndex} (${lastGood?.roomKind}), ${lastGood?.enemies.length ?? '?'} Gegner davon ${lastGood?.elites ?? 0} Elite`);
     break;
@@ -233,7 +333,19 @@ while (step++ < MAX_STEPS && Date.now() < DEADLINE) {
   if (s.companion) minCompanionHp = Math.min(minCompanionHp, s.companion.hp);
   if (s.floor > maxFloor) { maxFloor = s.floor; say(`→ Etage ${s.floor}`); }
   maxElitesSeen = Math.max(maxElitesSeen, s.elites ?? 0);
-  if (s.roomKind === 'laden') sawShop = true;
+  if (s.roomKind === 'laden') {
+    sawShop = true;
+    // Nur den ersten Besuch je Etage festhalten — das ist der Moment, in dem
+    // sich entscheidet, ob der Laden für den Spieler überhaupt existiert.
+    if (!shopVisits.some((v) => v.floor === s.floor)) {
+      const prices = (s.stands ?? []).map((st) => st.price);
+      shopVisits.push({
+        floor: s.floor,
+        currency: s.currency,
+        cheapest: prices.length ? Math.min(...prices) : null,
+      });
+    }
+  }
   maxLevel = Math.max(maxLevel, ...(s.team ?? ['x Lv1:0']).map((t) => Number(/Lv(\d+)/.exec(t)?.[1] ?? 1)));
 
   // 1a) Fangen wie ein Mensch: erst den Raum entschärfen, dann den letzten
@@ -289,21 +401,73 @@ while (step++ < MAX_STEPS && Date.now() < DEADLINE) {
     continue;
   }
 
-  // 2a) Laden: bezahlbare Angebote mitnehmen.
-  const buyable = (s.stands ?? []).find((st) => !st.sold && st.price <= s.currency);
-  if (buyable) {
-    if (firing) { await page.mouse.up(); firing = false; }
-    // Gekauft wird per E, wenn man auf dem Podest steht (nicht durchs Laufen).
-    const d = Math.hypot(buyable.x - s.player.x, buyable.y - s.player.y);
-    if (d < 26) {
-      await releaseAll();
-      await page.keyboard.press('e');
-      await page.waitForTimeout(160);
+  // 2a) Laden: hinnavigieren, solange Geld da ist und noch etwas zu holen.
+  const shopIdx = (s.kinds ?? []).indexOf('laden');
+  const shopKey = `${s.floor}:laden`;
+  if (shopIdx >= 0 && !shopDone.has(shopKey) && s.currency >= 20) {
+    if (s.roomIndex === shopIdx) {
+      const buyable = (s.stands ?? []).find((st) => !st.sold && st.price <= s.currency);
+      if (!buyable) {
+        shopDone.add(shopKey);            // nichts mehr bezahlbar → weiterziehen
+      } else {
+        if (firing) { await page.mouse.up(); firing = false; }
+        // Gekauft wird per E auf dem Podest, nicht durchs Drüberlaufen.
+        const d = Math.hypot(buyable.x - s.player.x, buyable.y - s.player.y);
+        shopTries.push(Math.round(d));
+        if (d < 40) {
+          // Nahbereich: Dauerdruck überschiesst. Bei ~180 ms Regelschleife und
+          // 190 px/s legt der Bot pro Iteration 30-38 px zurück — mehr als der
+          // Podestradius. Deshalb erst anhalten, Position frisch nachlesen und
+          // nur drücken, wenn er wirklich noch draufsteht.
+          await releaseAll();
+          const p = await page.evaluate(() => {
+            const sc = window.__game.scene.getScene('Game');
+            return { x: sc.player.x, y: sc.player.y };
+          });
+          const dd = Math.hypot(buyable.x - p.x, buyable.y - p.y);
+          if (dd >= 44) {
+            // Doch abgedriftet: mit kurzen Tippern nachjustieren.
+            const want = new Set();
+            if (buyable.x - p.x > 6) want.add(KEY.d); else if (p.x - buyable.x > 6) want.add(KEY.a);
+            if (buyable.y - p.y > 6) want.add(KEY.s); else if (p.y - buyable.y > 6) want.add(KEY.w);
+            for (const k of want) await page.keyboard.down(k);
+            await page.waitForTimeout(30);
+            for (const k of want) await page.keyboard.up(k);
+            continue;
+          }
+          const pre = TRACE ? await page.evaluate(() => {
+            const sc = window.__game.scene.getScene('Game');
+            return { px: Math.round(sc.player.x), py: Math.round(sc.player.y),
+                     held: sc.keys ? ['left','right','up','down'].filter(k => sc.keys[k].isDown) : [],
+                     inReach: !!sc.standInReach() };
+          }) : null;
+          await page.keyboard.press('e');
+          await page.waitForTimeout(200);
+          if (TRACE) {
+            const after = await page.evaluate(() => {
+              const g = window.__game;
+              return { purchases: g.registry.get('run').stats.purchases, cur: g.registry.get('run').currency };
+            });
+            console.log(`  KAUF Abstand=${Math.round(dd)} → ${JSON.stringify(after)}`);
+          }
+        } else {
+          await steerTowards(buyable.x, buyable.y - 2, s.player.x, s.player.y);
+        }
+        await page.waitForTimeout(70);
+        continue;
+      }
     } else {
-      await steerTowards(buyable.x, buyable.y - 4, s.player.x, s.player.y);
+      const dir = nextDirTo(s.graph, s.roomIndex, shopIdx);
+      const door = dir ? s.doors[dir] : null;
+      if (door) {
+        if (firing) { await page.mouse.up(); firing = false; }
+        const p = tileWorld(door.col, door.row);
+        await steerTowards(p.x, p.y, s.player.x, s.player.y);
+        await page.waitForTimeout(70);
+        continue;
+      }
+      shopDone.add(shopKey);              // kein Weg von hier → nicht blockieren
     }
-    await page.waitForTimeout(70);
-    continue;
   }
 
   // 2b) Portal vorhanden? → hin.
@@ -313,8 +477,12 @@ while (step++ < MAX_STEPS && Date.now() < DEADLINE) {
   // 4) Sonst: nächste unbesuchte Tür.
   else if (!goal || goalKind === 'tuer') {
     const dirs = Object.keys(s.doors);
-    // Bevorzugt eine Tür in einen noch nicht besuchten Raum.
-    const pick = dirs.find((d) => !visitedRooms.has(`${s.floor}:${s.neighbors[d]}`)) ?? dirs[step % dirs.length];
+    // Bevorzugt eine Tür in einen noch nicht besuchten Raum — und darunter
+    // eine, die NICHT in den Laden führt. Ein Spieler erkundet erst und geht
+    // dann einkaufen; sonst steht man mit leeren Taschen vor dem Angebot.
+    const unvisited = dirs.filter((d) => !visitedRooms.has(`${s.floor}:${s.neighbors[d]}`));
+    const nonShop = unvisited.filter((d) => s.neighborKinds?.[d] !== 'laden');
+    const pick = nonShop[0] ?? unvisited[0] ?? dirs[step % dirs.length];
     const door = s.doors[pick];
     goal = tileWorld(door.col, door.row);
     goalKind = 'tuer';
@@ -350,6 +518,8 @@ say(`Elites gleichzeitig: ${maxElitesSeen}`);
 say(`Elites besiegt:      ${final.stats?.elitesDefeated ?? 0}`);
 say(`Laden besucht:       ${sawShop ? 'ja' : 'nein'}`);
 say(`Im Laden gekauft:    ${final.stats?.purchases ?? 0}`);
+say(`Kaufversuche:        ${shopTries.length} Anläufe, kleinster Abstand ${shopTries.length ? Math.min(...shopTries) : '—'} px`);
+say(`Ladenbesuche:        ${shopVisits.length === 0 ? 'keine' : shopVisits.map((v) => `E${v.floor}: ✦${v.currency} dabei, billigstes ✦${v.cheapest}`).join(' | ')}`);
 say(`Höchste Stufe:       ${maxLevel}`);
 say(`Team:                ${JSON.stringify(final.team ?? [])}`);
 say(`Ätherstaub:          ${final.currency ?? 0}`);
