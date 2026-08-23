@@ -24,6 +24,8 @@ signal scene_changed(scene_path: String)
 
 ## Kontext des nächsten Kampfes (wird von der Battle-Szene abgeholt).
 var _pending_context: BattleContext = null
+## Kontext des laufenden Kampfes -- liefert das Rückkehrziel.
+var _active_context: BattleContext = null
 ## Ergebnis des letzten Kampfes ([enum BattleManager.Result]).
 var last_result: int = BattleManager.Result.ONGOING
 var last_summary: Dictionary = {}
@@ -42,6 +44,7 @@ func start_battle(ctx: BattleContext, player: Node3D = null) -> void:
 			_current_scene_path(), player.global_position, player.rotation.y)
 	ctx.return_scene_path = GameState.last_scene_path
 	_pending_context = ctx
+	_active_context = ctx
 	in_battle = true
 	battle_starting.emit(ctx)
 	_change_scene(BATTLE_SCENE)
@@ -67,9 +70,15 @@ func finish_battle(result: int, summary: Dictionary) -> void:
 		GameState.heal_party()
 		GameState.set_flag("last_defeat_turn_count", int(summary.get("turns", 0)))
 
-	var target: String = GameState.last_scene_path
+	# Rückkehrziel aus dem Kontext, sonst die letzte bekannte Overworld.
+	var target: String = ""
+	if _active_context != null:
+		target = _active_context.return_scene_path
+	if target == "":
+		target = GameState.last_scene_path
 	if target == "" or target == BATTLE_SCENE:
 		target = DEFAULT_OVERWORLD
+	_active_context = null
 	_change_scene(target)
 
 

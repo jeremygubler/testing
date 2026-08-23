@@ -228,8 +228,8 @@ Alle Konstanten stehen in `data/game_config.json` unter `combat`.
 
 **Der wichtigste Regler ist `combat/damage_divisor`** (Standard 100): er
 bestimmt die Kampflänge. Gemessen mit `tools/battle_sim.gd` (200 Kämpfe,
-Level 12): bei 50 dauert ein Kampf 3,1 Runden — zu kurz, um das Menü überhaupt
-zu benutzen — bei 100 rund 6. Höher = längere, taktischere Kämpfe.
+Level 12): bei 50 waren es 3,1 Runden — zu kurz, um das Menü überhaupt zu
+benutzen — bei 100 sind es 5,4. Höher = längere, taktischere Kämpfe.
 
 ### Typenmatrix
 
@@ -382,6 +382,13 @@ Bewusst **nicht** enthalten (damit das Gerüst schlank bleibt):
 * Gegner wechseln ihr Monster nicht aus (Spieler kann es).
 * Keine Animationen, Sounds, Partikel; ein Monster ist eine Kapsel mit Farbe.
 * Kein Shop/Ökonomie-Loop, obwohl Items einen `price` haben.
+
+**Balance ist eine Momentaufnahme, kein fertiger Zustand.** Aktueller Stand aus
+`tools/battle_sim.gd` (Rundenturnier, Level 15): `thornmane` gewinnt 72,7 %,
+`pyrelynx` nur 31,8 % — obwohl es die höchste Basiswert-Summe (450) im Spiel
+hat. Ursache ist die Lernliste: auf Level 15 kennt `pyrelynx` nur drei
+Attacken, davon zwei schwache. Genau dafür ist das Werkzeug da — Lernliste oder
+Basiswerte anpassen, Simulator laufen lassen, Zahlen vergleichen.
 
 **Export-Hinweis:** die Dateien unter `data/*.json` werden per `FileAccess`
 gelesen. Im Export-Dialog unter *Ressourcen → Filter für nicht-Ressourcen-
