@@ -1,0 +1,22 @@
+{
+  "name": "monster-roguelite",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "2D-Roguelite mit Monster-Sammel-Mechanik (Phaser 3 + TypeScript + Vite)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node tools/smoke.mjs shots"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0"
+  }
+}
