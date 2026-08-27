@@ -340,6 +340,45 @@ class TrendPointRead(BaseModel):
     expense_minor: int
     balance_minor: int
     savings_minor: int
+    #: Startsaldo plus kumulierter Saldo bis einschliesslich dieses Monats.
+    available_minor: int
+    #: Wurde in diesem Monat ueberhaupt gebucht?
+    has_data: bool
+
+
+class ForecastRead(BaseModel):
+    year: int
+    month: int
+    expected_income_minor: int
+    expected_expense_minor: int
+    open_count: int
+    projected_balance_minor: int
+    projected_available_minor: int
+
+
+class CategoryComparisonRead(BaseModel):
+    category_id: int
+    name: str
+    group: CategoryGroup
+    flow: Flow
+    actual_minor: int
+    average_minor: int
+    delta_minor: int
+    delta_ratio: float | None
+    based_on_months: int
+
+
+class YearSummaryRead(BaseModel):
+    year: int
+    months: list[TrendPointRead]
+    income_minor: int
+    expense_minor: int
+    balance_minor: int
+    savings_minor: int
+    savings_ratio: float | None
+    fixed_cost_ratio: float | None
+    groups: list[GroupFigureRead]
+    categories: list[CategoryFigureRead]
 
 
 # ------------------------------------------------------------------ RecurringRule

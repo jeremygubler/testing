@@ -8,8 +8,10 @@ import type {
   CalendarEntry,
   CalendarEntryInput,
   Category,
+  CategoryComparison,
   CategorySuggestion,
   ConfirmOccurrence,
+  Forecast,
   Household,
   HouseholdCreate,
   MonthSummary,
@@ -34,6 +36,7 @@ import type {
   TransactionPage,
   TransactionPatch,
   TransactionQuery,
+  YearSummary,
 } from "./types";
 
 export const queryKeys = {
@@ -485,5 +488,30 @@ export function useBulkUpsertBudgets() {
       void client.invalidateQueries({ queryKey: ["budgets"] });
       void client.invalidateQueries({ queryKey: ["analytics"] });
     },
+  });
+}
+
+export function useForecast(year: number, month: number) {
+  return useQuery({
+    queryKey: ["analytics", "forecast", year, month],
+    queryFn: () => api.get<Forecast>(`/analytics/forecast${buildQuery({ year, month })}`),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useComparison(year: number, month: number, months = 6) {
+  return useQuery({
+    queryKey: ["analytics", "comparison", year, month, months],
+    queryFn: () =>
+      api.get<CategoryComparison[]>(`/analytics/comparison${buildQuery({ year, month, months })}`),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useYearSummary(year: number) {
+  return useQuery({
+    queryKey: ["analytics", "year", year],
+    queryFn: () => api.get<YearSummary>(`/analytics/year${buildQuery({ year })}`),
+    placeholderData: (previous) => previous,
   });
 }

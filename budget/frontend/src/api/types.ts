@@ -212,6 +212,8 @@ export interface TrendPoint {
   expense_minor: number;
   balance_minor: number;
   savings_minor: number;
+  available_minor: number;
+  has_data: boolean;
 }
 
 export interface RecurringRule {
@@ -382,4 +384,39 @@ export interface BudgetProposalRow {
 export interface BudgetProposal {
   source: "AVERAGE" | "LAST_MONTH";
   rows: BudgetProposalRow[];
+}
+
+export interface Forecast {
+  year: number;
+  month: number;
+  expected_income_minor: number;
+  expected_expense_minor: number;
+  open_count: number;
+  projected_balance_minor: number;
+  projected_available_minor: number;
+}
+
+export interface CategoryComparison {
+  category_id: number;
+  name: string;
+  group: CategoryGroup;
+  flow: Flow;
+  actual_minor: number;
+  average_minor: number;
+  delta_minor: number;
+  delta_ratio: number | null;
+  based_on_months: number;
+}
+
+export interface YearSummary {
+  year: number;
+  months: TrendPoint[];
+  income_minor: number;
+  expense_minor: number;
+  balance_minor: number;
+  savings_minor: number;
+  savings_ratio: number | null;
+  fixed_cost_ratio: number | null;
+  groups: GroupFigure[];
+  categories: CategoryFigure[];
 }

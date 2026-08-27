@@ -201,6 +201,34 @@ dem Saldo auch den Saldo *ohne* Sparen aus.
 Quoten werden als Verhältnis in Basispunkten oder als `null` geliefert, wenn der Nenner 0
 ist — nie als „0 %“, weil das etwas anderes bedeutet.
 
+### Prognose, Vergleich, Jahr (`services/analytics.py`)
+
+**Prognose** (`/api/analytics/forecast`): Saldo und Kontostand, wenn die noch **offenen**
+Vorschläge aus wiederkehrenden Regeln bestätigt würden. Bestätigte zählen nicht mit — sie
+stecken schon im Ist —, übersprungene auch nicht, denn sie kommen nicht mehr. Das ist die
+Zahl, die man wirklich wissen will: nicht der Stand jetzt, sondern der Stand am Monatsende.
+
+**Vergleich** (`/api/analytics/comparison`): Ist des Monats gegen den Schnitt der
+abgeschlossenen Vormonate. Geteilt wird wie beim Budgetvorschlag durch die Monate, in denen
+tatsächlich gebucht wurde. Ohne Vergangenheit gibt es keine Abweichung in Prozent, sondern
+`null` und nur einen Betrag.
+
+Die Übersicht zeigt daraus nur **Überschreitungen** und nur, wenn sowohl der Anteil (≥ 25 %)
+als auch der Betrag (≥ 50 Einheiten) spürbar sind. Nach unten wird bewusst nicht gemeldet:
+ein Jahresabo, das elf Monate lang nicht anfällt, stünde sonst jeden Monat mit „−100 %" da —
+richtig gerechnet und trotzdem ohne jeden Wert.
+
+**Jahr** (`/api/analytics/year`): zwölf Monatszeilen plus Jahressummen je Gruppe und
+Kategorie. Monate ohne Buchungen werden als solche markiert (`has_data`) statt als Nullen
+ausgewiesen — sie tragen den Kontostand weiter, behaupten aber keine Ausgaben von 0.
+
+**Vermögensverlauf**: `TrendPoint.available_minor` ist der Startsaldo plus der kumulierte
+Saldo bis einschliesslich dieses Monats. Das Fenster kennt seine Vorgeschichte: der Wert vor
+dem ersten Punkt wird aus allem davor berechnet, sonst verlöre ein späteres Fenster die
+gesamte Historie. Im Diagramm ist das eine **eigene Ansicht**, keine vierte Linie —
+Vermögen und Monatswerte liegen Grössenordnungen auseinander, und zwei Skalen in einem Bild
+sind der zuverlässigste Weg, jemanden zu täuschen.
+
 ### Ausgleich zwischen Personen (`services/settlement.py`)
 
 1. Betrachtet werden die **Ausgaben** der Periode (Gruppen ≠ `EINKOMMEN`).

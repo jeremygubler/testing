@@ -4,7 +4,9 @@ from fastapi import APIRouter, Query
 
 from app.deps import CurrentHousehold, DbSession
 from app.schemas import (
+    CategoryComparisonRead,
     CategoryFigureRead,
+    ForecastRead,
     GroupFigureRead,
     MemberBalanceRead,
     MemberFigureRead,
@@ -12,6 +14,7 @@ from app.schemas import (
     PaymentRead,
     SettlementRead,
     TrendPointRead,
+    YearSummaryRead,
 )
 from app.services import analytics
 
@@ -124,6 +127,109 @@ def trend(
             expense_minor=point.expense_minor,
             balance_minor=point.balance_minor,
             savings_minor=point.savings_minor,
+            available_minor=point.available_minor,
+            has_data=point.has_data,
         )
         for point in analytics.trend(db, household, year, month, months)
     ]
+
+
+@router.get("/forecast", response_model=ForecastRead)
+def forecast(
+    household: CurrentHousehold,
+    db: DbSession,
+    year: int = Query(ge=1900, le=2200),
+    month: int = Query(ge=1, le=12),
+) -> ForecastRead:
+    """Wie der Monat endet, wenn die offenen Vorschlaege noch bestaetigt werden."""
+    result = analytics.forecast(db, household, year, month)
+    return ForecastRead(
+        year=result.year,
+        month=result.month,
+        expected_income_minor=result.expected_income_minor,
+        expected_expense_minor=result.expected_expense_minor,
+        open_count=result.open_count,
+        projected_balance_minor=result.projected_balance_minor,
+        projected_available_minor=result.projected_available_minor,
+    )
+
+
+@router.get("/comparison", response_model=list[CategoryComparisonRead])
+def comparison(
+    household: CurrentHousehold,
+    db: DbSession,
+    year: int = Query(ge=1900, le=2200),
+    month: int = Query(ge=1, le=12),
+    months: int = Query(default=6, ge=1, le=36),
+) -> list[CategoryComparisonRead]:
+    """Ist des Monats gegen den Schnitt der abgeschlossenen Vormonate."""
+    return [
+        CategoryComparisonRead(
+            category_id=row.category_id,
+            name=row.name,
+            group=row.group,
+            flow=row.flow,
+            actual_minor=row.actual_minor,
+            average_minor=row.average_minor,
+            delta_minor=row.delta_minor,
+            delta_ratio=row.delta_ratio,
+            based_on_months=row.based_on_months,
+        )
+        for row in analytics.comparison(db, household, year, month, months)
+    ]
+
+
+@router.get("/year", response_model=YearSummaryRead)
+def year_summary(
+    household: CurrentHousehold,
+    db: DbSession,
+    year: int = Query(ge=1900, le=2200),
+) -> YearSummaryRead:
+    """Zwoelf Monate am Stueck."""
+    result = analytics.year_summary(db, household, year)
+    return YearSummaryRead(
+        year=result.year,
+        months=[
+            TrendPointRead(
+                year=point.year,
+                month=point.month,
+                income_minor=point.income_minor,
+                expense_minor=point.expense_minor,
+                balance_minor=point.balance_minor,
+                savings_minor=point.savings_minor,
+                available_minor=point.available_minor,
+                has_data=point.has_data,
+            )
+            for point in result.months
+        ],
+        income_minor=result.income_minor,
+        expense_minor=result.expense_minor,
+        balance_minor=result.balance_minor,
+        savings_minor=result.savings_minor,
+        savings_ratio=result.savings_ratio,
+        fixed_cost_ratio=result.fixed_cost_ratio,
+        groups=[
+            GroupFigureRead(
+                group=group.group,
+                actual_minor=group.actual_minor,
+                budget_minor=group.budget_minor,
+                has_budget=group.has_budget,
+            )
+            for group in result.groups
+        ],
+        categories=[
+            CategoryFigureRead(
+                category_id=figure.category_id,
+                name=figure.name,
+                group=figure.group,
+                flow=figure.flow,
+                color=figure.color,
+                actual_minor=figure.actual_minor,
+                budget_minor=figure.budget_minor,
+                budget_source=figure.budget_source,
+                difference_minor=figure.difference_minor,
+                usage=figure.usage,
+            )
+            for figure in result.categories
+        ],
+    )

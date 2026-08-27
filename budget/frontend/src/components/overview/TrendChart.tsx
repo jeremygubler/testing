@@ -19,12 +19,21 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { t } from "@/i18n";
 import { axisTick } from "@/lib/chart";
 
-/** Drei Serien, eine Achse — alle drei sind Geldbeträge derselben Grössenordnung. */
-const SERIES = [
-  { key: "income_minor", label: "Einnahmen", color: "var(--chart-1)" },
-  { key: "expense_minor", label: "Ausgaben", color: "var(--chart-2)" },
-  { key: "balance_minor", label: "Saldo", color: "var(--chart-3)" },
-] as const;
+/**
+ * Zwei Ansichten mit je einer Achse. Vermögen und Monatswerte liegen
+ * Grössenordnungen auseinander — zusammen in einem Diagramm bräuchte es zwei Skalen,
+ * und zwei Skalen in einem Bild sind der zuverlässigste Weg, jemanden zu täuschen.
+ */
+const MODES = {
+  MONTH: [
+    { key: "income_minor", label: "Einnahmen", color: "var(--chart-1)" },
+    { key: "expense_minor", label: "Ausgaben", color: "var(--chart-2)" },
+    { key: "balance_minor", label: "Saldo", color: "var(--chart-3)" },
+  ],
+  WEALTH: [{ key: "available_minor", label: "Verfügbar", color: "var(--chart-1)" }],
+} as const;
+
+type Mode = keyof typeof MODES;
 
 const RANGES = [6, 12, 24] as const;
 
@@ -34,6 +43,7 @@ const RANGES = [6, 12, 24] as const;
  */
 export function TrendChart({ year, month }: { year: number; month: number }) {
   const [months, setMonths] = useState<number>(12);
+  const [mode, setMode] = useState<Mode>("MONTH");
   const { money } = useHouseholdContext();
   const narrow = useMediaQuery("(max-width: 640px)");
   const { data = [], isLoading } = useTrend(year, month, months);
@@ -41,9 +51,7 @@ export function TrendChart({ year, month }: { year: number; month: number }) {
   const points = useMemo(() => {
     // Monate vor der ersten Buchung sind keine Nullmonate, sondern Monate ohne Daten.
     // Sie als 0 zu zeichnen behauptete einen Einbruch, den es nie gab.
-    const firstWithData = data.findIndex(
-      (point) => point.income_minor !== 0 || point.expense_minor !== 0,
-    );
+    const firstWithData = data.findIndex((point) => point.has_data);
     const relevant = firstWithData === -1 ? data : data.slice(firstWithData);
     return relevant.map((point) => ({
       ...point,
@@ -51,21 +59,18 @@ export function TrendChart({ year, month }: { year: number; month: number }) {
     }));
   }, [data, narrow]);
 
-  const hasData = points.some(
-    (point) => point.income_minor !== 0 || point.expense_minor !== 0,
-  );
+  const hasData = points.some((point) => point.has_data);
+  const series = MODES[mode];
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          {SERIES.map((series) => (
-            <li key={series.key} className="inline-flex items-center gap-1.5">
-              <span aria-hidden className="h-0.5 w-3 rounded-full" style={{ background: series.color }} />
-              {series.label}
-            </li>
-          ))}
-        </ul>
+        <Tabs value={mode} onValueChange={(value) => setMode(value as Mode)}>
+          <TabsList>
+            <TabsTrigger value="MONTH">Monatswerte</TabsTrigger>
+            <TabsTrigger value="WEALTH">Verfügbar</TabsTrigger>
+          </TabsList>
+        </Tabs>
         <Tabs value={String(months)} onValueChange={(value) => setMonths(Number(value))}>
           <TabsList>
             {RANGES.map((range) => (
@@ -76,6 +81,17 @@ export function TrendChart({ year, month }: { year: number; month: number }) {
           </TabsList>
         </Tabs>
       </div>
+
+      {mode === "MONTH" && (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {series.map((entry) => (
+            <li key={entry.key} className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="h-0.5 w-3 rounded-full" style={{ background: entry.color }} />
+              {entry.label}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {isLoading ? (
         <p className="py-12 text-center text-sm text-muted-foreground">{t.app.loading}</p>
@@ -111,25 +127,25 @@ export function TrendChart({ year, month }: { year: number; month: number }) {
                 active && payload?.length ? (
                   <ChartTooltip
                     title={String(label)}
-                    rows={SERIES.map((series) => ({
-                      label: series.label,
-                      value: money(Number(payload[0]?.payload?.[series.key] ?? 0)),
-                      color: series.color,
+                    rows={series.map((entry) => ({
+                      label: entry.label,
+                      value: money(Number(payload[0]?.payload?.[entry.key] ?? 0)),
+                      color: entry.color,
                     }))}
                   />
                 ) : null
               }
             />
-            {SERIES.map((series) => (
+            {series.map((entry) => (
               <Line
-                key={series.key}
+                key={entry.key}
                 // Monatssummen sind einzelne Werte, keine stetige Kurve. Eine geglättete
                 // Linie erfände Zwischenstände, die es nicht gibt.
                 type="linear"
-                dataKey={series.key}
-                stroke={series.color}
+                dataKey={entry.key}
+                stroke={entry.color}
                 strokeWidth={2}
-                dot={{ r: 3, fill: series.color, strokeWidth: 2, stroke: "hsl(var(--card))" }}
+                dot={{ r: 3, fill: entry.color, strokeWidth: 2, stroke: "hsl(var(--card))" }}
                 activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--card))" }}
                 isAnimationActive={false}
               />

@@ -14,7 +14,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.enums import CategoryGroup, Flow, SettlementBasis
-from app.models import Budget, Category, Household, Member, Transaction, TransactionSplit
+from app.models import (
+    Budget,
+    Category,
+    Household,
+    Member,
+    RecurringRule,
+    Transaction,
+    TransactionSplit,
+)
 from app.services.settlement import MemberBalance, Payment, compute_balances, settle
 
 
@@ -332,6 +340,11 @@ class TrendPoint:
     expense_minor: int
     balance_minor: int
     savings_minor: int
+    #: Startsaldo plus kumulierter Saldo bis einschliesslich dieses Monats.
+    available_minor: int = 0
+    #: Ob in diesem Monat ueberhaupt gebucht wurde. Ein Monat ohne Daten ist kein
+    #: Monat ohne Ausgaben -- die Oberflaeche laesst ihn weg statt ihn als Null zu zeichnen.
+    has_data: bool = False
 
 
 def trend(db: Session, household: Household, year: int, month: int, months: int) -> list[TrendPoint]:
@@ -387,7 +400,231 @@ def trend(db: Session, household: Household, year: int, month: int, months: int)
             if group == CategoryGroup.SPAREN:
                 point.savings_minor += total
 
-    for point in points.values():
-        point.balance_minor = point.income_minor - point.expense_minor
+    ordered = [points[key] for key in sorted(points)]
 
-    return [points[key] for key in sorted(points)]
+    # Der Kontostand vor dem ersten Punkt des Fensters -- alles davor kumuliert.
+    before = start - dt.timedelta(days=1)
+    running = household.opening_balance_minor + cumulative_balance(db, household.id, before)
+
+    for point in ordered:
+        point.balance_minor = point.income_minor - point.expense_minor
+        point.has_data = point.income_minor != 0 or point.expense_minor != 0
+        running += point.balance_minor
+        point.available_minor = running
+
+    return ordered
+
+
+# ------------------------------------------------------------------------ Prognose
+
+
+@dataclass(slots=True)
+class Forecast:
+    year: int
+    month: int
+    #: Erwartete, aber noch nicht bestaetigte Buchungen aus wiederkehrenden Regeln.
+    expected_income_minor: int
+    expected_expense_minor: int
+    open_count: int
+    #: Saldo und Kontostand, wenn alle offenen Vorschlaege bestaetigt wuerden.
+    projected_balance_minor: int
+    projected_available_minor: int
+
+
+def forecast(db: Session, household: Household, year: int, month: int) -> Forecast:
+    """Wie der Monat endet, wenn die erwarteten Buchungen noch kommen.
+
+    Das ist die Zahl, die man wirklich wissen will: nicht was bisher passiert ist,
+    sondern was am Monatsende dasteht. Gerechnet wird nur mit **offenen** Vorschlaegen --
+    bestaetigte sind ja schon im Ist enthalten, uebersprungene kommen nicht mehr.
+    """
+    from app.services.recurring import OPEN, occurrences_for_period
+
+    start, end = month_bounds(year, month)
+    summary_income = 0
+    summary_expense = 0
+    open_count = 0
+
+    rules = {
+        rule.id: rule
+        for rule in db.scalars(
+            select(RecurringRule).where(RecurringRule.household_id == household.id)
+        )
+    }
+    for entry in occurrences_for_period(db, household.id, start, end):
+        if entry.status != OPEN:
+            continue
+        rule = rules.get(entry.rule_id)
+        if rule is None:
+            continue
+        open_count += 1
+        if rule.category.flow == Flow.INCOME:
+            summary_income += rule.amount_minor
+        else:
+            summary_expense += rule.amount_minor
+
+    current = month_summary(db, household, year, month)
+    expected_net = summary_income - summary_expense
+    return Forecast(
+        year=year,
+        month=month,
+        expected_income_minor=summary_income,
+        expected_expense_minor=summary_expense,
+        open_count=open_count,
+        projected_balance_minor=current.balance_minor + expected_net,
+        projected_available_minor=current.available_minor + expected_net,
+    )
+
+
+# ----------------------------------------------------------------------- Vergleich
+
+
+@dataclass(slots=True)
+class CategoryComparison:
+    category_id: int
+    name: str
+    group: CategoryGroup
+    flow: Flow
+    actual_minor: int
+    average_minor: int
+    delta_minor: int
+    #: Abweichung als Verhaeltnis, oder ``None`` wenn es keinen Schnitt gibt.
+    delta_ratio: float | None
+    based_on_months: int
+
+
+def comparison(
+    db: Session, household: Household, year: int, month: int, months: int = 6
+) -> list[CategoryComparison]:
+    """Ist des Monats gegen den Schnitt der abgeschlossenen Vormonate.
+
+    Wie beim Budgetvorschlag wird durch die Monate geteilt, in denen tatsaechlich
+    gebucht wurde -- nicht durch die Fensterbreite.
+    """
+    end_index = year * 12 + (month - 1) - 1
+    start_index = end_index - (months - 1)
+    start = dt.date(start_index // 12, start_index % 12 + 1, 1)
+    end_year, end_month = end_index // 12, end_index % 12 + 1
+    end = dt.date(end_year, end_month, calendar.monthrange(end_year, end_month)[1])
+
+    history = dict(
+        db.execute(
+            select(Transaction.category_id, func.coalesce(func.sum(Transaction.amount_minor), 0))
+            .where(
+                Transaction.household_id == household.id,
+                Transaction.date >= start,
+                Transaction.date <= end,
+            )
+            .group_by(Transaction.category_id)
+        ).all()
+    )
+    recorded = db.scalar(
+        select(func.count(func.distinct(func.strftime("%Y-%m", Transaction.date)))).where(
+            Transaction.household_id == household.id,
+            Transaction.date >= start,
+            Transaction.date <= end,
+        )
+    ) or 0
+    divisor = max(1, min(months, recorded))
+
+    current_start, current_end = month_bounds(year, month)
+    actuals = _actuals_by_category(db, household.id, current_start, current_end)
+
+    result: list[CategoryComparison] = []
+    for category in db.scalars(
+        select(Category)
+        .where(Category.household_id == household.id)
+        .order_by(Category.sort_order, Category.id)
+    ):
+        actual = actuals.get(category.id, 0)
+        average = round(history.get(category.id, 0) / divisor)
+        if actual == 0 and average == 0:
+            continue
+        result.append(
+            CategoryComparison(
+                category_id=category.id,
+                name=category.name,
+                group=category.group,
+                flow=category.flow,
+                actual_minor=actual,
+                average_minor=average,
+                delta_minor=actual - average,
+                delta_ratio=ratio(actual - average, average) if average else None,
+                based_on_months=recorded if recorded else 0,
+            )
+        )
+    return result
+
+
+# ------------------------------------------------------------------------ Jahr
+
+
+@dataclass(slots=True)
+class YearSummary:
+    year: int
+    months: list[TrendPoint]
+    income_minor: int
+    expense_minor: int
+    balance_minor: int
+    savings_minor: int
+    savings_ratio: float | None
+    fixed_cost_ratio: float | None
+    groups: list[GroupFigure]
+    categories: list[CategoryFigure]
+
+
+def year_summary(db: Session, household: Household, year: int) -> YearSummary:
+    """Zwoelf Monate am Stueck -- der Jahresabschluss des Haushalts."""
+    months = trend(db, household, year, 12, 12)
+
+    start = dt.date(year, 1, 1)
+    end = dt.date(year, 12, 31)
+    actuals = _actuals_by_category(db, household.id, start, end)
+
+    groups: dict[CategoryGroup, GroupFigure] = {
+        group: GroupFigure(group=group) for group in CategoryGroup
+    }
+    figures: list[CategoryFigure] = []
+    for category in db.scalars(
+        select(Category)
+        .where(Category.household_id == household.id)
+        .order_by(Category.sort_order, Category.id)
+    ):
+        actual = actuals.get(category.id, 0)
+        if actual == 0 and not category.is_active:
+            continue
+        figures.append(
+            CategoryFigure(
+                category_id=category.id,
+                name=category.name,
+                group=category.group,
+                flow=category.flow,
+                color=category.color,
+                actual_minor=actual,
+                budget_minor=None,
+                budget_source=None,
+            )
+        )
+        groups[category.group].actual_minor += actual
+
+    income = groups[CategoryGroup.EINKOMMEN].actual_minor
+    expense = sum(
+        figure.actual_minor
+        for group, figure in groups.items()
+        if group is not CategoryGroup.EINKOMMEN
+    )
+    savings = groups[CategoryGroup.SPAREN].actual_minor
+    fixed = groups[CategoryGroup.FIXKOSTEN].actual_minor
+
+    return YearSummary(
+        year=year,
+        months=months,
+        income_minor=income,
+        expense_minor=expense,
+        balance_minor=income - expense,
+        savings_minor=savings,
+        savings_ratio=ratio(savings, income),
+        fixed_cost_ratio=ratio(fixed, income),
+        groups=[groups[group] for group in CategoryGroup],
+        categories=figures,
+    )

@@ -11,6 +11,7 @@ import { OverviewPage } from "@/pages/OverviewPage";
 import { RecurringPage } from "@/pages/RecurringPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { TransactionsPage } from "@/pages/TransactionsPage";
+import { YearPage } from "@/pages/YearPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,6 +33,7 @@ export function App() {
               <Routes>
                 <Route element={<AppShell />}>
                   <Route index element={<OverviewPage />} />
+                  <Route path="jahr" element={<YearPage />} />
                   <Route path="buchungen" element={<TransactionsPage />} />
                   <Route path="budget" element={<BudgetPage />} />
                   <Route path="wiederkehrend" element={<RecurringPage />} />
