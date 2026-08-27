@@ -40,6 +40,13 @@ export const de = {
     ],
     weekdays: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
   },
+  groupShort: {
+    EINKOMMEN: "Eink.",
+    FIXKOSTEN: "Fix",
+    VARIABEL: "Var.",
+    SPAREN: "Sparen",
+    SCHULDEN: "Schuld.",
+  },
   group: {
     EINKOMMEN: "Einkommen",
     FIXKOSTEN: "Fixkosten",

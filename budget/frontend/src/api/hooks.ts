@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 
-import { api, buildQuery } from "./client";
+import { ApiError, api, buildQuery } from "./client";
 import type {
   Budget,
   BudgetUpsert,
@@ -9,6 +9,7 @@ import type {
   Category,
   ConfirmOccurrence,
   Household,
+  HouseholdCreate,
   MonthSummary,
   Occurrence,
   ImportPreview,
@@ -43,7 +44,20 @@ export function useHousehold(options?: Partial<UseQueryOptions<Household>>) {
     queryKey: queryKeys.household,
     queryFn: () => api.get<Household>("/household"),
     staleTime: 60_000,
+    // 404 heisst "noch nicht eingerichtet" -- daran aendert kein Wiederholen etwas.
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 404) && failureCount < 2,
     ...options,
+  });
+}
+
+export function useCreateHousehold() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: HouseholdCreate) => api.post<Household>("/household", input),
+    onSuccess: () => {
+      void client.invalidateQueries();
+    },
   });
 }
 

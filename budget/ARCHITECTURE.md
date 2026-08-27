@@ -258,6 +258,19 @@ models/ddl  Persistenz und die DB-seitig erzwungenen Invarianten
 Router rufen Services, nie umgekehrt. Fachliche Fehler werfen `SplitError` o. ä. und werden
 zentral auf HTTP 422 abgebildet.
 
+## Zustände der Oberfläche
+
+Jede Ansicht hat drei mögliche Zustände, und alle drei sind gestaltet:
+
+* **Lädt** — Skelette in der Form des späteren Inhalts, keine Spinner-Wüste.
+* **Leer** — erklärt, was zu tun ist, statt „keine Daten" zu melden. Wichtig ist die
+  Unterscheidung: „nichts offen" und „es gibt noch gar keine Regeln" sind verschiedene
+  Aussagen und bekommen verschiedene Texte.
+* **Fehler** — benennt, was nicht ging, und bietet einen Wiederholen-Knopf.
+
+Zusätzlich gibt es einen vierten Zustand vor allen anderen: **keine Installation**. Liefert
+`GET /api/household` ein 404, zeigt `HouseholdGate` die Erstinbetriebnahme statt der App.
+
 ## Mehrbenutzer-Fähigkeit
 
 Version 1 kennt genau einen Haushalt (`BUDGET_SINGLE_HOUSEHOLD_ID = 1`) und keine

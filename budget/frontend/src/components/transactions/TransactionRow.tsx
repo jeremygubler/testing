@@ -133,7 +133,7 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
       <TableCell className="max-w-[1px] truncate">
         {transaction.description || <span className="text-muted-foreground">–</span>}
       </TableCell>
-      <TableCell className="whitespace-nowrap">
+      <TableCell className="hidden whitespace-nowrap lg:table-cell">
         <span className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
           {transaction.splits.map((split) => {
             const member = memberById.get(split.member_id);
@@ -158,7 +158,7 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
         <Money value={signedAmount} bare className="font-medium" />
       </TableCell>
       <TableCell className="w-[4.5rem] text-right">
-        <span className="inline-flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        <span className="inline-flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
           <Button size="icon-sm" variant="ghost" onClick={startEditing} aria-label={t.app.edit}>
             <Pencil />
           </Button>

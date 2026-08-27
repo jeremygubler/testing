@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { CalendarCheck, Check, Loader2, SkipForward } from "lucide-react";
 
-import { useConfirmOccurrences, useOccurrences, useSkipOccurrence } from "@/api/hooks";
+import {
+  useConfirmOccurrences,
+  useOccurrences,
+  useRecurringRules,
+  useSkipOccurrence,
+} from "@/api/hooks";
 import type { Occurrence } from "@/api/types";
 import { EmptyState } from "@/components/EmptyState";
 import { Money } from "@/components/Money";
@@ -27,6 +32,7 @@ interface PendingSuggestionsProps {
 export function PendingSuggestions({ year, month, compact = false }: PendingSuggestionsProps) {
   const { dateShort } = useHouseholdContext();
   const { data: occurrences = [], isLoading } = useOccurrences(year, month, true);
+  const { data: rules = [] } = useRecurringRules();
   const confirm = useConfirmOccurrences();
   const skip = useSkipOccurrence();
 
@@ -62,11 +68,17 @@ export function PendingSuggestions({ year, month, compact = false }: PendingSugg
   }
 
   if (occurrences.length === 0) {
+    // "Nichts offen" und "es gibt gar keine Regeln" sind verschiedene Aussagen.
+    const hasRules = rules.some((rule) => rule.is_active);
     return (
       <EmptyState
         icon={<CalendarCheck />}
-        title="Nichts offen"
-        description="Alle erwarteten Buchungen dieses Monats sind bestätigt oder übersprungen."
+        title={hasRules ? "Nichts offen" : "Noch keine Regeln"}
+        description={
+          hasRules
+            ? "Alle erwarteten Buchungen dieses Monats sind bestätigt oder übersprungen."
+            : "Miete, Lohn und Abos einmal als wiederkehrende Buchung anlegen — dann erscheinen sie hier als Vorschlag."
+        }
       />
     );
   }

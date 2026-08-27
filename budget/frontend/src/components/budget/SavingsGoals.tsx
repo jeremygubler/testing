@@ -75,7 +75,7 @@ export function SavingsGoals() {
                   <Button
                     size="icon-sm"
                     variant="ghost"
-                    className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                    className="transition-opacity md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100"
                     aria-label={`${t.app.delete}: ${goal.name}`}
                     onClick={() => {
                       if (window.confirm(`Sparziel „${goal.name}" löschen? Die Buchungen bleiben.`)) {

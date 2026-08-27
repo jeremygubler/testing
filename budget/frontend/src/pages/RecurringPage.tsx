@@ -269,7 +269,7 @@ function IntervalSection({
             <Money value={rule.monthly_estimate_minor} bare colored={false} />
           </TableCell>
           <TableCell className="text-right">
-            <span className="inline-flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+            <span className="inline-flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
               <Button size="icon-sm" variant="ghost" onClick={() => onEdit(rule)} aria-label={t.app.edit}>
                 <Pencil />
               </Button>

@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useCallback, useMemo, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   CalendarDays,
+  Keyboard,
   LayoutDashboard,
   Menu,
   Receipt,
@@ -11,10 +12,16 @@ import {
 } from "lucide-react";
 
 import { MonthNavigator } from "@/components/MonthNavigator";
+import { ShortcutHelp } from "@/components/ShortcutHelp";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useHouseholdContext } from "@/components/HouseholdProvider";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMonth } from "@/hooks/useMonth";
+import { useShortcuts, type Shortcut } from "@/hooks/useShortcuts";
+import { useTheme } from "@/hooks/useTheme";
 import { t } from "@/i18n";
+import { currentMonth } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -28,8 +35,41 @@ const NAV = [
 
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { household } = useHouseholdContext();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { shift, setMonth } = useMonth();
+  const { toggle: toggleTheme } = useTheme();
+
+  const go = useCallback(
+    (to: string) => navigate({ pathname: to, search: location.search }),
+    [navigate, location.search],
+  );
+
+  /** „Neue Buchung" springt zur Liste und setzt den Fokus ins Betragsfeld. */
+  const focusQuickEntry = useCallback(() => {
+    go("/buchungen");
+    window.setTimeout(() => document.getElementById("quick-amount")?.focus(), 60);
+  }, [go]);
+
+  const shortcuts = useMemo<Shortcut[]>(
+    () => [
+      { key: "arrowleft", handler: () => shift(-1) },
+      { key: "arrowright", handler: () => shift(1) },
+      { key: "h", handler: () => setMonth(currentMonth()) },
+      { key: "n", handler: focusQuickEntry },
+      { key: "d", handler: toggleTheme },
+      { key: "?", handler: () => setHelpOpen(true) },
+      ...NAV.map((entry, index) => ({
+        key: String(index + 1),
+        handler: () => go(entry.to),
+      })),
+    ],
+    [shift, setMonth, focusQuickEntry, toggleTheme, go],
+  );
+
+  useShortcuts(shortcuts, !helpOpen);
 
   const nav = (
     <nav className="flex flex-col gap-0.5">
@@ -82,6 +122,22 @@ export function AppShell() {
           </Button>
           <MonthNavigator />
           <div className="ml-auto flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="hidden sm:inline-flex"
+                  onClick={() => setHelpOpen(true)}
+                  aria-label="Tastenkürzel"
+                >
+                  <Keyboard />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Tastenkürzel <kbd className="ml-1 font-mono">?</kbd>
+              </TooltipContent>
+            </Tooltip>
             <ThemeToggle />
           </div>
         </header>
@@ -94,6 +150,8 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      <ShortcutHelp open={helpOpen} onOpenChange={setHelpOpen} />
     </div>
   );
 }

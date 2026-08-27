@@ -136,9 +136,9 @@ export function TransactionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[7.5rem]">{t.transactions.date}</TableHead>
-                  <TableHead className="w-[12rem]">{t.transactions.category}</TableHead>
+                  <TableHead className="w-[8rem] sm:w-[12rem]">{t.transactions.category}</TableHead>
                   <TableHead>{t.transactions.description}</TableHead>
-                  <TableHead className="w-[14rem]">{t.transactions.split}</TableHead>
+                  <TableHead className="hidden w-[14rem] lg:table-cell">{t.transactions.split}</TableHead>
                   <TableHead className="w-[9rem] text-right">
                     {t.transactions.amount} ({currency})
                   </TableHead>
@@ -158,7 +158,10 @@ export function TransactionsPage() {
               </TableBody>
               <TableFooter>
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="text-xs text-muted-foreground">
+                  <TableCell colSpan={3} className="text-xs text-muted-foreground lg:hidden">
+                    {t.app.total}
+                  </TableCell>
+                  <TableCell colSpan={4} className="hidden text-xs text-muted-foreground lg:table-cell">
                     {t.app.total}
                   </TableCell>
                   <TableCell className="text-right">

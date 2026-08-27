@@ -565,3 +565,30 @@ class ImportPreview(BaseModel):
 class ImportResult(BaseModel):
     created: int
     skipped: int
+
+
+class HouseholdCreate(BaseModel):
+    """Erstinbetriebnahme. Version 1 kennt genau einen Haushalt pro Installation."""
+
+    name: str = Field(min_length=1, max_length=120, default="Mein Haushalt")
+    currency: str = Field(min_length=3, max_length=3, default="CHF")
+    locale: str = Field(min_length=2, max_length=10, default="de-CH")
+    timezone: str = Field(min_length=1, max_length=64, default="Europe/Zurich")
+    opening_balance_minor: int = 0
+    member_names: list[str] = Field(min_length=1, max_length=6)
+    with_starter_categories: bool = True
+
+    @field_validator("member_names")
+    @classmethod
+    def _clean(cls, value: list[str]) -> list[str]:
+        names = [name.strip() for name in value if name.strip()]
+        if not names:
+            raise ValueError("Mindestens eine Person ist noetig.")
+        if len(names) != len(set(names)):
+            raise ValueError("Die Namen der Personen muessen sich unterscheiden.")
+        return names
+
+    @field_validator("currency")
+    @classmethod
+    def _upper(cls, value: str) -> str:
+        return value.upper()

@@ -209,7 +209,7 @@ function DayDetail({
                   size="icon-sm"
                   variant="ghost"
                   aria-label={`${t.app.delete}: ${entry.title}`}
-                  className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                  className="transition-opacity md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100"
                   onClick={() => removeEntry.mutate(entry.id)}
                 >
                   <Trash2 />

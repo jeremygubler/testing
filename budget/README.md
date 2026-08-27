@@ -74,6 +74,30 @@ setzen (oder über eine `backend/.env`):
 
 Im Frontend steuert `VITE_API_TARGET` das Proxy-Ziel des Dev-Servers.
 
+## Erste Inbetriebnahme
+
+Findet die App keinen Haushalt, zeigt sie statt einer leeren Oberfläche einen
+Einrichtungsschritt: Name, Währung, Startsaldo, Personen und optional ein kurzer Satz
+Startkategorien. Danach ist die App sofort benutzbar. `python seed.py` ist nur für die
+Demo gedacht und tut nichts, wenn bereits ein Haushalt existiert.
+
+## Tastaturbedienung
+
+Ausserhalb von Eingabefeldern:
+
+| Taste | Wirkung |
+| --- | --- |
+| `←` `→` | Einen Monat zurück / vor |
+| `h` | Zum aktuellen Monat |
+| `n` | Neue Buchung erfassen (springt in die Liste und fokussiert den Betrag) |
+| `1` … `6` | Bereich wechseln |
+| `d` | Hell / Dunkel umschalten |
+| `?` | Übersicht aller Kürzel |
+
+Im Erfassungsformular: `Enter` im Betragsfeld öffnet die Kategoriesuche, `Enter` in der
+Suche übernimmt die Kategorie, `Enter` im Formular speichert und lässt das Formular für
+die nächste Buchung offen. Damit kostet eine Buchung drei Interaktionen.
+
 ## Datensicherung
 
 Die gesamte Anwendung lebt in einer SQLite-Datei (`backend/data/budget.db` bzw. dem
@@ -114,4 +138,4 @@ budget/
 | 4 | Budgets, Übersichtsseite mit Kennzahlen und Charts | ✅ |
 | 5 | Wiederkehrende Buchungen mit Vorschlagslogik | ✅ |
 | 6 | Kalender, Sparziele, Import, Export | ✅ |
-| 7 | Feinschliff: Tastatur, Dark Mode, Responsivität, leere Zustände | ⬜ |
+| 7 | Feinschliff: Tastatur, Dark Mode, Responsivität, leere Zustände | ✅ |

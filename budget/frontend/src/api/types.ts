@@ -24,6 +24,16 @@ export interface Household {
   settlement_basis: SettlementBasis;
 }
 
+export interface HouseholdCreate {
+  name: string;
+  currency: string;
+  locale: string;
+  timezone?: string;
+  opening_balance_minor: number;
+  member_names: string[];
+  with_starter_categories: boolean;
+}
+
 export interface Member {
   id: number;
   name: string;

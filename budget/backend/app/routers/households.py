@@ -1,9 +1,31 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 
 from app.deps import CurrentHousehold, DbSession
-from app.schemas import HouseholdRead, HouseholdUpdate
+from app.schemas import HouseholdCreate, HouseholdRead, HouseholdUpdate
+from app.services import setup
 
 router = APIRouter(prefix="/api/household", tags=["household"])
+
+
+@router.post("", response_model=HouseholdRead, status_code=status.HTTP_201_CREATED)
+def create_household(payload: HouseholdCreate, db: DbSession) -> HouseholdRead:
+    """Erstinbetriebnahme. Existiert bereits ein Haushalt, wird abgelehnt --
+    ein Ueberschreiben waere Datenverlust, kein Einrichten."""
+    if setup.household_exists(db):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Es ist bereits ein Haushalt eingerichtet."
+        )
+    household = setup.create_household(
+        db,
+        name=payload.name,
+        currency=payload.currency,
+        locale=payload.locale,
+        timezone=payload.timezone,
+        opening_balance_minor=payload.opening_balance_minor,
+        member_names=payload.member_names,
+        with_starter_categories=payload.with_starter_categories,
+    )
+    return HouseholdRead.model_validate(household)
 
 
 @router.get("", response_model=HouseholdRead)

@@ -93,3 +93,63 @@ def test_household_can_be_updated(client):
     assert body["opening_balance_minor"] == 250_000
     assert body["settlement_basis"] == "INCOME"
     assert body["currency"] == "CHF"
+
+
+# --------------------------------------------------------------- Erstinbetriebnahme
+
+
+def test_setup_creates_household_members_and_starter_categories(engine):
+    """Ohne Haushalt liefert die API 404 -- und laesst sich genau einmal einrichten."""
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db import get_db
+    from app.main import app as fastapi_app
+
+    factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
+
+    def override():
+        session = factory()
+        try:
+            yield session
+            session.commit()
+        finally:
+            session.close()
+
+    fastapi_app.dependency_overrides[get_db] = override
+    try:
+        with TestClient(fastapi_app) as client:
+            assert client.get("/api/household").status_code == 404
+
+            response = client.post(
+                "/api/household",
+                json={"name": "Neuer Haushalt", "currency": "eur", "member_names": ["Ada", "Bo"]},
+            )
+            assert response.status_code == 201
+            assert response.json()["currency"] == "EUR"
+
+            assert [m["name"] for m in client.get("/api/members").json()] == ["Ada", "Bo"]
+            assert len(client.get("/api/categories").json()) > 10
+
+            # Ein zweites Einrichten waere Datenverlust.
+            again = client.post("/api/household", json={"member_names": ["X"]})
+            assert again.status_code == 409
+    finally:
+        fastapi_app.dependency_overrides.clear()
+
+
+def test_setup_rejects_duplicate_member_names(engine):
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db import get_db
+    from app.main import app as fastapi_app
+
+    factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
+    fastapi_app.dependency_overrides[get_db] = lambda: iter([factory()])
+    try:
+        with TestClient(fastapi_app) as client:
+            response = client.post("/api/household", json={"member_names": ["Ada", "Ada"]})
+            assert response.status_code == 422
+    finally:
+        fastapi_app.dependency_overrides.clear()
