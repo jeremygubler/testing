@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.deps import CurrentHousehold, DbSession
 from app.models import Category, SavingsGoal, Transaction
 from app.schemas import SavingsGoalCreate, SavingsGoalRead, SavingsGoalUpdate
+from app.services.clock import household_today
 
 router = APIRouter(prefix="/api/savings-goals", tags=["savings"])
 
@@ -79,7 +80,7 @@ def list_goals(
     query = select(SavingsGoal).where(SavingsGoal.household_id == household.id)
     if not include_inactive:
         query = query.where(SavingsGoal.is_active.is_(True))
-    reference = today or dt.date.today()
+    reference = today or household_today(household)
     return [_to_read(db, goal, reference) for goal in db.scalars(query.order_by(SavingsGoal.id))]
 
 
@@ -94,7 +95,7 @@ def create_goal(
     db.add(goal)
     db.flush()
     db.refresh(goal)
-    return _to_read(db, goal, dt.date.today())
+    return _to_read(db, goal, household_today(household))
 
 
 @router.patch("/{goal_id}", response_model=SavingsGoalRead)
@@ -106,7 +107,7 @@ def update_goal(
         setattr(goal, field, value)
     db.flush()
     db.refresh(goal)
-    return _to_read(db, goal, dt.date.today())
+    return _to_read(db, goal, household_today(household))
 
 
 @router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)

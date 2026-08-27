@@ -1,12 +1,18 @@
 import datetime as dt
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.deps import CurrentHousehold, DbSession
 from app.enums import SplitTemplate
-from app.models import Category, RecurringRule, RecurringRuleSplit, RecurringSkip
+from app.models import (
+    Category,
+    RecurringRule,
+    RecurringRuleSplit,
+    RecurringSkip,
+    Transaction,
+)
 from app.schemas import (
     ConfirmBatch,
     ConfirmOccurrence,
@@ -21,6 +27,7 @@ from app.schemas import (
 )
 from app.routers.transactions import to_read
 from app.services import recurring as service
+from app.services.clock import household_today
 from app.services import transactions as txn_service
 from app.services.analytics import month_bounds
 from app.services.splits import SplitError
@@ -47,7 +54,14 @@ def _rule_split(rule: RecurringRule) -> SplitSpec:
     return SplitSpec(template=rule.split_template, member_id=rule.split_member_id)
 
 
-def _to_read(db: Session, rule: RecurringRule, today: dt.date) -> RecurringRuleRead:
+#: Felder, die das Faelligkeitsraster bestimmen. Aendert sich eines davon, passen die
+#: gespeicherten Faelligkeitstermine bereits gebuchter Transaktionen nicht mehr dazu.
+SCHEDULE_FIELDS = ("interval", "day_of_period", "anchor_month", "start_date")
+
+
+def _to_read(
+    db: Session, rule: RecurringRule, today: dt.date, supersedes: int | None = None
+) -> RecurringRuleRead:
     return RecurringRuleRead(
         id=rule.id,
         category_id=rule.category_id,
@@ -67,6 +81,7 @@ def _to_read(db: Session, rule: RecurringRule, today: dt.date) -> RecurringRuleR
         monthly_estimate_minor=service.monthly_estimate(rule),
         yearly_estimate_minor=service.yearly_estimate(rule),
         open_streak=service.stale_since_months(db, rule, today) if rule.is_active else 0,
+        supersedes_rule_id=supersedes,
     )
 
 
@@ -103,7 +118,7 @@ def list_rules(
     query = select(RecurringRule).where(RecurringRule.household_id == household.id)
     if not include_inactive:
         query = query.where(RecurringRule.is_active.is_(True))
-    reference = today or dt.date.today()
+    reference = today or household_today(household)
     rows = db.scalars(query.order_by(RecurringRule.interval, RecurringRule.day_of_period, RecurringRule.id))
     return [_to_read(db, rule, reference) for rule in rows]
 
@@ -122,26 +137,92 @@ def create_rule(
     db.flush()
     _apply_split(db, rule, payload.split)
     db.refresh(rule)
-    return _to_read(db, rule, dt.date.today())
+    return _to_read(db, rule, household_today(household))
 
 
 @router.patch("/{rule_id}", response_model=RecurringRuleRead)
 def update_rule(
     rule_id: int, payload: RecurringRuleUpdate, household: CurrentHousehold, db: DbSession
 ) -> RecurringRuleRead:
+    """Aendert eine Regel.
+
+    Verschiebt die Aenderung das Faelligkeitsraster (Intervall, Buchungstag,
+    Ankermonat, Start) **und** hat die Regel bereits bestaetigte Buchungen, wird nicht
+    in place geaendert: die alte Regel wird zum Stichtag beendet und eine neue mit dem
+    neuen Raster angelegt. Sonst wuerden die gespeicherten Faelligkeitstermine der
+    bereits gebuchten Transaktionen zu keinem erzeugten Termin mehr passen -- die
+    Vergangenheit erschiene wieder als offener Vorschlag und liesse sich ein zweites
+    Mal buchen.
+    """
     rule = _get_rule(db, household.id, rule_id)
-    data = payload.model_dump(exclude_unset=True, exclude={"split"})
+    today = household_today(household)
+    data = payload.model_dump(exclude_unset=True, exclude={"split", "effective_from"})
+
     if "category_id" in data:
         category = db.get(Category, data["category_id"])
         if category is None or category.household_id != household.id:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Kategorie nicht gefunden.")
+
+    schedule_changed = any(
+        field in data and data[field] != getattr(rule, field) for field in SCHEDULE_FIELDS
+    )
+    confirmed = db.scalar(
+        select(func.count())
+        .select_from(Transaction)
+        .where(
+            Transaction.recurring_rule_id == rule.id,
+            Transaction.recurring_occurrence_date.is_not(None),
+        )
+    ) or 0
+
+    if schedule_changed and confirmed:
+        return _supersede(db, household, rule, payload, data, today)
+
     for field, value in data.items():
         setattr(rule, field, value)
     db.flush()
     if payload.split is not None:
         _apply_split(db, rule, payload.split)
     db.refresh(rule)
-    return _to_read(db, rule, dt.date.today())
+    return _to_read(db, rule, today)
+
+
+def _supersede(
+    db: Session,
+    household,
+    rule: RecurringRule,
+    payload: RecurringRuleUpdate,
+    data: dict,
+    today: dt.date,
+) -> RecurringRuleRead:
+    """Beendet die alte Regel und legt die geaenderte als Nachfolgerin an."""
+    effective_from = payload.effective_from or today
+    if effective_from < rule.start_date:
+        effective_from = rule.start_date
+
+    # Kein Termin darf zwischen Stuhl und Bank fallen: die alte Regel laeuft bis zum
+    # Tag vor dem Stichtag weiter, die neue beginnt am Stichtag.
+    previous_end = effective_from - dt.timedelta(days=1)
+    rule.end_date = previous_end if previous_end >= rule.start_date else rule.start_date
+
+    successor = RecurringRule(
+        household_id=household.id,
+        category_id=data.get("category_id", rule.category_id),
+        description=data.get("description", rule.description),
+        amount_minor=data.get("amount_minor", rule.amount_minor),
+        interval=data.get("interval", rule.interval),
+        day_of_period=data.get("day_of_period", rule.day_of_period),
+        anchor_month=data.get("anchor_month", rule.anchor_month),
+        start_date=max(data.get("start_date", effective_from), effective_from),
+        end_date=data.get("end_date", rule.end_date if rule.end_date != previous_end else None),
+        is_active=data.get("is_active", rule.is_active),
+        note=data.get("note", rule.note),
+    )
+    db.add(successor)
+    db.flush()
+    _apply_split(db, successor, payload.split or _rule_split(rule))
+    db.refresh(successor)
+    return _to_read(db, successor, today, supersedes=rule.id)
 
 
 @router.delete("/{rule_id}", response_model=RecurringRuleRead)
@@ -152,7 +233,7 @@ def deactivate_rule(
     rule = _get_rule(db, household.id, rule_id)
     rule.is_active = False
     db.flush()
-    return _to_read(db, rule, dt.date.today())
+    return _to_read(db, rule, household_today(household))
 
 
 @router.get("/occurrences", response_model=list[OccurrenceRead])
@@ -199,9 +280,9 @@ def _confirm_one(
 ) -> TransactionRead:
     rule = _get_rule(db, household.id, entry.rule_id)
     already = db.scalar(
-        select(service.Transaction.id).where(
-            service.Transaction.recurring_rule_id == rule.id,
-            service.Transaction.recurring_occurrence_date == entry.due_date,
+        select(Transaction.id).where(
+            Transaction.recurring_rule_id == rule.id,
+            Transaction.recurring_occurrence_date == entry.due_date,
         )
     )
     if already is not None:

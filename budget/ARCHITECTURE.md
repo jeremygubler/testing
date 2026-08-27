@@ -36,6 +36,11 @@ Household 1──n Member
 `name`, `currency`, `locale`, `timezone`, `opening_balance_minor` (Startsaldo),
 `settlement_basis`.
 
+`timezone` bestimmt, was „heute" heisst — nicht die Systemzeit des Servers. Das ist
+relevant, sobald der Server anderswo steht als der Haushalt: am Monatsanfang und -ende
+läge „heute" sonst um einen Tag daneben, und damit auch die Vorschlagslogik und der
+Fortschritt von Sparzielen (`services/clock.py`).
+
 `settlement_basis` beantwortet eine Frage, die die Spezifikation offenlässt: *Woran misst
 sich der „Anteil“, den eine Person tragen sollte?* Zwei Antworten sind sinnvoll:
 
@@ -204,6 +209,16 @@ aktiven Regeln erzeugt und mit dem Ist-Zustand abgeglichen:
   → `CONFIRMED`.
 * Es gibt einen `RecurringSkip` für Regel und Termin → `SKIPPED`.
 * Sonst → `OPEN`, erscheint als Vorschlag.
+
+**Eine Terminänderung erzeugt eine Nachfolgeregel.** Ändern sich `interval`,
+`day_of_period`, `anchor_month` oder `start_date` an einer Regel, die bereits bestätigte
+Buchungen hat, wird nicht in place geändert: die alte Regel bekommt ein `end_date` am Tag
+vor dem Stichtag, und eine neue Regel mit dem neuen Raster beginnt am Stichtag. Sonst
+passten die in `recurring_occurrence_date` gespeicherten Termine der bereits gebuchten
+Transaktionen zu keinem erzeugten Termin mehr — die Vergangenheit erschiene wieder als
+offener Vorschlag und liesse sich ein zweites Mal buchen. Änderungen an Betrag,
+Beschreibung, Kategorie oder Aufteilung berühren das Raster nicht und werden weiterhin
+direkt übernommen.
 
 Beim Bestätigen sind Betrag, Datum und Aufteilung änderbar (die Stromrechnung schwankt).
 Das ist bewusst kein Automatismus: eine App, die ungefragt bucht, hat nie einen Kontostand,

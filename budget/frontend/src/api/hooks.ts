@@ -307,6 +307,15 @@ export function useConfirmOccurrences() {
   });
 }
 
+export function useUnskipOccurrence() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ rule_id, due_date }: { rule_id: number; due_date: string }) =>
+      api.delete<void>(`/recurring/occurrences/skip${buildQuery({ rule_id, due_date })}`),
+    onSuccess: () => invalidateRecurringViews(client),
+  });
+}
+
 export function useSkipOccurrence() {
   const client = useQueryClient();
   return useMutation({

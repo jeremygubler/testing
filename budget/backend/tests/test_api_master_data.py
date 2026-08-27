@@ -153,3 +153,41 @@ def test_setup_rejects_duplicate_member_names(engine):
             assert response.status_code == 422
     finally:
         fastapi_app.dependency_overrides.clear()
+
+
+def test_household_timezone_drives_today(db, household):
+    """Bisher war timezone ein totes Feld -- 'heute' kam aus der Serverzeit."""
+    import datetime as dt
+
+    from app.services.clock import household_now, household_today
+
+    for zone, offset in (("Pacific/Kiritimati", 14), ("Pacific/Niue", -11), ("Europe/Zurich", None)):
+        household.timezone = zone
+        db.flush()
+        now = household_now(household)
+        if offset is not None:
+            assert now.utcoffset() == dt.timedelta(hours=offset), zone
+        assert household_today(household) == now.date()
+
+    # 25 Stunden Unterschied heissen: die beiden sehen nie denselben Zeitpunkt gleich.
+    household.timezone = "Pacific/Kiritimati"
+    db.flush()
+    east = household_now(household)
+    household.timezone = "Pacific/Niue"
+    db.flush()
+    west = household_now(household)
+    assert east.utcoffset() - west.utcoffset() == dt.timedelta(hours=25)
+
+
+def test_unknown_timezone_does_not_break_the_app(db, household):
+    from app.services.clock import household_today
+
+    household.timezone = "Nicht/Existent"
+    db.flush()
+    assert household_today(household) is not None
+
+
+def test_backend_root_points_at_the_documentation(client):
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code in (307, 308)
+    assert response.headers["location"] == "/docs"

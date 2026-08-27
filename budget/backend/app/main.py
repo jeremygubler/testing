@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 import app.ddl  # noqa: F401  registriert Trigger/Index-DDL an der Metadata
 from app.config import get_settings
@@ -45,6 +45,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    """Hier liegt nur die API. Wer den Port im Browser oeffnet, sucht die Doku."""
+    return RedirectResponse("/docs")
 
 
 @app.get("/api/health", tags=["system"])

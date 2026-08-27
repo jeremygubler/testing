@@ -233,3 +233,84 @@ def test_subscriptions_are_just_rules_in_the_fixkosten_group(client, categories,
 
     rules = client.get("/api/recurring").json()
     assert sum(1 for entry in rules if entry["category_group"] == "FIXKOSTEN") == 1
+
+
+# ------------------------------------------- Terminaenderung darf die Vergangenheit nicht brechen
+
+
+def test_schedule_change_does_not_reopen_confirmed_occurrences(client, rule_payload):
+    """Der Kern des Fehlers: eine Verschiebung des Buchungstags liess bereits gebuchte
+    Termine wieder als offen erscheinen -- und ein Klick haette sie doppelt gebucht."""
+    rule = client.post("/api/recurring", json=rule_payload).json()
+    for month in ("01", "02"):
+        client.post(
+            "/api/recurring/occurrences/confirm",
+            json={"occurrences": [{"rule_id": rule["id"], "due_date": f"2026-{month}-01"}]},
+        )
+    assert client.get("/api/transactions").json()["total"] == 2
+
+    response = client.patch(
+        f"/api/recurring/{rule['id']}",
+        json={"day_of_period": 5, "effective_from": "2026-03-01"},
+    )
+    assert response.status_code == 200
+    successor = response.json()
+    assert successor["id"] != rule["id"]
+    assert successor["supersedes_rule_id"] == rule["id"]
+    assert successor["day_of_period"] == 5
+
+    # Vergangenheit bleibt bestaetigt und unveraendert.
+    for month in (1, 2):
+        entries = client.get(f"/api/recurring/occurrences?year=2026&month={month}").json()
+        assert [(e["due_date"], e["status"]) for e in entries] == [
+            (f"2026-0{month}-01", "CONFIRMED")
+        ]
+
+    # Zukunft folgt dem neuen Raster, genau einmal.
+    march = client.get("/api/recurring/occurrences?year=2026&month=3").json()
+    assert [(e["due_date"], e["status"]) for e in march] == [("2026-03-05", "OPEN")]
+
+
+def test_schedule_change_without_bookings_edits_in_place(client, rule_payload):
+    rule = client.post("/api/recurring", json=rule_payload).json()
+    response = client.patch(f"/api/recurring/{rule['id']}", json={"day_of_period": 5})
+    assert response.json()["id"] == rule["id"]
+    assert response.json()["supersedes_rule_id"] is None
+    assert len(client.get("/api/recurring").json()) == 1
+
+
+def test_amount_change_never_splits_the_rule(client, rule_payload):
+    """Der Betrag beeinflusst das Raster nicht -- Mietanpassungen sollen keine
+    Regelkopien erzeugen."""
+    rule = client.post("/api/recurring", json=rule_payload).json()
+    client.post(
+        "/api/recurring/occurrences/confirm",
+        json={"occurrences": [{"rule_id": rule["id"], "due_date": "2026-01-01"}]},
+    )
+    response = client.patch(f"/api/recurring/{rule['id']}", json={"amount_minor": 215_000})
+    assert response.json()["id"] == rule["id"]
+    assert response.json()["amount_minor"] == 215_000
+    assert len(client.get("/api/recurring").json()) == 1
+
+
+def test_superseded_rule_keeps_its_history_and_stops_producing(client, rule_payload):
+    rule = client.post("/api/recurring", json=rule_payload).json()
+    client.post(
+        "/api/recurring/occurrences/confirm",
+        json={"occurrences": [{"rule_id": rule["id"], "due_date": "2026-01-01"}]},
+    )
+    client.patch(
+        f"/api/recurring/{rule['id']}",
+        json={"interval": "QUARTERLY", "anchor_month": 3, "effective_from": "2026-03-01"},
+    )
+    rules = {entry["id"]: entry for entry in client.get("/api/recurring").json()}
+    assert len(rules) == 2
+    assert rules[rule["id"]]["end_date"] == "2026-02-28"
+
+    # Die alte Regel erzeugt ab Maerz nichts mehr, die neue uebernimmt.
+    march = client.get("/api/recurring/occurrences?year=2026&month=3").json()
+    assert {entry["rule_id"] for entry in march} == {successor_id(rules, rule["id"])}
+
+
+def successor_id(rules: dict, old_id: int) -> int:
+    return next(entry_id for entry_id in rules if entry_id != old_id)

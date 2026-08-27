@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useCategories, useCreateRule, useMembers, useUpdateRule } from "@/api/hooks";
 import type { IntervalKind, RecurringRule } from "@/api/types";
@@ -35,6 +35,7 @@ export function RuleDialog({ open, onOpenChange, rule }: RuleDialogProps) {
   const create = useCreateRule();
   const update = useUpdateRule();
 
+  const descriptionRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [amountText, setAmountText] = useState("");
@@ -127,6 +128,7 @@ export function RuleDialog({ open, onOpenChange, rule }: RuleDialogProps) {
               <Label htmlFor="rule-description">Beschreibung</Label>
               <Input
                 id="rule-description"
+                ref={descriptionRef}
                 autoFocus
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -156,7 +158,15 @@ export function RuleDialog({ open, onOpenChange, rule }: RuleDialogProps) {
                 <SelectTrigger id="rule-interval">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  // Wie im Kategorie-Dialog: der Fokus kehrte sonst zum Auswahlfeld
+                  // zurueck, und Tab geht von dort an der Beschreibung vorbei.
+                  onCloseAutoFocus={(event) => {
+                    if (description.trim()) return;
+                    event.preventDefault();
+                    descriptionRef.current?.focus();
+                  }}
+                >
                   {INTERVALS.map((entry) => (
                     <SelectItem key={entry} value={entry}>
                       {t.interval[entry]}

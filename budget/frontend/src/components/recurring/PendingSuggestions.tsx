@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { CalendarCheck, Check, Loader2, SkipForward } from "lucide-react";
+import { CalendarCheck, Check, Loader2, SkipForward, Undo2 } from "lucide-react";
 
 import {
   useConfirmOccurrences,
   useOccurrences,
   useRecurringRules,
   useSkipOccurrence,
+  useUnskipOccurrence,
 } from "@/api/hooks";
 import type { Occurrence } from "@/api/types";
 import { EmptyState } from "@/components/EmptyState";
@@ -32,9 +33,13 @@ interface PendingSuggestionsProps {
 export function PendingSuggestions({ year, month, compact = false }: PendingSuggestionsProps) {
   const { dateShort } = useHouseholdContext();
   const { data: occurrences = [], isLoading } = useOccurrences(year, month, true);
+  const { data: allOccurrences = [] } = useOccurrences(year, month);
   const { data: rules = [] } = useRecurringRules();
   const confirm = useConfirmOccurrences();
   const skip = useSkipOccurrence();
+  const unskip = useUnskipOccurrence();
+
+  const skipped = allOccurrences.filter((entry) => entry.status === "SKIPPED");
 
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -71,15 +76,18 @@ export function PendingSuggestions({ year, month, compact = false }: PendingSugg
     // "Nichts offen" und "es gibt gar keine Regeln" sind verschiedene Aussagen.
     const hasRules = rules.some((rule) => rule.is_active);
     return (
-      <EmptyState
-        icon={<CalendarCheck />}
-        title={hasRules ? "Nichts offen" : "Noch keine Regeln"}
-        description={
-          hasRules
-            ? "Alle erwarteten Buchungen dieses Monats sind bestätigt oder übersprungen."
-            : "Miete, Lohn und Abos einmal als wiederkehrende Buchung anlegen — dann erscheinen sie hier als Vorschlag."
-        }
-      />
+      <div className="space-y-2">
+        <EmptyState
+          icon={<CalendarCheck />}
+          title={hasRules ? "Nichts offen" : "Noch keine Regeln"}
+          description={
+            hasRules
+              ? "Alle erwarteten Buchungen dieses Monats sind bestätigt oder übersprungen."
+              : "Miete, Lohn und Abos einmal als wiederkehrende Buchung anlegen — dann erscheinen sie hier als Vorschlag."
+          }
+        />
+        <SkippedList entries={skipped} onUndo={(entry) => unskip.mutate(entry)} pending={unskip.isPending} />
+      </div>
     );
   }
 
@@ -157,7 +165,64 @@ export function PendingSuggestions({ year, month, compact = false }: PendingSugg
         />
       </p>
 
+      <SkippedList entries={skipped} onUndo={(entry) => unskip.mutate(entry)} pending={unskip.isPending} />
+
       {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * Übersprungene Termine bleiben sichtbar und rückholbar. Vorher verschwanden sie
+ * lautlos — wer sich verklickt hatte, kam ohne Umweg über die Datenbank nicht zurück.
+ */
+function SkippedList({
+  entries,
+  onUndo,
+  pending,
+}: {
+  entries: Occurrence[];
+  onUndo: (entry: { rule_id: number; due_date: string }) => void;
+  pending: boolean;
+}) {
+  const { dateShort } = useHouseholdContext();
+  const [open, setOpen] = useState(false);
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="text-xs">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex items-center gap-1.5 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      >
+        <SkipForward className="size-3.5" />
+        {entries.length} übersprungen
+        <span aria-hidden>{open ? "▾" : "▸"}</span>
+      </button>
+
+      {open && (
+        <ul className="mt-1 space-y-1 rounded-md border p-2">
+          {entries.map((entry) => (
+            <li key={`${entry.rule_id}-${entry.due_date}`} className="flex items-center gap-2">
+              <span className="w-14 shrink-0 tabular text-muted-foreground">
+                {dateShort(entry.due_date)}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{entry.description}</span>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label={`Überspringen rückgängig: ${entry.description}`}
+                title="Wieder als offen führen"
+                disabled={pending}
+                onClick={() => onUndo({ rule_id: entry.rule_id, due_date: entry.due_date })}
+              >
+                <Undo2 />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

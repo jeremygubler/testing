@@ -7,6 +7,7 @@ import { CategoryPie } from "@/components/overview/CategoryPie";
 import { GroupBudgetChart } from "@/components/overview/GroupBudgetChart";
 import { MemberBreakdown } from "@/components/overview/MemberBreakdown";
 import { StatCard } from "@/components/overview/StatCard";
+import { TrendChart } from "@/components/overview/TrendChart";
 import { PendingSuggestions } from "@/components/recurring/PendingSuggestions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -96,6 +97,15 @@ export function OverviewPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Verlauf</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TrendChart year={month.year} month={month.month} />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-3 xl:grid-cols-3">
         <Card className="xl:col-span-2">

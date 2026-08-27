@@ -380,6 +380,10 @@ class RecurringRuleUpdate(BaseModel):
     is_active: bool | None = None
     note: str | None = None
     split: SplitSpec | None = None
+    #: Ab wann eine Terminaenderung gilt. Nur relevant, wenn Intervall, Buchungstag,
+    #: Ankermonat oder Startdatum geaendert werden und die Regel schon bestaetigte
+    #: Buchungen hat -- dann wird die alte Regel beendet und eine neue angelegt.
+    effective_from: dt.date | None = None
 
 
 class RecurringRuleRead(ApiModel):
@@ -403,6 +407,8 @@ class RecurringRuleRead(ApiModel):
     #: Anzahl der zuletzt in Folge unbestaetigten Faelligkeiten -- Hinweis auf ein
     #: vergessenes Abo.
     open_streak: int
+    #: Gesetzt, wenn diese Regel eine Terminaenderung einer aelteren Regel fortsetzt.
+    supersedes_rule_id: int | None = None
 
 
 class OccurrenceRead(BaseModel):

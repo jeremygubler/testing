@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CalendarPlus, Check, SkipForward, Trash2 } from "lucide-react";
+import { CalendarPlus, Check, Trash2, Undo2 } from "lucide-react";
 
 import {
   useCalendarEntries,
@@ -9,6 +9,7 @@ import {
   useMembers,
   useOccurrences,
   useTransactions,
+  useUnskipOccurrence,
 } from "@/api/hooks";
 import type { CalendarEntry, Occurrence, Transaction } from "@/api/types";
 import { Money } from "@/components/Money";
@@ -180,6 +181,7 @@ function DayDetail({
   members: { id: number; name: string; color: string }[];
 }) {
   const confirm = useConfirmOccurrences();
+  const unskip = useUnskipOccurrence();
   const removeEntry = useDeleteCalendarEntry();
   const memberById = new Map(members.map((member) => [member.id, member]));
 
@@ -247,10 +249,30 @@ function DayDetail({
       )}
 
       {day.occurrences.some((entry) => entry.status === "SKIPPED") && (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <SkipForward className="size-3.5" />
-          {day.occurrences.filter((entry) => entry.status === "SKIPPED").length} übersprungen
-        </p>
+        <section className="space-y-1.5">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Übersprungen
+          </h3>
+          <ul className="space-y-1">
+            {day.occurrences
+              .filter((entry) => entry.status === "SKIPPED")
+              .map((entry) => (
+                <li key={`${entry.rule_id}-${entry.due_date}`} className="flex items-center gap-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate text-muted-foreground">{entry.description}</span>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={`Überspringen rückgängig: ${entry.description}`}
+                    title="Wieder als offen führen"
+                    disabled={unskip.isPending}
+                    onClick={() => unskip.mutate({ rule_id: entry.rule_id, due_date: entry.due_date })}
+                  >
+                    <Undo2 />
+                  </Button>
+                </li>
+              ))}
+          </ul>
+        </section>
       )}
 
       {day.transactions.length > 0 && (
