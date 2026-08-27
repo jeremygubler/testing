@@ -109,7 +109,7 @@ budget/
 | Phase | Inhalt | Status |
 | --- | --- | --- |
 | 1 | Projektgerüst, Datenmodell, Migrationen, Seed-Daten | ✅ |
-| 2 | API für Personen, Kategorien, Buchungen mit Splits, Tests | ⬜ |
+| 2 | API für Personen, Kategorien, Buchungen mit Splits, Tests | ✅ |
 | 3 | Frontend-Grundgerüst, Monatskontext, Buchungsliste + Erfassung | ⬜ |
 | 4 | Budgets, Übersichtsseite mit Kennzahlen und Charts | ⬜ |
 | 5 | Wiederkehrende Buchungen mit Vorschlagslogik | ⬜ |

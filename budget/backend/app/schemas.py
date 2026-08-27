@@ -1,0 +1,232 @@
+"""Pydantic-Schemas der REST-API.
+
+Konvention: **alle** Geldbetraege heissen ``*_minor`` und sind ganzzahlige
+Minoreinheiten (Rappen/Cent). Die API liefert nie formatierte Betraege.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import re
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.enums import CategoryGroup, Flow, Interval, SettlementBasis, SplitTemplate
+
+_HEX_COLOR = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+class ApiModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
+def _validate_color(value: str) -> str:
+    if not _HEX_COLOR.match(value):
+        raise ValueError("Farbe muss als Hex-Wert angegeben werden, z. B. #2563eb")
+    return value
+
+
+# --------------------------------------------------------------------------- Household
+
+
+class HouseholdRead(ApiModel):
+    id: int
+    name: str
+    currency: str
+    locale: str
+    timezone: str
+    opening_balance_minor: int
+    settlement_basis: SettlementBasis
+
+
+class HouseholdUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    locale: str | None = Field(default=None, min_length=2, max_length=10)
+    timezone: str | None = Field(default=None, min_length=1, max_length=64)
+    opening_balance_minor: int | None = None
+    settlement_basis: SettlementBasis | None = None
+
+
+# ----------------------------------------------------------------------------- Member
+
+
+class MemberBase(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    color: str = "#64748b"
+    sort_order: int = 0
+    share_weight: int = Field(default=1, ge=1)
+
+    _color = field_validator("color")(_validate_color)
+
+
+class MemberCreate(MemberBase):
+    pass
+
+
+class MemberUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    color: str | None = None
+    sort_order: int | None = None
+    share_weight: int | None = Field(default=None, ge=1)
+    is_active: bool | None = None
+
+    @field_validator("color")
+    @classmethod
+    def _check_color(cls, value: str | None) -> str | None:
+        return None if value is None else _validate_color(value)
+
+
+class MemberRead(ApiModel):
+    id: int
+    name: str
+    color: str
+    is_active: bool
+    sort_order: int
+    share_weight: int
+
+
+# --------------------------------------------------------------------------- Category
+
+
+class CategoryBase(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    group: CategoryGroup
+    icon: str | None = Field(default=None, max_length=40)
+    color: str = "#64748b"
+    sort_order: int = 0
+
+    _color = field_validator("color")(_validate_color)
+
+
+class CategoryCreate(CategoryBase):
+    pass
+
+
+class CategoryUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    group: CategoryGroup | None = None
+    icon: str | None = Field(default=None, max_length=40)
+    color: str | None = None
+    sort_order: int | None = None
+    is_active: bool | None = None
+
+    @field_validator("color")
+    @classmethod
+    def _check_color(cls, value: str | None) -> str | None:
+        return None if value is None else _validate_color(value)
+
+
+class CategoryRead(ApiModel):
+    id: int
+    name: str
+    flow: Flow
+    group: CategoryGroup
+    icon: str | None
+    color: str
+    is_active: bool
+    sort_order: int
+
+
+# ------------------------------------------------------------------------ Transaction
+
+
+class SplitLineIn(BaseModel):
+    member_id: int
+    amount_minor: int
+
+
+class SplitLineRead(ApiModel):
+    member_id: int
+    amount_minor: int
+
+
+class SplitSpec(BaseModel):
+    """Wie eine Buchung aufgeteilt werden soll.
+
+    Die Vorlage ist nur ein Eingabe-Helfer -- gespeichert wird immer das aufgeloeste
+    Ergebnis in ``TransactionSplit``.
+    """
+
+    template: SplitTemplate = SplitTemplate.EQUAL
+    member_id: int | None = Field(
+        default=None, description="Nur bei template=SINGLE: die zahlende Person."
+    )
+    lines: list[SplitLineIn] | None = Field(
+        default=None, description="Nur bei template=MANUAL: die Betraege je Person."
+    )
+
+    @model_validator(mode="after")
+    def _check_shape(self) -> SplitSpec:
+        if self.template is SplitTemplate.SINGLE and self.member_id is None:
+            raise ValueError("Fuer die Vorlage 'Eine Person' fehlt member_id.")
+        if self.template is SplitTemplate.MANUAL and not self.lines:
+            raise ValueError("Fuer die manuelle Aufteilung fehlen die Betraege (lines).")
+        return self
+
+
+class TransactionCreate(BaseModel):
+    date: dt.date
+    category_id: int
+    description: str = Field(default="", max_length=200)
+    note: str | None = None
+    amount_minor: int = Field(
+        description="Gesamtbetrag der Buchung. Muss der Summe der Splits entsprechen."
+    )
+    split: SplitSpec = SplitSpec()
+
+    @field_validator("amount_minor")
+    @classmethod
+    def _nonzero(cls, value: int) -> int:
+        if value == 0:
+            raise ValueError("Der Betrag darf nicht 0 sein.")
+        return value
+
+
+class TransactionUpdate(BaseModel):
+    date: dt.date | None = None
+    category_id: int | None = None
+    description: str | None = Field(default=None, max_length=200)
+    note: str | None = None
+    amount_minor: int | None = None
+    split: SplitSpec | None = None
+
+    @model_validator(mode="after")
+    def _amount_needs_split(self) -> TransactionUpdate:
+        if self.amount_minor is not None and self.amount_minor == 0:
+            raise ValueError("Der Betrag darf nicht 0 sein.")
+        return self
+
+
+class TransactionRead(ApiModel):
+    id: int
+    date: dt.date
+    category_id: int
+    category_name: str
+    category_group: CategoryGroup
+    category_flow: Flow
+    category_color: str
+    description: str
+    note: str | None
+    amount_minor: int
+    recurring_rule_id: int | None
+    splits: list[SplitLineRead]
+
+
+class TransactionPage(BaseModel):
+    items: list[TransactionRead]
+    total: int
+    limit: int
+    offset: int
+    sum_income_minor: int
+    sum_expense_minor: int
+
+
+class SplitPreviewRequest(BaseModel):
+    amount_minor: int
+    split: SplitSpec
+
+
+class SplitPreviewResponse(BaseModel):
+    lines: list[SplitLineRead]
+    total_minor: int
