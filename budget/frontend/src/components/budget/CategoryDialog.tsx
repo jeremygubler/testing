@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useCreateCategory, useUpdateCategory } from "@/api/hooks";
 import type { Category, CategoryGroup } from "@/api/types";
@@ -32,6 +32,7 @@ export function CategoryDialog({ open, onOpenChange, category }: CategoryDialogP
   const create = useCreateCategory();
   const update = useUpdateCategory();
 
+  const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [group, setGroup] = useState<CategoryGroup>("VARIABEL");
   const [color, setColor] = useState(PRESET_COLORS[0]);
@@ -80,6 +81,7 @@ export function CategoryDialog({ open, onOpenChange, category }: CategoryDialogP
             <Label htmlFor="category-name">Name</Label>
             <Input
               id="category-name"
+              ref={nameRef}
               autoFocus
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -93,7 +95,16 @@ export function CategoryDialog({ open, onOpenChange, category }: CategoryDialogP
               <SelectTrigger id="category-group">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                // Radix gibt den Fokus nach dem Schliessen an das Auswahlfeld zurueck.
+                // Tab geht von dort vorwaerts zu den Farben -- am Namensfeld vorbei, das
+                // ja davor steht. Wer die Gruppe zuerst waehlt, tippt sonst ins Leere.
+                onCloseAutoFocus={(event) => {
+                  if (name.trim()) return;
+                  event.preventDefault();
+                  nameRef.current?.focus();
+                }}
+              >
                 {CATEGORY_GROUPS.map((entry) => (
                   <SelectItem key={entry} value={entry}>
                     {t.group[entry]} · {entry === "EINKOMMEN" ? t.flow.INCOME : t.flow.EXPENSE}
