@@ -14,12 +14,16 @@ Die Datenmodell- und Berechnungsdokumentation steht in [ARCHITECTURE.md](./ARCHI
 ## Schnellstart mit Docker
 
 ```bash
-# Zum Ausprobieren: mit Beispielhaushalt (2 Personen, 3 Monate Buchungen)
-BUDGET_SEED_DEMO=1 docker compose up --build
-
 # Für den echten Einsatz: leer starten, die App führt durch die Einrichtung
 docker compose up --build
+
+# Zum Ausprobieren mit Beispielhaushalt (2 Personen, 3 Monate Buchungen):
+# .env.example nach .env kopieren -- oder unter macOS/Linux direkt
+BUDGET_SEED_DEMO=1 docker compose up --build
 ```
+
+Unter Windows/PowerShell funktioniert das Voranstellen der Variablen nicht; dort
+`copy .env.example .env` und dann `docker compose up --build`.
 
 * Oberfläche: <http://localhost:8080>
 * API-Dokumentation: <http://localhost:8000/docs>

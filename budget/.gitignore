@@ -1,1 +1,3 @@
 .DS_Store
+# Lokale Compose-Variablen (z. B. BUDGET_SEED_DEMO) gehoeren nicht ins Repo
+.env
