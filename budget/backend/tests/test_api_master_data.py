@@ -78,15 +78,13 @@ def test_categories_are_deactivated_not_deleted(client, categories):
 
 
 def test_household_can_be_updated(client):
-    response = client.patch(
-        "/api/household",
-        json={"opening_balance_minor": 250_000, "settlement_basis": "INCOME"},
-    )
+    response = client.patch("/api/household", json={"settlement_basis": "INCOME"})
     assert response.status_code == 200
     body = response.json()
-    assert body["opening_balance_minor"] == 250_000
     assert body["settlement_basis"] == "INCOME"
     assert body["currency"] == "CHF"
+    # Der Startsaldo gehoert seit den Konten nicht mehr an den Haushalt.
+    assert "opening_balance_minor" not in body
 
 
 # --------------------------------------------------------------- Erstinbetriebnahme

@@ -190,6 +190,7 @@ def commit_import(
                 household,
                 date=row.date,
                 category_id=row.category_id,
+                account_id=payload.account_id,
                 description=row.description,
                 note=None,
                 amount_minor=row.amount_minor,

@@ -21,8 +21,15 @@ export function CategoryPie({ categories }: { categories: CategoryFigure[] }) {
     () =>
       toSlices(
         categories
+          // Umbuchungen abziehen: sie stecken im Ist der Kategorie, sind aber keine
+          // Ausgabe. Sonst summierte der Kuchen auf mehr, als die Kennzahl daneben zeigt.
           .filter((figure) => figure.flow === "EXPENSE")
-          .map((figure) => ({ id: figure.category_id, name: figure.name, value: figure.actual_minor })),
+          .map((figure) => ({
+            id: figure.category_id,
+            name: figure.name,
+            value: figure.actual_minor - figure.transfer_minor,
+          }))
+          .filter((slice) => slice.value !== 0),
       ),
     [categories],
   );

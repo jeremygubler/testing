@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Receipt } from "lucide-react";
 
-import { useCategories, useMembers, useTransactions } from "@/api/hooks";
+import { useAccounts, useCategories, useMembers, useTransactions } from "@/api/hooks";
 import type { TransactionQuery } from "@/api/types";
 import { EmptyState } from "@/components/EmptyState";
 import { Money } from "@/components/Money";
@@ -29,13 +30,29 @@ export function TransactionsPage() {
   const { range, month } = useMonth();
   const { data: categories = [] } = useCategories();
   const { data: members = [] } = useMembers();
+  const { data: accounts = [] } = useAccounts();
   const { currency } = useHouseholdContext();
+  const [searchParams] = useSearchParams();
 
   const initial: FilterState = useMemo(
-    () => ({ from: range.from, to: range.to, q: "", categoryIds: [], groups: [], memberIds: [] }),
+    () => ({
+      from: range.from,
+      to: range.to,
+      q: "",
+      categoryIds: [],
+      groups: [],
+      memberIds: [],
+      accountIds: [],
+      transfers: null,
+    }),
     [range.from, range.to],
   );
-  const [filters, setFilters] = useState<FilterState>(initial);
+  // Die Übersicht verlinkt auf ein einzelnes Konto (?konto=…). Das ist eine
+  // Startbelegung des Filters, kein dauerhaft gebundener Zustand.
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const konto = Number(searchParams.get("konto"));
+    return Number.isInteger(konto) && konto > 0 ? { ...initial, accountIds: [konto] } : initial;
+  });
   const [limit, setLimit] = useState(PAGE_SIZE);
 
   // Der Monatswechsel setzt den Zeitraum neu, lässt die übrigen Filter aber stehen.
@@ -53,6 +70,8 @@ export function TransactionsPage() {
     category_id: filters.categoryIds.length ? filters.categoryIds : undefined,
     group: filters.groups.length ? filters.groups : undefined,
     member_id: filters.memberIds.length ? filters.memberIds : undefined,
+    account_id: filters.accountIds.length ? filters.accountIds : undefined,
+    transfers: filters.transfers ?? undefined,
     limit,
     sort: "-date",
   };
@@ -63,6 +82,8 @@ export function TransactionsPage() {
     filters.categoryIds.length > 0 ||
     filters.groups.length > 0 ||
     filters.memberIds.length > 0 ||
+    filters.accountIds.length > 0 ||
+    filters.transfers !== null ||
     filters.from !== range.from ||
     filters.to !== range.to;
 
@@ -97,6 +118,7 @@ export function TransactionsPage() {
         }}
         categories={categories}
         members={members}
+        accounts={accounts}
         isFiltered={isFiltered}
       />
 
@@ -153,6 +175,7 @@ export function TransactionsPage() {
                     categories={categories}
                     members={members}
                     showYear={showYear}
+                    showAccount={accounts.filter((account) => account.is_active).length > 1}
                   />
                 ))}
               </TableBody>

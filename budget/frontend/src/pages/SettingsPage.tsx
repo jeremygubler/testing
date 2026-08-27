@@ -10,6 +10,7 @@ import {
   useUpdateMember,
 } from "@/api/hooks";
 import type { Member, SettlementBasis } from "@/api/types";
+import { AccountList } from "@/components/settings/AccountList";
 import { DangerZone } from "@/components/settings/DangerZone";
 import { ImportDialog } from "@/components/settings/ImportDialog";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { t } from "@/i18n";
-import { parseAmountInput, toDecimalString } from "@/lib/money";
+
 
 const MEMBER_COLORS = [
   "#2563eb", "#c2410c", "#0f766e", "#7c3aed", "#b45309", "#be123c",
@@ -105,6 +106,15 @@ export function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Konten</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AccountList />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Personen</CardTitle>
         </CardHeader>
         <CardContent>
@@ -130,13 +140,12 @@ function HouseholdForm({
   household,
   onSave,
 }: {
-  household: { name: string; currency: string; locale: string; opening_balance_minor: number; settlement_basis: SettlementBasis };
+  household: { name: string; currency: string; locale: string; settlement_basis: SettlementBasis };
   onSave: (patch: Record<string, unknown>) => void;
 }) {
   const [name, setName] = useState(household.name);
   const [currency, setCurrency] = useState(household.currency);
   const [locale, setLocale] = useState(household.locale);
-  const [opening, setOpening] = useState(toDecimalString(household.opening_balance_minor));
   const [basis, setBasis] = useState<SettlementBasis>(household.settlement_basis);
 
   // Nach dem Speichern liefert der Server den normalisierten Stand zurueck (etwa die
@@ -149,17 +158,14 @@ function HouseholdForm({
     setName(household.name);
     setCurrency(household.currency);
     setLocale(household.locale);
-    setOpening(toDecimalString(household.opening_balance_minor));
     setBasis(household.settlement_basis);
   }
 
-  const openingMinor = parseAmountInput(opening);
   const dirty =
     name !== household.name ||
     currency !== household.currency ||
     locale !== household.locale ||
-    basis !== household.settlement_basis ||
-    (openingMinor !== null && openingMinor !== household.opening_balance_minor);
+    basis !== household.settlement_basis;
 
   return (
     <form
@@ -171,7 +177,6 @@ function HouseholdForm({
           currency: currency.toUpperCase(),
           locale,
           settlement_basis: basis,
-          ...(openingMinor !== null ? { opening_balance_minor: openingMinor } : {}),
         });
       }}
     >
@@ -206,20 +211,6 @@ function HouseholdForm({
             </SelectContent>
           </Select>
         </div>
-      </div>
-
-      <div className="space-y-1">
-        <Label htmlFor="household-opening">Startsaldo</Label>
-        <Input
-          id="household-opening"
-          inputMode="decimal"
-          value={opening}
-          onChange={(event) => setOpening(event.target.value)}
-          className="text-right tabular"
-        />
-        <p className="text-xs text-muted-foreground">
-          Kontostand vor der ersten erfassten Buchung. „Verfügbar" rechnet darauf auf.
-        </p>
       </div>
 
       <div className="space-y-1">

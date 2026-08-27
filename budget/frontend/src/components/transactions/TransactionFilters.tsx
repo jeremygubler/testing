@@ -1,6 +1,6 @@
 import { Search, X } from "lucide-react";
 
-import type { Category, CategoryGroup, Member } from "@/api/types";
+import type { Account, Category, CategoryGroup, Member } from "@/api/types";
 import { CATEGORY_GROUPS } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,9 @@ export interface FilterState {
   categoryIds: number[];
   groups: CategoryGroup[];
   memberIds: number[];
+  accountIds: number[];
+  /** true = nur Umbuchungen, false = keine, null = alle. */
+  transfers: boolean | null;
 }
 
 interface TransactionFiltersProps {
@@ -23,6 +26,7 @@ interface TransactionFiltersProps {
   onReset: () => void;
   categories: Category[];
   members: Member[];
+  accounts: Account[];
   isFiltered: boolean;
 }
 
@@ -32,6 +36,7 @@ export function TransactionFilters({
   onReset,
   categories,
   members,
+  accounts,
   isFiltered,
 }: TransactionFiltersProps) {
   function toggle<T>(list: T[], item: T): T[] {
@@ -107,6 +112,35 @@ export function TransactionFilters({
             </FilterChip>
           ))}
       </div>
+
+      {(accounts.length > 1 || value.transfers !== null) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {accounts
+            .filter((account) => account.is_active || value.accountIds.includes(account.id))
+            .map((account) => (
+              <FilterChip
+                key={account.id}
+                active={value.accountIds.includes(account.id)}
+                onClick={() => onChange({ ...value, accountIds: toggle(value.accountIds, account.id) })}
+              >
+                {account.name}
+              </FilterChip>
+            ))}
+          <span className="mx-1 h-4 w-px bg-border" />
+          <FilterChip
+            active={value.transfers === true}
+            onClick={() => onChange({ ...value, transfers: value.transfers === true ? null : true })}
+          >
+            Nur Umbuchungen
+          </FilterChip>
+          <FilterChip
+            active={value.transfers === false}
+            onClick={() => onChange({ ...value, transfers: value.transfers === false ? null : false })}
+          >
+            Ohne Umbuchungen
+          </FilterChip>
+        </div>
+      )}
 
       {value.categoryIds.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">

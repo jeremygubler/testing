@@ -11,10 +11,11 @@ import datetime as dt
 from dataclasses import dataclass, field
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
-from app.enums import CategoryGroup, Flow, SettlementBasis
+from app.enums import AccountKind, CategoryGroup, Flow, SettlementBasis
 from app.models import (
+    Account,
     Budget,
     Category,
     Household,
@@ -24,6 +25,7 @@ from app.models import (
     Transaction,
     TransactionSplit,
 )
+from app.services import accounts
 from app.services.settlement import MemberBalance, Payment, compute_balances, settle
 
 
@@ -81,6 +83,9 @@ class CategoryFigure:
     actual_minor: int
     budget_minor: int | None
     budget_source: str | None
+    #: Der Anteil des Ist, der aus Umbuchungen stammt. Fuers Budget zaehlt er mit,
+    #: als Ausgabe gilt er nicht -- die Oberflaeche braucht beide Zahlen.
+    transfer_minor: int = 0
 
     @property
     def difference_minor(self) -> int | None:
@@ -119,8 +124,12 @@ class MonthSummary:
     income_minor: int
     expense_minor: int
     balance_minor: int
-    balance_excl_savings_minor: int
+    #: Was in der Periode auf Sparkonten umgebucht wurde.
+    savings_minor: int
+    #: Frei verfuegbares Geld auf den dafuer vorgesehenen Konten.
     available_minor: int
+    #: Alle Konten zusammen.
+    net_worth_minor: int
     savings_ratio: float | None
     fixed_cost_ratio: float | None
     categories: list[CategoryFigure] = field(default_factory=list)
@@ -129,14 +138,23 @@ class MonthSummary:
 
 
 def _actuals_by_category(
-    db: Session, household_id: int, start: dt.date, end: dt.date
+    db: Session, household_id: int, start: dt.date, end: dt.date, transfers: bool = False
 ) -> dict[int, int]:
+    """Ist je Kategorie.
+
+    ``transfers=False`` laesst Umbuchungen weg -- sie sind weder Einnahme noch Ausgabe,
+    sondern nur ein Wechsel des Topfes. ``transfers=True`` liefert genau diese, etwa
+    fuer die Sparquote.
+    """
     rows = db.execute(
         select(Transaction.category_id, func.coalesce(func.sum(Transaction.amount_minor), 0))
         .where(
             Transaction.household_id == household_id,
             Transaction.date >= start,
             Transaction.date <= end,
+            Transaction.counter_account_id.is_not(None)
+            if transfers
+            else Transaction.counter_account_id.is_(None),
         )
         .group_by(Transaction.category_id)
     ).all()
@@ -158,6 +176,7 @@ def _actuals_by_member(
             Transaction.household_id == household_id,
             Transaction.date >= start,
             Transaction.date <= end,
+            Transaction.counter_account_id.is_(None),
         )
         .group_by(TransactionSplit.member_id, Category.flow)
     ).all()
@@ -172,12 +191,43 @@ def _actuals_by_member(
     return figures
 
 
+def savings_transfers(db: Session, household_id: int, start: dt.date, end: dt.date) -> int:
+    """Was in der Periode auf Sparkonten umgebucht wurde.
+
+    Seit Konten und Umbuchungen ist Sparen keine Ausgabe mehr, sondern ein Wechsel
+    des Topfes. Die Sparquote misst deshalb nicht mehr die Gruppe SPAREN, sondern das,
+    was tatsaechlich auf einem Sparkonto gelandet ist.
+    """
+    counter = aliased(Account)
+    return (
+        db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount_minor), 0))
+            .join(counter, counter.id == Transaction.counter_account_id)
+            .where(
+                Transaction.household_id == household_id,
+                Transaction.date >= start,
+                Transaction.date <= end,
+                counter.kind == AccountKind.SAVINGS,
+            )
+        )
+        or 0
+    )
+
+
 def cumulative_balance(db: Session, household_id: int, until: dt.date) -> int:
-    """Summe aller Einnahmen minus Ausgaben bis einschliesslich ``until``."""
+    """Summe aller Einnahmen minus Ausgaben bis einschliesslich ``until``.
+
+    Ohne Umbuchungen: die verschieben Geld zwischen Konten, veraendern aber nicht,
+    wie viel der Haushalt insgesamt hat.
+    """
     rows = db.execute(
         select(Category.flow, func.coalesce(func.sum(Transaction.amount_minor), 0))
         .join(Category, Category.id == Transaction.category_id)
-        .where(Transaction.household_id == household_id, Transaction.date <= until)
+        .where(
+            Transaction.household_id == household_id,
+            Transaction.date <= until,
+            Transaction.counter_account_id.is_(None),
+        )
         .group_by(Category.flow)
     ).all()
     totals = dict(rows)
@@ -195,15 +245,23 @@ def month_summary(db: Session, household: Household, year: int, month: int) -> M
         )
     )
     actuals = _actuals_by_category(db, household.id, start, end)
+    # Eine Umbuchung ist keine Ausgabe -- aber sie ist sehr wohl das, was auf der
+    # Kategorie passiert ist. Wer 1'400 aufs Sparkonto budgetiert, will sehen, ob er
+    # 1'400 umgebucht hat. Deshalb zaehlen Umbuchungen ins Ist der Kategorie, aber
+    # nicht in Einnahmen, Ausgaben und Saldo.
+    transfer_actuals = _actuals_by_category(db, household.id, start, end, transfers=True)
     budgets = resolve_budgets(db, household.id, year, month)
 
     figures: list[CategoryFigure] = []
     groups: dict[CategoryGroup, GroupFigure] = {
         group: GroupFigure(group=group) for group in CategoryGroup
     }
+    flow_by_group: dict[CategoryGroup, int] = dict.fromkeys(CategoryGroup, 0)
 
     for category in categories:
-        actual = actuals.get(category.id, 0)
+        flow_actual = actuals.get(category.id, 0)
+        transfer_actual = transfer_actuals.get(category.id, 0)
+        actual = flow_actual + transfer_actual
         budget = budgets.get(category.id)
         if not category.is_active and actual == 0 and budget is None:
             continue  # deaktivierte Kategorien ohne Bezug zu diesem Monat weglassen
@@ -216,26 +274,26 @@ def month_summary(db: Session, household: Household, year: int, month: int) -> M
             actual_minor=actual,
             budget_minor=budget[0] if budget else None,
             budget_source=budget[1] if budget else None,
+            transfer_minor=transfer_actual,
         )
         figures.append(figure)
 
         group_figure = groups[category.group]
         group_figure.actual_minor += actual
+        flow_by_group[category.group] += flow_actual
         if budget:
             group_figure.budget_minor += budget[0]
             group_figure.has_budget = True
 
-    income = groups[CategoryGroup.EINKOMMEN].actual_minor
+    income = flow_by_group[CategoryGroup.EINKOMMEN]
     expense = sum(
-        figure.actual_minor
-        for group, figure in groups.items()
-        if group is not CategoryGroup.EINKOMMEN
+        total for group, total in flow_by_group.items() if group is not CategoryGroup.EINKOMMEN
     )
-    savings = groups[CategoryGroup.SPAREN].actual_minor
-    fixed = groups[CategoryGroup.FIXKOSTEN].actual_minor
+    fixed = flow_by_group[CategoryGroup.FIXKOSTEN]
 
+    # Sparen mindert den Saldo nicht mehr: das Geld hat nur das Konto gewechselt.
+    savings = savings_transfers(db, household.id, start, end)
     balance = income - expense
-    available = household.opening_balance_minor + cumulative_balance(db, household.id, end)
 
     member_figures = _actuals_by_member(db, household.id, start, end)
     members = list(
@@ -257,9 +315,9 @@ def month_summary(db: Session, household: Household, year: int, month: int) -> M
         income_minor=income,
         expense_minor=expense,
         balance_minor=balance,
-        # Sparen ist buchhalterisch eine Ausgabe, aber kein Verlust. Beide Zahlen zeigen.
-        balance_excl_savings_minor=balance + savings,
-        available_minor=available,
+        savings_minor=savings,
+        available_minor=accounts.available(db, household, end),
+        net_worth_minor=accounts.net_worth(db, household, end),
         savings_ratio=ratio(savings, income),
         fixed_cost_ratio=ratio(fixed, income),
         categories=figures,
@@ -297,6 +355,9 @@ def settlement_for_period(
             Transaction.date >= start,
             Transaction.date <= end,
             Category.flow == Flow.EXPENSE,
+            # Umbuchungen sind keine getragenen Ausgaben -- niemand hat dabei etwas
+            # fuer die anderen ausgelegt, das Geld liegt weiter im Haushalt.
+            Transaction.counter_account_id.is_(None),
         )
         .group_by(TransactionSplit.member_id)
     ).all()
@@ -323,6 +384,7 @@ def settlement_for_period(
                 Transaction.date >= start,
                 Transaction.date <= end,
                 Category.flow == Flow.INCOME,
+                Transaction.counter_account_id.is_(None),
             )
             .group_by(TransactionSplit.member_id)
         ).all()
@@ -408,6 +470,7 @@ def trend(
             Transaction.household_id == household.id,
             Transaction.date >= start,
             Transaction.date <= end,
+            Transaction.counter_account_id.is_(None),
         )
         .group_by(
             func.strftime("%Y", Transaction.date),
@@ -438,20 +501,42 @@ def trend(
             point.income_minor += total
         else:
             point.expense_minor += total
-            if group == CategoryGroup.SPAREN:
-                point.savings_minor += total
+        del group
 
     ordered = [points[key] for key in sorted(points)]
 
-    # Der Kontostand vor dem ersten Punkt des Fensters -- alles davor kumuliert.
-    before = start - dt.timedelta(days=1)
-    running = household.opening_balance_minor + cumulative_balance(db, household.id, before)
+    # Umbuchungen auf Sparkonten je Monat -- seit Konten ist Sparen keine Ausgabe mehr.
+    counter = aliased(Account)
+    for month_key, total in db.execute(
+        select(
+            func.strftime("%Y-%m", Transaction.date),
+            func.coalesce(func.sum(Transaction.amount_minor), 0),
+        )
+        .join(counter, counter.id == Transaction.counter_account_id)
+        .where(
+            Transaction.household_id == household.id,
+            Transaction.date >= start,
+            Transaction.date <= end,
+            counter.kind == AccountKind.SAVINGS,
+        )
+        .group_by(func.strftime("%Y-%m", Transaction.date))
+    ).all():
+        year_text, month_text = month_key.split("-")
+        point = points.get(int(year_text) * 12 + (int(month_text) - 1))
+        if point is not None:
+            point.savings_minor += total
 
     for point in ordered:
         point.balance_minor = point.income_minor - point.expense_minor
-        point.has_data = point.income_minor != 0 or point.expense_minor != 0
-        running += point.balance_minor
-        point.available_minor = running
+        point.has_data = (
+            point.income_minor != 0 or point.expense_minor != 0 or point.savings_minor != 0
+        )
+        # Bewusst je Monat neu gerechnet statt den Saldo aufzuaddieren: der Saldo kennt
+        # weder Umbuchungen noch Buchungen auf Konten, die nicht zum verfuegbaren Geld
+        # zaehlen. Aufsummiert liefe die Linie von der Kennzahl auf der Uebersicht weg.
+        point.available_minor = accounts.available(
+            db, household, month_bounds(point.year, point.month)[1]
+        )
 
     return ordered
 
@@ -572,7 +657,13 @@ def comparison(
     divisor = max(1, min(months, recorded))
 
     current_start, current_end = month_bounds(year, month)
+    # Umbuchungen zaehlen mit -- sonst verglichen wir den Monat ohne sie gegen einen
+    # Schnitt mit ihnen und meldeten jede Sparkategorie als Einbruch.
     actuals = _actuals_by_category(db, household.id, current_start, current_end)
+    for category_id, total in _actuals_by_category(
+        db, household.id, current_start, current_end, transfers=True
+    ).items():
+        actuals[category_id] = actuals.get(category_id, 0) + total
 
     result: list[CategoryComparison] = []
     for category in db.scalars(
@@ -624,17 +715,22 @@ def year_summary(db: Session, household: Household, year: int) -> YearSummary:
     start = dt.date(year, 1, 1)
     end = dt.date(year, 12, 31)
     actuals = _actuals_by_category(db, household.id, start, end)
+    # Wie im Monat: Umbuchungen zaehlen ins Ist der Kategorie, nicht in die Ausgaben.
+    transfer_actuals = _actuals_by_category(db, household.id, start, end, transfers=True)
 
     groups: dict[CategoryGroup, GroupFigure] = {
         group: GroupFigure(group=group) for group in CategoryGroup
     }
+    flow_by_group: dict[CategoryGroup, int] = dict.fromkeys(CategoryGroup, 0)
     figures: list[CategoryFigure] = []
     for category in db.scalars(
         select(Category)
         .where(Category.household_id == household.id)
         .order_by(Category.sort_order, Category.id)
     ):
-        actual = actuals.get(category.id, 0)
+        flow_actual = actuals.get(category.id, 0)
+        transfer_actual = transfer_actuals.get(category.id, 0)
+        actual = flow_actual + transfer_actual
         if actual == 0 and not category.is_active:
             continue
         figures.append(
@@ -647,18 +743,18 @@ def year_summary(db: Session, household: Household, year: int) -> YearSummary:
                 actual_minor=actual,
                 budget_minor=None,
                 budget_source=None,
+                transfer_minor=transfer_actual,
             )
         )
         groups[category.group].actual_minor += actual
+        flow_by_group[category.group] += flow_actual
 
-    income = groups[CategoryGroup.EINKOMMEN].actual_minor
+    income = flow_by_group[CategoryGroup.EINKOMMEN]
     expense = sum(
-        figure.actual_minor
-        for group, figure in groups.items()
-        if group is not CategoryGroup.EINKOMMEN
+        total for group, total in flow_by_group.items() if group is not CategoryGroup.EINKOMMEN
     )
-    savings = groups[CategoryGroup.SPAREN].actual_minor
-    fixed = groups[CategoryGroup.FIXKOSTEN].actual_minor
+    savings = savings_transfers(db, household.id, start, end)
+    fixed = flow_by_group[CategoryGroup.FIXKOSTEN]
 
     return YearSummary(
         year=year,

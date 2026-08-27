@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { AlertTriangle, Copy, FileUp, Loader2 } from "lucide-react";
 
-import { useCategories, useCommitImport, usePreviewImport } from "@/api/hooks";
+import { useAccounts, useCategories, useCommitImport, usePreviewImport } from "@/api/hooks";
 import type { ImportPreview, ImportRequest, SplitTemplate } from "@/api/types";
 import { Money } from "@/components/Money";
 import { useHouseholdContext } from "@/components/HouseholdProvider";
@@ -47,6 +47,7 @@ const NONE = "__none__";
  */
 export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { data: categories = [] } = useCategories();
+  const { data: accounts = [] } = useAccounts();
   const { date: formatDate } = useHouseholdContext();
   const previewMutation = usePreviewImport();
   const commit = useCommitImport();
@@ -55,6 +56,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [fileName, setFileName] = useState("");
   const [parsed, setParsed] = useState<ParsedCsv | null>(null);
   const [mapping, setMapping] = useState<Partial<Record<ImportField, number>>>({});
+  const [accountId, setAccountId] = useState<number | null>(null);
   const [fallbackCategoryId, setFallbackCategoryId] = useState<number | null>(null);
   const [fallbackTemplate, setFallbackTemplate] = useState<SplitTemplate>("KEY");
   const [keepSign, setKeepSign] = useState(false);
@@ -82,6 +84,16 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     setMapping(guessMapping(result.header));
   }
 
+  const activeAccounts = useMemo(
+    () => accounts.filter((account) => account.is_active),
+    [accounts],
+  );
+  // Vorauswahl beim Verwenden ableiten statt sie in einem Effekt nachzutragen.
+  const effectiveAccountId = useMemo(
+    () => activeAccounts.find((account) => account.id === accountId)?.id ?? activeAccounts[0]?.id ?? null,
+    [activeAccounts, accountId],
+  );
+
   const request: ImportRequest | null = useMemo(() => {
     if (!parsed || mapping.date === undefined || mapping.amount === undefined) return null;
     const cell = (row: string[], field: ImportField) => {
@@ -98,12 +110,13 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         category: cell(row, "category") || null,
         member: cell(row, "member") || null,
       })),
+      account_id: effectiveAccountId,
       fallback_category_id: fallbackCategoryId,
       fallback_split: { template: fallbackTemplate },
       keep_sign: keepSign,
       guess_categories: guessCategories,
     };
-  }, [parsed, mapping, fallbackCategoryId, fallbackTemplate, keepSign, guessCategories]);
+  }, [parsed, mapping, effectiveAccountId, fallbackCategoryId, fallbackTemplate, keepSign, guessCategories]);
 
   async function runPreview() {
     if (!request) return;
@@ -213,6 +226,29 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                 </div>
 
                 <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+                  {activeAccounts.length > 1 && (
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label htmlFor="import-account">Konto</Label>
+                      <Select
+                        value={effectiveAccountId === null ? undefined : String(effectiveAccountId)}
+                        onValueChange={(value) => setAccountId(Number(value))}
+                      >
+                        <SelectTrigger id="import-account">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {activeAccounts.map((account) => (
+                            <SelectItem key={account.id} value={String(account.id)}>
+                              {account.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Ein Bankauszug gehört zu genau einem Konto — alle Zeilen landen dort.
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label>Kategorie für Zeilen ohne Zuordnung</Label>
                     <CategoryCombobox

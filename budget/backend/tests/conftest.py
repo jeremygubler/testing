@@ -16,9 +16,9 @@ from sqlalchemy.pool import StaticPool
 
 import app.ddl  # noqa: F401  haengt die Trigger-DDL an die Metadata
 from app.db import Base, get_db
-from app.enums import CategoryGroup, Flow
+from app.enums import AccountKind, CategoryGroup, Flow
 from app.main import app as fastapi_app
-from app.models import Category, Household, Member
+from app.models import Account, Category, Household, Member
 
 
 @pytest.fixture
@@ -63,11 +63,36 @@ def household(db: Session) -> Household:
         currency="CHF",
         locale="de-CH",
         timezone="Europe/Zurich",
-        opening_balance_minor=100_000,
     )
     db.add(household)
     db.flush()
     return household
+
+
+@pytest.fixture
+def accounts(db: Session, household: Household) -> dict[str, Account]:
+    """Ein Zahlungskonto mit Startsaldo und ein Sparkonto."""
+    rows = {
+        "Hauptkonto": Account(
+            household_id=household.id,
+            name="Hauptkonto",
+            kind=AccountKind.CHECKING,
+            opening_balance_minor=100_000,
+            include_in_available=True,
+            sort_order=0,
+        ),
+        "Sparkonto": Account(
+            household_id=household.id,
+            name="Sparkonto",
+            kind=AccountKind.SAVINGS,
+            opening_balance_minor=0,
+            include_in_available=False,
+            sort_order=1,
+        ),
+    }
+    db.add_all(list(rows.values()))
+    db.flush()
+    return rows
 
 
 @pytest.fixture
@@ -107,7 +132,7 @@ def categories(db: Session, household: Household) -> dict[str, Category]:
 
 
 @pytest.fixture
-def client(engine, household, members, categories, db) -> TestClient:
+def client(engine, household, accounts, members, categories, db) -> TestClient:
     factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
     db.commit()
 

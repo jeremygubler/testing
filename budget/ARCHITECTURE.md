@@ -24,6 +24,8 @@ Household 1──n Member
      │            │
      │            └──── n TransactionSplit ──1 Transaction ──1 Category
      │                        (Betrag)             │              │
+     ├──n Account ────────────────────────────────┤              │
+     │            (Konto und Gegenkonto)           │              │
      ├──n Category ───────────────────────────────┘              │
      │        ├──n Budget  (Default oder Monat)                   │
      │        └──n SavingsGoal                                    │
@@ -33,8 +35,10 @@ Household 1──n Member
 ```
 
 ### Household
-`name`, `currency`, `locale`, `timezone`, `opening_balance_minor` (Startsaldo),
-`settlement_basis`.
+`name`, `currency`, `locale`, `timezone`, `settlement_basis`.
+
+Der Startsaldo sitzt **nicht** am Haushalt, sondern je Konto (`Account`) — ein Haushalt
+mit Kontokorrent und Sparkonto hat zwei Startsalden, keinen gemeinsamen.
 
 `timezone` bestimmt, was „heute" heisst — nicht die Systemzeit des Servers. Das ist
 relevant, sobald der Server anderswo steht als der Haushalt: am Monatsanfang und -ende
@@ -47,6 +51,29 @@ sich der „Anteil“, den eine Person tragen sollte?* Zwei Antworten sind sinnv
 * `WEIGHT` (Standard) — nach dem hinterlegten Verteilschlüssel (`Member.share_weight`).
 * `INCOME` — nach dem tatsächlichen Einkommensanteil der Periode. Wer mehr verdient,
   trägt anteilig mehr.
+
+### Account
+`name`, `kind` (`CHECKING`, `SAVINGS`, `CASH`, `CREDIT`), `opening_balance_minor`,
+`color`, `include_in_available`, `is_active`, `sort_order`. Der Name ist je Haushalt
+eindeutig.
+
+Ohne Konten gäbe es nur einen einzigen Topf, und „Sparen" müsste eine Ausgabe sein,
+obwohl das Geld den Haushalt nie verlässt. Mit Konten wird daraus eine **Umbuchung**:
+`Transaction.counter_account_id` gesetzt heißt „belastet `account_id`, speist
+`counter_account_id`" — weder Einnahme noch Ausgabe, nur ein Wechsel des Topfes. Eine
+`CHECK`-Constraint verbietet, dass Konto und Gegenkonto dasselbe sind.
+
+`include_in_available` trennt zwei Fragen, die gern verwechselt werden: *Was besitzt der
+Haushalt?* (Vermögen, alle Konten) gegen *Was kann er diesen Monat ausgeben?* (Verfügbar,
+nur die Konten mit dieser Markierung). Ein Sparkonto ist Vermögen, aber typischerweise
+nicht verfügbar — deshalb ist das je Konto einstellbar und nicht an `kind` geknüpft.
+
+Kontostände werden **nie gespeichert**, immer gerechnet (`services/accounts.py`):
+`opening_balance_minor` + Einnahmen/Ausgaben auf dem Konto + Zu-/Abflüsse durch
+Umbuchungen, wahlweise zu einem Stichtag.
+
+Konten ohne Buchungen werden gelöscht, benutzte nur deaktiviert (`ondelete="RESTRICT"`);
+das letzte aktive Konto ist geschützt, sonst hätte eine neue Buchung kein Ziel.
 
 ### Member
 `name`, `color` (für Charts), `is_active`, `sort_order`, `share_weight`.
@@ -95,8 +122,8 @@ nicht gibt. Der Vorschlag wird wie beim Import erst gezeigt und einzeln abwählb
 `PUT /api/budgets/bulk` ihn schreibt.
 
 ### Transaction / TransactionSplit
-`Transaction`: `date`, `category_id`, `description`, `note`, `recurring_rule_id`,
-`recurring_occurrence_date`, `amount_minor` *(abgeleitet)*.
+`Transaction`: `date`, `category_id`, `account_id`, `counter_account_id`, `description`,
+`note`, `recurring_rule_id`, `recurring_occurrence_date`, `amount_minor` *(abgeleitet)*.
 `TransactionSplit`: `txn_id`, `member_id`, `amount_minor`.
 
 Die Tabellen heißen `txn` / `txn_split`, weil `transaction` in mehreren SQL-Dialekten ein
@@ -107,6 +134,10 @@ normalerweise positiv. Die Richtung ergibt sich aus `Category.flow`. Der *Effekt
 Saldo ist `+betrag` bei `INCOME` und `−betrag` bei `EXPENSE`. Negative Beträge sind
 zulässig und bedeuten eine Korrektur (Rückerstattung auf einer Ausgabenkategorie,
 Lohnrückbuchung auf einer Einnahmenkategorie).
+
+Ist `counter_account_id` gesetzt, ist die Buchung eine **Umbuchung**: `Category.flow`
+sagt dann nichts über die Richtung, weil es keine gibt. Der Betrag verlässt `account_id`
+und erreicht `counter_account_id`; für Einnahmen, Ausgaben und Saldo zählt er nicht.
 
 **Wie die Split-Konsistenz erzwungen wird.** Die Spezifikation verlangt (a) dass der
 Betrag nicht in der Transaction steht und (b) dass die Konsistenz der Split-Summe per
@@ -201,19 +232,29 @@ Für einen Monat `(jahr, monat)`, gerechnet über alle Splits der Buchungen in d
 
 | Kennzahl | Formel |
 | --- | --- |
-| Einnahmen | Σ Beträge auf Kategorien mit `flow = INCOME` |
-| Ausgaben | Σ Beträge auf Kategorien mit `flow = EXPENSE` |
+| Einnahmen | Σ Beträge auf Kategorien mit `flow = INCOME`, **ohne Umbuchungen** |
+| Ausgaben | Σ Beträge auf Kategorien mit `flow = EXPENSE`, **ohne Umbuchungen** |
 | Monatssaldo | Einnahmen − Ausgaben |
-| Verfügbar | `opening_balance_minor` + Σ Monatssalden bis einschließlich Monat |
+| Verfügbar | Σ Kontostände der Konten mit `include_in_available`, zum Monatsende |
+| Vermögen | Σ Kontostände aller Konten, zum Monatsende |
 | Budget-Auslastung | Ist ÷ aufgelöstes Budget der Kategorie |
-| Sparquote | Σ Gruppe `SPAREN` ÷ Einnahmen |
+| Gespart | Σ Umbuchungen, deren Gegenkonto `kind = SAVINGS` hat |
+| Sparquote | Gespart ÷ Einnahmen |
 | Fixkostenquote | Σ Gruppe `FIXKOSTEN` ÷ Einnahmen |
 | Pro Person | Einnahmen / getragene Ausgaben / Saldo, gruppiert über `txn_split.member_id` |
 
-Anmerkung zur Sparquote: Buchungen der Gruppe `SPAREN` sind Ausgaben (Geld verlässt das
-Konto) und mindern damit den Monatssaldo. Ein Monat mit hoher Sparquote kann also einen
-negativen Saldo haben, ohne dass Vermögen verloren ging. Die Übersicht weist deshalb neben
-dem Saldo auch den Saldo *ohne* Sparen aus.
+**Umbuchungen und das Ist einer Kategorie.** Eine Umbuchung ist keine Ausgabe — aber sie
+ist sehr wohl das, was auf ihrer Kategorie passiert ist. Wer 1'400 aufs Sparkonto
+budgetiert, will sehen, ob er 1'400 umgebucht hat; ohne das bliebe jedes Sparbudget für
+immer bei 0 % Auslastung. Deshalb zählen Umbuchungen in `CategoryFigure.actual_minor`
+(und damit ins Budget) mit, nicht aber in Einnahmen, Ausgaben und Saldo.
+`CategoryFigure.transfer_minor` weist aus, welcher Anteil des Ist daher stammt — das
+Kuchendiagramm „Ausgaben nach Kategorie" zieht ihn ab, sonst summierte es auf mehr als
+die Kennzahl daneben.
+
+Anmerkung zur Sparquote: Sparen mindert den Monatssaldo nicht mehr, seit es eine
+Umbuchung ist — das Geld hat nur das Konto gewechselt. Dafür sinkt „Verfügbar", während
+„Vermögen" gleich bleibt. Genau diese Trennung ist der Zweck der Konten.
 
 Quoten werden als Verhältnis in Basispunkten oder als `null` geliefert, wenn der Nenner 0
 ist — nie als „0 %“, weil das etwas anderes bedeutet.
@@ -239,10 +280,12 @@ richtig gerechnet und trotzdem ohne jeden Wert.
 Kategorie. Monate ohne Buchungen werden als solche markiert (`has_data`) statt als Nullen
 ausgewiesen — sie tragen den Kontostand weiter, behaupten aber keine Ausgaben von 0.
 
-**Vermögensverlauf**: `TrendPoint.available_minor` ist der Startsaldo plus der kumulierte
-Saldo bis einschliesslich dieses Monats. Das Fenster kennt seine Vorgeschichte: der Wert vor
-dem ersten Punkt wird aus allem davor berechnet, sonst verlöre ein späteres Fenster die
-gesamte Historie. Im Diagramm ist das eine **eigene Ansicht**, keine vierte Linie —
+**Vermögensverlauf**: `TrendPoint.available_minor` ist der Kontostand der verfügbaren
+Konten zum jeweiligen Monatsende — je Monat neu gerechnet, nicht aus den Monatssalden
+aufaddiert. Aufsummiert liefe die Linie von der Kennzahl auf der Übersicht weg, weil der
+Saldo weder Umbuchungen kennt noch Buchungen auf Konten, die nicht zum verfügbaren Geld
+zählen. Damit kennt das Fenster seine Vorgeschichte automatisch: ein späteres Fenster
+verliert die Historie nicht. Im Diagramm ist das eine **eigene Ansicht**, keine vierte Linie —
 Vermögen und Monatswerte liegen Grössenordnungen auseinander, und zwei Skalen in einem Bild
 sind der zuverlässigste Weg, jemanden zu täuschen.
 
@@ -323,15 +366,19 @@ oder `FALLBACK` aus, und das Raten lässt sich im Dialog abschalten.
 
 **CSV-Export** (`/api/io/export/transactions.csv`): Semikolon-getrennt, mit BOM, damit
 Excel Umlaute richtig liest. Beträge als Dezimalzahl mit Punkt, die Aufteilung als
-`Person=Betrag` je Person.
+`Person=Betrag` je Person. Die Spalten `konto` und `gegenkonto` nennen beide Seiten einer
+Umbuchung; bei einer gewöhnlichen Buchung bleibt `gegenkonto` leer.
 
 **JSON-Backup** (`/api/io/export/household.json`): der vollständige Haushalt inklusive
 Splits, Regeln, Sparzielen, Terminen und Ausgleichszahlungen — aber ohne abgeleitete Werte
 (kein `txn.amount_minor`, keine Kennzahlen). Was sich berechnen lässt, gehört nicht ins
 Backup.
 
-Das Format trägt eine Version. Version 2 führt `settlement_payments`; Version 1 bleibt
-lesbar und wird ohne Ausgleichszahlungen eingespielt.
+Das Format trägt eine Version. Version 2 führt `settlement_payments`, Version 3 die
+Konten. Ältere Backups bleiben lesbar: fehlen die Konten, wird aus dem Startsaldo des
+Haushalts ein „Hauptkonto" angelegt und — falls es Buchungen der Gruppe `SPAREN` gibt —
+ein „Sparkonto", auf das diese Buchungen als Umbuchungen umgestellt werden. Das ist
+dieselbe Übersetzung, die auch die Migration `0003` fährt.
 
 **CSV-Import** läuft in zwei Schritten und schreibt erst im zweiten:
 
@@ -345,6 +392,9 @@ Fehlerhafte Zeilen werden **gemeldet, nicht stillschweigend übersprungen**.
 
 *Dublettenerkennung* über Datum, Betrag und Beschreibung (ohne Beachtung der
 Gross-/Kleinschreibung), sowohl gegen den Bestand als auch innerhalb derselben Datei.
+
+*Konto*: Ein Bankauszug gehört zu genau einem Konto — der Import bucht deshalb alle
+Zeilen auf das gewählte (`account_id`), nicht auf das erstbeste.
 
 *Vorzeichen*: Bankauszüge schreiben Ausgaben negativ, im Datenmodell steckt die Richtung
 aber in der Kategorie. Standardmässig wird das Vorzeichen deshalb verworfen (`-89.00` auf

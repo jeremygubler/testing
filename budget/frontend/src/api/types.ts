@@ -5,6 +5,16 @@ export type CategoryGroup = "EINKOMMEN" | "FIXKOSTEN" | "VARIABEL" | "SPAREN" | 
 export type IntervalKind = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY";
 export type SplitTemplate = "SINGLE" | "EQUAL" | "KEY" | "MANUAL";
 export type SettlementBasis = "WEIGHT" | "INCOME";
+export type AccountKind = "CHECKING" | "SAVINGS" | "CASH" | "CREDIT";
+
+export const ACCOUNT_KINDS: AccountKind[] = ["CHECKING", "SAVINGS", "CASH", "CREDIT"];
+
+export const ACCOUNT_KIND_LABEL: Record<AccountKind, string> = {
+  CHECKING: "Kontokorrent",
+  SAVINGS: "Sparkonto",
+  CASH: "Bargeld",
+  CREDIT: "Kreditkarte",
+};
 
 export const CATEGORY_GROUPS: CategoryGroup[] = [
   "EINKOMMEN",
@@ -20,7 +30,6 @@ export interface Household {
   currency: string;
   locale: string;
   timezone: string;
-  opening_balance_minor: number;
   settlement_basis: SettlementBasis;
 }
 
@@ -29,9 +38,51 @@ export interface HouseholdCreate {
   currency: string;
   locale: string;
   timezone?: string;
+  /** Startsaldo des ersten Kontos, das dabei angelegt wird. */
   opening_balance_minor: number;
+  account_name: string;
   member_names: string[];
   with_starter_categories: boolean;
+}
+
+export interface Account {
+  id: number;
+  name: string;
+  kind: AccountKind;
+  opening_balance_minor: number;
+  color: string;
+  /** Zaehlt dieses Konto zum frei verfuegbaren Geld? */
+  include_in_available: boolean;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface AccountInput {
+  name: string;
+  kind?: AccountKind;
+  opening_balance_minor?: number;
+  color?: string;
+  include_in_available?: boolean;
+  sort_order?: number;
+}
+
+export interface AccountPatch extends Partial<AccountInput> {
+  is_active?: boolean;
+}
+
+export interface AccountBalance {
+  account_id: number;
+  name: string;
+  kind: AccountKind;
+  color: string;
+  include_in_available: boolean;
+  is_active: boolean;
+  opening_balance_minor: number;
+  /** Einnahmen minus Ausgaben auf diesem Konto, ohne Umbuchungen. */
+  flow_minor: number;
+  /** Zugefuehrt minus abgefuehrt durch Umbuchungen. */
+  transfer_minor: number;
+  balance_minor: number;
 }
 
 export interface Member {
@@ -68,6 +119,12 @@ export interface SplitSpec {
 export interface Transaction {
   id: number;
   date: string;
+  account_id: number;
+  account_name: string;
+  counter_account_id: number | null;
+  counter_account_name: string | null;
+  /** Umbuchung zwischen zwei Konten statt Einnahme oder Ausgabe. */
+  is_transfer: boolean;
   category_id: number;
   category_name: string;
   category_group: CategoryGroup;
@@ -99,6 +156,8 @@ export interface TransactionPage {
 export interface TransactionInput {
   date: string;
   category_id: number;
+  account_id?: number | null;
+  counter_account_id?: number | null;
   description?: string;
   note?: string | null;
   amount_minor: number;
@@ -108,6 +167,8 @@ export interface TransactionInput {
 export interface TransactionPatch {
   date?: string;
   category_id?: number;
+  account_id?: number | null;
+  counter_account_id?: number | null;
   description?: string;
   note?: string | null;
   amount_minor?: number;
@@ -120,6 +181,9 @@ export interface TransactionQuery {
   category_id?: number[];
   group?: CategoryGroup[];
   member_id?: number[];
+  account_id?: number[];
+  /** true = nur Umbuchungen, false = keine Umbuchungen, undefined = alle. */
+  transfers?: boolean;
   q?: string;
   recurring_rule_id?: number;
   limit?: number;
@@ -152,6 +216,9 @@ export interface CategoryFigure {
   actual_minor: number;
   budget_minor: number | null;
   budget_source: "MONTH" | "DEFAULT" | null;
+  /** Der Anteil des Ist, der aus Umbuchungen stammt — fürs Budget zählt er mit,
+   *  als Ausgabe gilt er nicht. */
+  transfer_minor: number;
   difference_minor: number | null;
   usage: number | null;
 }
@@ -176,10 +243,15 @@ export interface MonthSummary {
   income_minor: number;
   expense_minor: number;
   balance_minor: number;
-  balance_excl_savings_minor: number;
+  /** Was in der Periode auf Sparkonten umgebucht wurde. */
+  savings_minor: number;
+  /** Frei verfuegbares Geld auf den dafuer vorgesehenen Konten. */
   available_minor: number;
+  /** Alle Konten zusammen. */
+  net_worth_minor: number;
   savings_ratio: number | null;
   fixed_cost_ratio: number | null;
+  accounts: AccountBalance[];
   categories: CategoryFigure[];
   groups: GroupFigure[];
   members: MemberFigure[];
@@ -357,6 +429,8 @@ export interface ImportRow {
 
 export interface ImportRequest {
   rows: ImportRow[];
+  /** Konto, auf das der Auszug gebucht wird. Fehlt es, wird das erste aktive genommen. */
+  account_id?: number | null;
   fallback_category_id?: number | null;
   fallback_split?: SplitSpec;
   keep_sign?: boolean;

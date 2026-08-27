@@ -99,9 +99,34 @@ Im Frontend steuert `VITE_API_TARGET` das Proxy-Ziel des Dev-Servers.
 ## Erste Inbetriebnahme
 
 Findet die App keinen Haushalt, zeigt sie statt einer leeren Oberfläche einen
-Einrichtungsschritt: Name, Währung, Startsaldo, Personen und optional ein kurzer Satz
-Startkategorien. Danach ist die App sofort benutzbar. `python seed.py` ist nur für die
-Demo gedacht und tut nichts, wenn bereits ein Haushalt existiert.
+Einrichtungsschritt: Name, Währung, ein erstes Konto mit Startsaldo, Personen und optional
+ein kurzer Satz Startkategorien. Danach ist die App sofort benutzbar. `python seed.py` ist
+nur für die Demo gedacht und tut nichts, wenn bereits ein Haushalt existiert.
+
+## Konten und Umbuchungen
+
+Ein Haushalt kann mehrere Konten führen — Kontokorrent, Sparkonto, Bargeld, Kreditkarte —
+anzulegen unter *Einstellungen → Konten*. Jedes trägt seinen eigenen Startsaldo; der
+Kontostand wird immer gerechnet, nie gespeichert.
+
+Wird beim Erfassen ein **Gegenkonto** gewählt, ist die Buchung eine **Umbuchung**: der
+Betrag verlässt das eine Konto und erreicht das andere. Sie ist weder Einnahme noch
+Ausgabe und ändert den Monatssaldo nicht — Geld aufs Sparkonto zu legen macht einen
+Haushalt nicht ärmer. Für das Budget der Kategorie zählt sie trotzdem mit, sonst bliebe
+jedes Sparbudget für immer bei 0 %.
+
+Daraus ergeben sich zwei Zahlen statt einer:
+
+* **Vermögen** — alle Konten zusammen.
+* **Verfügbar** — nur die Konten, die als verfügbar markiert sind. Ein Sparkonto ist
+  Vermögen, aber meist nicht das, was diesen Monat ausgegeben werden soll. Der Schalter
+  sitzt je Konto in den Einstellungen.
+
+Die **Sparquote** misst seither, was tatsächlich auf einem Sparkonto gelandet ist, statt
+was am Monatsende zufällig übrig blieb.
+
+Solange nur ein Konto existiert, blendet die Oberfläche das alles aus — die Erfassung
+bleibt genauso kurz wie vorher.
 
 ## Tastaturbedienung
 
@@ -170,3 +195,5 @@ budget/
 | 5 | Wiederkehrende Buchungen mit Vorschlagslogik | ✅ |
 | 6 | Kalender, Sparziele, Import, Export | ✅ |
 | 7 | Feinschliff: Tastatur, Dark Mode, Responsivität, leere Zustände | ✅ |
+| + | Ausgleichszahlungen, Jahresansicht, Prognose, Budgetvorschlag, CI | ✅ |
+| + | Konten und Umbuchungen (Vermögen gegen Verfügbar, Sparen als Umbuchung) | ✅ |

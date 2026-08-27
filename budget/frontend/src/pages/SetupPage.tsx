@@ -22,6 +22,7 @@ export function SetupPage() {
   const [name, setName] = useState("Mein Haushalt");
   const [currency, setCurrency] = useState("CHF");
   const [locale, setLocale] = useState("de-CH");
+  const [accountName, setAccountName] = useState("Hauptkonto");
   const [opening, setOpening] = useState("0.00");
   const [members, setMembers] = useState<string[]>(["", ""]);
   const [starter, setStarter] = useState(true);
@@ -29,7 +30,8 @@ export function SetupPage() {
 
   const cleanMembers = members.map((entry) => entry.trim()).filter(Boolean);
   const duplicate = new Set(cleanMembers).size !== cleanMembers.length;
-  const canSubmit = Boolean(name.trim()) && cleanMembers.length > 0 && !duplicate && !create.isPending;
+  const canSubmit =
+    Boolean(name.trim()) && Boolean(accountName.trim()) && cleanMembers.length > 0 && !duplicate && !create.isPending;
 
   async function submit() {
     if (!canSubmit) return;
@@ -39,6 +41,7 @@ export function SetupPage() {
         name: name.trim(),
         currency: currency.toUpperCase(),
         locale,
+        account_name: accountName.trim(),
         opening_balance_minor: parseAmountInput(opening) ?? 0,
         member_names: cleanMembers,
         with_starter_categories: starter,
@@ -77,7 +80,7 @@ export function SetupPage() {
               <Input id="setup-name" autoFocus value={name} onChange={(event) => setName(event.target.value)} />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label htmlFor="setup-currency">Währung</Label>
                 <Input
@@ -103,6 +106,17 @@ export function SetupPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="setup-account">Erstes Konto</Label>
+                <Input
+                  id="setup-account"
+                  value={accountName}
+                  onChange={(event) => setAccountName(event.target.value)}
+                />
+              </div>
               <div className="space-y-1">
                 <Label htmlFor="setup-opening">Startsaldo</Label>
                 <Input
@@ -114,6 +128,10 @@ export function SetupPage() {
                 />
               </div>
             </div>
+            <p className="-mt-2 text-xs text-muted-foreground">
+              Weitere Konten — Sparkonto, Bargeld, Kreditkarte — lassen sich später in den
+              Einstellungen anlegen.
+            </p>
 
             <div className="space-y-1.5">
               <Label>Personen ({cleanMembers.length} von {MAX_MEMBERS})</Label>

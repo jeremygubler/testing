@@ -11,8 +11,9 @@ import random
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.enums import CategoryGroup, Flow, Interval, SettlementBasis, SplitTemplate
+from app.enums import AccountKind, CategoryGroup, Flow, Interval, SettlementBasis, SplitTemplate
 from app.models import (
+    Account,
     Budget,
     CalendarEntry,
     Category,
@@ -89,10 +90,30 @@ def seed_demo(db: Session, reference_date: dt.date | None = None) -> Household:
         currency="CHF",
         locale="de-CH",
         timezone="Europe/Zurich",
-        opening_balance_minor=12_450 * CHF,
         settlement_basis=SettlementBasis.WEIGHT,
     )
     db.add(household)
+    db.flush()
+
+    main_account = Account(
+        household_id=household.id,
+        name="Hauptkonto",
+        kind=AccountKind.CHECKING,
+        opening_balance_minor=12_450 * CHF,
+        color="#1e3a5f",
+        include_in_available=True,
+        sort_order=0,
+    )
+    savings_account = Account(
+        household_id=household.id,
+        name="Sparkonto",
+        kind=AccountKind.SAVINGS,
+        opening_balance_minor=8_000 * CHF,
+        color="#166534",
+        include_in_available=False,
+        sort_order=1,
+    )
+    db.add_all([main_account, savings_account])
     db.flush()
 
     anna = Member(
@@ -301,10 +322,14 @@ def seed_demo(db: Session, reference_date: dt.date | None = None) -> Household:
         occurrence: dt.date | None = None,
         note: str | None = None,
     ) -> None:
+        # Sparen ist eine Umbuchung aufs Sparkonto, keine Ausgabe.
+        is_saving = category.group is CategoryGroup.SPAREN
         txn = Transaction(
             household_id=household.id,
             date=date,
             category_id=category.id,
+            account_id=main_account.id,
+            counter_account_id=savings_account.id if is_saving else None,
             description=description,
             note=note,
             recurring_rule_id=rule_id,

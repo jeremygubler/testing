@@ -11,8 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.enums import GROUP_FLOW, CategoryGroup, SettlementBasis
-from app.models import Category, Household, Member
+from app.enums import GROUP_FLOW, AccountKind, CategoryGroup, SettlementBasis
+from app.models import Account, Category, Household, Member
 
 STARTER_CATEGORIES: list[tuple[str, CategoryGroup, str, str]] = [
     ("Lohn", CategoryGroup.EINKOMMEN, "briefcase", "#0f766e"),
@@ -47,6 +47,7 @@ def create_household(
     opening_balance_minor: int,
     member_names: list[str],
     with_starter_categories: bool = True,
+    account_name: str = "Hauptkonto",
 ) -> Household:
     household = Household(
         id=get_settings().single_household_id,
@@ -54,10 +55,37 @@ def create_household(
         currency=currency,
         locale=locale,
         timezone=timezone,
-        opening_balance_minor=opening_balance_minor,
         settlement_basis=SettlementBasis.WEIGHT,
     )
     db.add(household)
+    db.flush()
+
+    # Ohne Konto laesst sich nichts erfassen. Der Startsaldo gehoert hierher, nicht
+    # an den Haushalt.
+    db.add(
+        Account(
+            household_id=household.id,
+            name=account_name,
+            kind=AccountKind.CHECKING,
+            opening_balance_minor=opening_balance_minor,
+            color="#1e3a5f",
+            include_in_available=True,
+            sort_order=0,
+        )
+    )
+    if with_starter_categories:
+        db.add(
+            Account(
+                household_id=household.id,
+                name="Sparkonto",
+                kind=AccountKind.SAVINGS,
+                opening_balance_minor=0,
+                color="#166534",
+                # Vermoegen, aber nicht das, was diesen Monat ausgegeben werden soll.
+                include_in_available=False,
+                sort_order=1,
+            )
+        )
     db.flush()
 
     for index, member_name in enumerate(member_names):

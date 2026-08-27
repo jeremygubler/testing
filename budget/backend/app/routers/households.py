@@ -22,6 +22,7 @@ def create_household(payload: HouseholdCreate, db: DbSession) -> HouseholdRead:
         opening_balance_minor=payload.opening_balance_minor,
         member_names=payload.member_names,
         with_starter_categories=payload.with_starter_categories,
+        account_name=payload.account_name,
     )
     return HouseholdRead.model_validate(household)
 

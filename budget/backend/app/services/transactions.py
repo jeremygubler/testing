@@ -7,7 +7,7 @@ import datetime as dt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Category, Household, Member, Transaction, TransactionSplit
+from app.models import Account, Category, Household, Member, Transaction, TransactionSplit
 from app.schemas import SplitSpec
 from app.services.splits import SplitError, SplitLine, build_splits, validate
 
@@ -53,6 +53,48 @@ def resolve_split(
     return lines
 
 
+def default_account(db: Session, household_id: int) -> Account | None:
+    return db.scalar(
+        select(Account)
+        .where(Account.household_id == household_id, Account.is_active.is_(True))
+        .order_by(Account.sort_order, Account.id)
+        .limit(1)
+    )
+
+
+def _require_account(db: Session, household: Household, account_id: int) -> Account:
+    account = db.get(Account, account_id)
+    if account is None or account.household_id != household.id:
+        raise SplitError("Das Konto existiert nicht.")
+    return account
+
+
+def _resolve_accounts(
+    db: Session,
+    household: Household,
+    account_id: int | None,
+    counter_account_id: int | None,
+) -> tuple[int, int | None]:
+    if account_id is None:
+        account = default_account(db, household.id)
+        if account is None:
+            raise SplitError("Der Haushalt hat kein aktives Konto.")
+    else:
+        account = _require_account(db, household, account_id)
+        if not account.is_active:
+            raise SplitError(f"Das Konto '{account.name}' ist deaktiviert.")
+
+    if counter_account_id is None:
+        return account.id, None
+
+    counter = _require_account(db, household, counter_account_id)
+    if counter.id == account.id:
+        raise SplitError("Eine Umbuchung braucht zwei verschiedene Konten.")
+    if not counter.is_active:
+        raise SplitError(f"Das Konto '{counter.name}' ist deaktiviert.")
+    return account.id, counter.id
+
+
 def _require_category(db: Session, household: Household, category_id: int) -> Category:
     category = db.get(Category, category_id)
     if category is None or category.household_id != household.id:
@@ -70,18 +112,25 @@ def create_transaction(
     note: str | None,
     amount_minor: int,
     split: SplitSpec,
+    account_id: int | None = None,
+    counter_account_id: int | None = None,
     recurring_rule_id: int | None = None,
     recurring_occurrence_date: dt.date | None = None,
 ) -> Transaction:
     category = _require_category(db, household, category_id)
     if not category.is_active:
         raise SplitError(f"Die Kategorie '{category.name}' ist deaktiviert.")
+    resolved_account, resolved_counter = _resolve_accounts(
+        db, household, account_id, counter_account_id
+    )
     lines = resolve_split(db, household, amount_minor, split)
 
     txn = Transaction(
         household_id=household.id,
         date=date,
         category_id=category.id,
+        account_id=resolved_account,
+        counter_account_id=resolved_counter,
         description=description,
         note=note,
         recurring_rule_id=recurring_rule_id,
@@ -111,9 +160,19 @@ def update_transaction(
     note: str | None = None,
     amount_minor: int | None = None,
     split: SplitSpec | None = None,
+    account_id: int | None = None,
+    counter_account_id: int | None = None,
+    counter_account_set: bool = False,
 ) -> Transaction:
     if category_id is not None:
         txn.category_id = _require_category(db, household, category_id).id
+    if account_id is not None or counter_account_set:
+        txn.account_id, txn.counter_account_id = _resolve_accounts(
+            db,
+            household,
+            account_id if account_id is not None else txn.account_id,
+            counter_account_id if counter_account_set else txn.counter_account_id,
+        )
     if date is not None:
         txn.date = date
     if description is not None:

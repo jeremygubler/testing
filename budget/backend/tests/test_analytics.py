@@ -4,19 +4,27 @@ import datetime as dt
 
 import pytest
 
+from app.enums import CategoryGroup
 from app.models import Transaction, TransactionSplit
 from app.services.analytics import month_summary, resolve_budgets
 
 
 @pytest.fixture
-def book(db, household, categories, members):
-    """Hilfsfunktion: Buchung mit Splits anlegen."""
+def book(db, household, accounts, categories, members):
+    """Hilfsfunktion: Buchung mit Splits anlegen.
+
+    Buchungen der Gruppe SPAREN werden zu Umbuchungen aufs Sparkonto -- so, wie es
+    die Anwendung seit den Konten tut.
+    """
 
     def _book(category: str, day: int, amounts: dict[int, int], month: int = 3, year: int = 2026):
+        is_saving = categories[category].group is CategoryGroup.SPAREN
         txn = Transaction(
             household_id=household.id,
             date=dt.date(year, month, day),
             category_id=categories[category].id,
+            account_id=accounts["Hauptkonto"].id,
+            counter_account_id=accounts["Sparkonto"].id if is_saving else None,
             description=category,
         )
         db.add(txn)
@@ -39,10 +47,10 @@ def test_month_summary_computes_the_headline_figures(db, household, categories, 
 
     summary = month_summary(db, household, 2026, 3)
     assert summary.income_minor == 1_000_000
-    assert summary.expense_minor == 350_000
-    assert summary.balance_minor == 650_000
-    # Sparen ist eine Ausgabe, aber kein Verlust -- deshalb beide Salden.
-    assert summary.balance_excl_savings_minor == 750_000
+    # Sparen ist seit den Konten keine Ausgabe mehr, sondern eine Umbuchung.
+    assert summary.expense_minor == 250_000
+    assert summary.balance_minor == 750_000
+    assert summary.savings_minor == 100_000
     assert summary.savings_ratio == pytest.approx(0.1)
     assert summary.fixed_cost_ratio == pytest.approx(0.2)
 
@@ -54,7 +62,7 @@ def test_available_includes_opening_balance_and_all_previous_months(db, househol
     book("Lebensmittel", 10, {anna.id: 10_000}, month=3)
 
     summary = month_summary(db, household, 2026, 3)
-    # Startsaldo 100'000 + 100'000 - 40'000 - 10'000
+    # Startsaldo des Hauptkontos 100'000 + 100'000 - 40'000 - 10'000
     assert summary.available_minor == 150_000
     assert month_summary(db, household, 2026, 2).available_minor == 160_000
 
@@ -221,11 +229,14 @@ def test_trend_sums_match_the_month_summary(client, categories, members):
             "split": {"template": "SINGLE", "member_id": anna.id},
         },
     )
+    # Sparen ist eine Umbuchung aufs Sparkonto, keine Ausgabe.
+    savings_account = next(a for a in client.get("/api/accounts").json() if a["kind"] == "SAVINGS")
     client.post(
         "/api/transactions",
         json={
             "date": "2026-03-26",
             "category_id": categories["Sparkonto"].id,
+            "counter_account_id": savings_account["id"],
             "description": "Sparen",
             "amount_minor": 80_000,
             "split": {"template": "SINGLE", "member_id": anna.id},
@@ -237,6 +248,10 @@ def test_trend_sums_match_the_month_summary(client, categories, members):
     assert point["expense_minor"] == summary["expense_minor"]
     assert point["balance_minor"] == summary["balance_minor"]
     assert point["savings_minor"] == 80_000
+    # Die Umbuchung verlaesst das verfuegbare Geld. Aufaddierte Salden wuerden das
+    # uebersehen und die Verlaufslinie von der Kennzahl der Uebersicht wegtreiben.
+    assert point["available_minor"] == summary["available_minor"]
+    assert point["available_minor"] == 100_000 + 500_000 - 80_000
 
 
 # ------------------------------------------------------------- Budgetvorschlaege

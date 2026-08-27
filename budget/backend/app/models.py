@@ -30,7 +30,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
-from app.enums import CategoryGroup, Flow, Interval, SettlementBasis, SplitTemplate
+from app.enums import AccountKind, CategoryGroup, Flow, Interval, SettlementBasis, SplitTemplate
 from app.types import EnumStr
 
 
@@ -42,7 +42,7 @@ class Household(Base):
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="CHF")
     locale: Mapped[str] = mapped_column(String(10), nullable=False, default="de-CH")
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Europe/Zurich")
-    opening_balance_minor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Kein Startsaldo mehr am Haushalt: der gehoert an das jeweilige Konto (Account).
     settlement_basis: Mapped[SettlementBasis] = mapped_column(
         EnumStr(SettlementBasis, 16), nullable=False, default=SettlementBasis.WEIGHT
     )
@@ -55,6 +55,9 @@ class Household(Base):
     )
     categories: Mapped[list[Category]] = relationship(
         back_populates="household", cascade="all, delete-orphan", order_by="Category.sort_order"
+    )
+    accounts: Mapped[list[Account]] = relationship(
+        back_populates="household", cascade="all, delete-orphan", order_by="Account.sort_order"
     )
 
 
@@ -80,6 +83,36 @@ class Member(Base):
     share_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     household: Mapped[Household] = relationship(back_populates="members")
+
+
+class Account(Base):
+    """Ein Konto des Haushalts: Lohnkonto, Sparkonto, Kreditkarte, Bargeld.
+
+    Bis hierher kannte die App nur einen einzigen Startsaldo am Haushalt. Ein realer
+    Haushalt hat mehrere Toepfe, und "verfuegbar" bedeutet je nach Topf etwas anderes.
+    """
+
+    __tablename__ = "account"
+    __table_args__ = (UniqueConstraint("household_id", "name", name="uq_account_household_name"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    household_id: Mapped[int] = mapped_column(
+        ForeignKey("household.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    kind: Mapped[AccountKind] = mapped_column(
+        EnumStr(AccountKind, 16), nullable=False, default=AccountKind.CHECKING
+    )
+    #: Kontostand vor der ersten erfassten Buchung dieses Kontos.
+    opening_balance_minor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    color: Mapped[str] = mapped_column(String(9), nullable=False, default="#64748b")
+    #: Zaehlt dieses Konto zum frei verfuegbaren Geld? Ein Sparkonto ist Vermoegen,
+    #: aber typischerweise nicht das, was diesen Monat ausgegeben werden soll.
+    include_in_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    household: Mapped[Household] = relationship(back_populates="accounts")
 
 
 class Category(Base):
@@ -145,6 +178,12 @@ class Transaction(Base):
     """
 
     __tablename__ = "txn"
+    __table_args__ = (
+        CheckConstraint(
+            "counter_account_id IS NULL OR counter_account_id <> account_id",
+            name="ck_txn_transfer_distinct_accounts",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     household_id: Mapped[int] = mapped_column(
@@ -153,6 +192,16 @@ class Transaction(Base):
     date: Mapped[dt.date] = mapped_column(Date, nullable=False, index=True)
     category_id: Mapped[int] = mapped_column(
         ForeignKey("category.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    #: Das Konto, auf dem die Buchung stattfindet.
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("account.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    #: Gesetzt macht die Buchung zur **Umbuchung**: der Betrag verlaesst ``account_id``
+    #: und landet auf ``counter_account_id``. Eine Umbuchung ist weder Einnahme noch
+    #: Ausgabe -- Geld wechselt nur den Topf. Sparen ist genau das.
+    counter_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("account.id", ondelete="RESTRICT"), nullable=True, index=True
     )
     description: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -168,6 +217,10 @@ class Transaction(Base):
     )
 
     category: Mapped[Category] = relationship(lazy="joined")
+    account: Mapped[Account] = relationship(lazy="joined", foreign_keys=[account_id])
+    counter_account: Mapped[Account | None] = relationship(
+        lazy="joined", foreign_keys=[counter_account_id]
+    )
     splits: Mapped[list[TransactionSplit]] = relationship(
         back_populates="transaction",
         cascade="all, delete-orphan",

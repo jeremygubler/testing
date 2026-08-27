@@ -179,12 +179,13 @@ def test_list_sums_are_signed_by_flow_not_by_storage(client, categories, members
 # --------------------------------------------------------------- DB-Invarianten
 
 
-def test_db_keeps_amount_in_sync_with_splits(db, household, categories, members):
+def test_db_keeps_amount_in_sync_with_splits(db, household, accounts, categories, members):
     anna, ben = members
     txn = Transaction(
         household_id=household.id,
         date=dt.date(2026, 3, 1),
         category_id=categories["Miete"].id,
+        account_id=accounts["Hauptkonto"].id,
         description="Miete",
     )
     db.add(txn)
@@ -201,12 +202,13 @@ def test_db_keeps_amount_in_sync_with_splits(db, household, categories, members)
     assert txn.amount_minor == 6000
 
 
-def test_db_rejects_mixed_signs(db, household, categories, members):
+def test_db_rejects_mixed_signs(db, household, accounts, categories, members):
     anna, ben = members
     txn = Transaction(
         household_id=household.id,
         date=dt.date(2026, 3, 1),
         category_id=categories["Miete"].id,
+        account_id=accounts["Hauptkonto"].id,
         description="Miete",
     )
     db.add(txn)
@@ -218,12 +220,13 @@ def test_db_rejects_mixed_signs(db, household, categories, members):
         db.flush()
 
 
-def test_db_rejects_writing_the_derived_amount(db, household, categories, members):
+def test_db_rejects_writing_the_derived_amount(db, household, accounts, categories, members):
     anna, _ = members
     txn = Transaction(
         household_id=household.id,
         date=dt.date(2026, 3, 1),
         category_id=categories["Miete"].id,
+        account_id=accounts["Hauptkonto"].id,
         description="Miete",
     )
     db.add(txn)
@@ -236,12 +239,13 @@ def test_db_rejects_writing_the_derived_amount(db, household, categories, member
         db.flush()
 
 
-def test_db_rejects_zero_split(db, household, categories, members):
+def test_db_rejects_zero_split(db, household, accounts, categories, members):
     anna, _ = members
     txn = Transaction(
         household_id=household.id,
         date=dt.date(2026, 3, 1),
         category_id=categories["Miete"].id,
+        account_id=accounts["Hauptkonto"].id,
         description="Miete",
     )
     db.add(txn)

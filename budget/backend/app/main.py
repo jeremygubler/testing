@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 import app.ddl
 from app.config import get_settings
 from app.routers import (
+    accounts,
     analytics,
     budgets,
     calendar,
@@ -66,6 +67,7 @@ async def _split_error_handler(_request: Request, exc: SplitError) -> JSONRespon
 
 
 app.include_router(households.router)
+app.include_router(accounts.router)
 app.include_router(members.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)

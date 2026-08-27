@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { Check, Copy, Pencil, Trash2, X } from "lucide-react";
 
-import { useCreateTransaction, useDeleteTransaction, useUpdateTransaction } from "@/api/hooks";
+import {
+  useAccounts,
+  useCreateTransaction,
+  useDeleteTransaction,
+  useUpdateTransaction,
+} from "@/api/hooks";
 import type { Category, Member, Transaction } from "@/api/types";
 import { Money } from "@/components/Money";
 import { useHouseholdContext } from "@/components/HouseholdProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { CategoryCombobox } from "./CategoryCombobox";
 import { SplitEditor, toSplitSpec, type SplitState } from "./SplitEditor";
@@ -15,15 +22,27 @@ import { todayIso } from "@/lib/date";
 import { parseAmountInput, toDecimalString } from "@/lib/money";
 import { detectTemplate } from "@/lib/splits";
 
+/** Wert des Select-Eintrags "keine Umbuchung" — Radix erlaubt keinen leeren String. */
+const NO_TRANSFER = "none";
+
 interface TransactionRowProps {
   transaction: Transaction;
   categories: Category[];
   members: Member[];
   showYear?: boolean;
+  /** Kontoname unter der Kategorie zeigen — sinnvoll erst ab zwei Konten. */
+  showAccount?: boolean;
 }
 
-export function TransactionRow({ transaction, categories, members, showYear = true }: TransactionRowProps) {
+export function TransactionRow({
+  transaction,
+  categories,
+  members,
+  showYear = true,
+  showAccount = false,
+}: TransactionRowProps) {
   const { date: formatDate, dateShort } = useHouseholdContext();
+  const { data: accounts = [] } = useAccounts();
   const update = useUpdateTransaction();
   const remove = useDeleteTransaction();
   const duplicate = useCreateTransaction();
@@ -34,8 +53,17 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
 
   const memberById = new Map(members.map((member) => [member.id, member]));
   const amountMinor = editing ? parseAmountInput(draft.amountText) : transaction.amount_minor;
-  const signedAmount =
-    transaction.category_flow === "INCOME" ? transaction.amount_minor : -transaction.amount_minor;
+  // Eine Umbuchung ist weder Einnahme noch Ausgabe -- ihr ein Vorzeichen zu geben
+  // waere geraten: sie belastet ein Konto und speist ein anderes.
+  const signedAmount = transaction.is_transfer
+    ? transaction.amount_minor
+    : transaction.category_flow === "INCOME"
+      ? transaction.amount_minor
+      : -transaction.amount_minor;
+
+  const selectableAccounts = accounts.filter(
+    (account) => account.is_active || account.id === transaction.account_id || account.id === transaction.counter_account_id,
+  );
 
   function startEditing() {
     setDraft(toDraft(transaction, members));
@@ -52,6 +80,8 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
         patch: {
           date: draft.date,
           category_id: draft.categoryId,
+          account_id: draft.accountId,
+          counter_account_id: draft.counterAccountId,
           description: draft.description,
           amount_minor: amountMinor,
           split: toSplitSpec(draft.split, members, amountMinor),
@@ -103,6 +133,64 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
             </div>
           </div>
 
+          {selectableAccounts.length > 1 && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <Label htmlFor={`txn-account-${transaction.id}`} className="text-muted-foreground">
+                Konto
+              </Label>
+              <Select
+                value={String(draft.accountId)}
+                onValueChange={(value) => {
+                  const next = Number(value);
+                  setDraft((state) => ({
+                    ...state,
+                    accountId: next,
+                    // Quelle und Ziel duerfen nicht dasselbe Konto sein.
+                    counterAccountId: state.counterAccountId === next ? null : state.counterAccountId,
+                  }));
+                }}
+              >
+                <SelectTrigger id={`txn-account-${transaction.id}`} className="h-8 w-[11rem]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectableAccounts.map((account) => (
+                    <SelectItem key={account.id} value={String(account.id)}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Label htmlFor={`txn-counter-${transaction.id}`} className="text-muted-foreground">
+                Umbuchung auf
+              </Label>
+              <Select
+                value={draft.counterAccountId === null ? NO_TRANSFER : String(draft.counterAccountId)}
+                onValueChange={(value) =>
+                  setDraft((state) => ({
+                    ...state,
+                    counterAccountId: value === NO_TRANSFER ? null : Number(value),
+                  }))
+                }
+              >
+                <SelectTrigger id={`txn-counter-${transaction.id}`} className="h-8 w-[11rem]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_TRANSFER}>— keine —</SelectItem>
+                  {selectableAccounts
+                    .filter((account) => account.id !== draft.accountId)
+                    .map((account) => (
+                      <SelectItem key={account.id} value={String(account.id)}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <SplitEditor
             members={members}
             totalMinor={amountMinor ?? 0}
@@ -131,6 +219,13 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
           />
           <span className="truncate">{transaction.category_name}</span>
         </span>
+        {(transaction.is_transfer || showAccount) && (
+          <span className="block truncate pl-4 text-xs text-muted-foreground">
+            {transaction.is_transfer
+              ? `${transaction.account_name} → ${transaction.counter_account_name ?? "?"}`
+              : transaction.account_name}
+          </span>
+        )}
       </TableCell>
       <TableCell className="max-w-[1px] truncate">
         {transaction.description || <span className="text-muted-foreground">–</span>}
@@ -156,8 +251,14 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
         </span>
       </TableCell>
       <TableCell className="text-right">
-        {/* Negativ rot, positiv neutral -- Farbe traegt Bedeutung, nicht Stimmung. */}
-        <Money value={signedAmount} bare className="font-medium" />
+        {/* Negativ rot, positiv neutral -- Farbe traegt Bedeutung, nicht Stimmung.
+            Umbuchungen bleiben neutral, sie sind kein Gewinn und kein Verlust. */}
+        <Money
+          value={signedAmount}
+          bare
+          colored={!transaction.is_transfer}
+          className={transaction.is_transfer ? "font-medium text-muted-foreground" : "font-medium"}
+        />
       </TableCell>
       <TableCell className="w-[4.5rem] text-right">
         <span className="inline-flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
@@ -174,6 +275,8 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
               duplicate.mutate({
                 date: todayIso(),
                 category_id: transaction.category_id,
+                account_id: transaction.account_id,
+                counter_account_id: transaction.counter_account_id,
                 description: transaction.description,
                 note: transaction.note,
                 amount_minor: transaction.amount_minor,
@@ -213,6 +316,8 @@ function toDraft(transaction: Transaction, members: Member[]) {
   return {
     date: transaction.date,
     categoryId: transaction.category_id as number | null,
+    accountId: transaction.account_id,
+    counterAccountId: transaction.counter_account_id,
     description: transaction.description,
     amountText: toDecimalString(transaction.amount_minor),
     split,

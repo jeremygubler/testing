@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@ta
 
 import { ApiError, api, buildQuery } from "./client";
 import type {
+  Account,
+  AccountBalance,
+  AccountInput,
+  AccountPatch,
   Budget,
   BudgetProposal,
   BudgetUpsert,
@@ -43,6 +47,8 @@ import type {
 
 export const queryKeys = {
   household: ["household"] as const,
+  accounts: ["accounts"] as const,
+  accountBalances: ["accounts", "balances"] as const,
   members: ["members"] as const,
   categories: ["categories"] as const,
   transactions: (query: TransactionQuery) => ["transactions", query] as const,
@@ -82,6 +88,52 @@ export function useUpdateHousehold() {
   });
 }
 
+/** Nach jeder Kontoaenderung stimmen Kontostaende und Auswertungen nicht mehr. */
+function invalidateAccountViews(client: ReturnType<typeof useQueryClient>) {
+  void client.invalidateQueries({ queryKey: queryKeys.accounts });
+  void client.invalidateQueries({ queryKey: ["analytics"] });
+}
+
+export function useAccounts() {
+  return useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: () => api.get<Account[]>("/accounts"),
+    staleTime: 60_000,
+  });
+}
+
+export function useAccountBalances() {
+  return useQuery({
+    queryKey: queryKeys.accountBalances,
+    queryFn: () => api.get<AccountBalance[]>("/accounts/balances"),
+  });
+}
+
+export function useCreateAccount() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AccountInput) => api.post<Account>("/accounts", input),
+    onSuccess: () => invalidateAccountViews(client),
+  });
+}
+
+export function useUpdateAccount() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: AccountPatch }) =>
+      api.patch<Account>(`/accounts/${id}`, patch),
+    onSuccess: () => invalidateAccountViews(client),
+  });
+}
+
+export function useDeleteAccount() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/accounts/${id}`),
+    onSuccess: () => invalidateAccountViews(client),
+  });
+}
+
 export function useMembers() {
   return useQuery({
     queryKey: queryKeys.members,
@@ -113,6 +165,7 @@ function invalidateTransactionViews(client: ReturnType<typeof useQueryClient>) {
   void client.invalidateQueries({ queryKey: ["analytics"] });
   void client.invalidateQueries({ queryKey: ["recurring"] });
   void client.invalidateQueries({ queryKey: ["savings"] });
+  void client.invalidateQueries({ queryKey: queryKeys.accountBalances });
 }
 
 export function useCreateTransaction() {

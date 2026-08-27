@@ -249,16 +249,68 @@ def test_reset_accepts_the_word_in_any_writing(filled, confirm):
     )
 
 
-def test_version_1_backups_without_settlements_still_restore(filled):
-    """Ein Backup von vor der Ausgleichs-Tabelle muss weiter einspielbar sein."""
+def test_version_1_backups_still_restore(filled):
+    """Ein Backup von vor Ausgleichstabelle und Konten muss weiter einspielbar sein.
+
+    Fehlen die Konten, entsteht beim Einspielen ein Hauptkonto aus dem damaligen
+    Startsaldo -- und Buchungen in SPAREN-Kategorien werden zu Umbuchungen auf ein
+    Sparkonto, genau wie in Migration 0003.
+    """
     client = filled
     backup = client.get("/api/io/export/household.json").json()
-    assert backup["version"] == 2
+    assert backup["version"] == 3
 
-    old = {key: value for key, value in backup.items() if key != "settlement_payments"}
+    old = {
+        key: value
+        for key, value in backup.items()
+        if key not in {"settlement_payments", "accounts"}
+    }
     old["version"] = 1
+    old["household"] = {**backup["household"], "opening_balance_minor": 55_000}
+    for row in old["transactions"]:
+        row.pop("account_id", None)
+        row.pop("counter_account_id", None)
 
     response = client.post("/api/io/restore", json={"backup": old, "confirm_replace": True})
     assert response.status_code == 200
-    assert response.json()["restored"]["settlement_payments"] == 0
+    restored = response.json()["restored"]
+    assert restored["settlement_payments"] == 0
+    assert restored["accounts"] == 1  # kein Sparen in diesem Haushalt -> nur ein Konto
     assert client.get("/api/transactions?limit=1000").json()["total"] == 2
+
+    accounts = client.get("/api/accounts").json()
+    assert [a["name"] for a in accounts] == ["Hauptkonto"]
+    assert accounts[0]["opening_balance_minor"] == 55_000
+
+
+def test_version_1_backup_with_savings_gets_a_savings_account(filled, categories, members):
+    """Alte Sparbuchungen werden beim Einspielen zu Umbuchungen."""
+    client = filled
+    anna, _ = members
+    client.post(
+        "/api/transactions",
+        json={
+            "date": "2026-03-26",
+            "category_id": categories["Sparkonto"].id,
+            "description": "Sparen",
+            "amount_minor": 50_000,
+            "split": {"template": "SINGLE", "member_id": anna.id},
+        },
+    )
+    backup = client.get("/api/io/export/household.json").json()
+    old = {
+        key: value
+        for key, value in backup.items()
+        if key not in {"settlement_payments", "accounts"}
+    }
+    old["version"] = 1
+    old["household"] = {**backup["household"], "opening_balance_minor": 0}
+    for row in old["transactions"]:
+        row.pop("account_id", None)
+        row.pop("counter_account_id", None)
+
+    client.post("/api/io/restore", json={"backup": old, "confirm_replace": True})
+    assert {a["name"] for a in client.get("/api/accounts").json()} == {"Hauptkonto", "Sparkonto"}
+
+    summary = client.get("/api/analytics/summary?year=2026&month=3").json()
+    assert summary["savings_minor"] == 50_000

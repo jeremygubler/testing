@@ -4,6 +4,7 @@ from fastapi import APIRouter, Query
 
 from app.deps import CurrentHousehold, DbSession
 from app.schemas import (
+    AccountBalanceRead,
     CategoryComparisonRead,
     CategoryFigureRead,
     ForecastRead,
@@ -17,6 +18,7 @@ from app.schemas import (
     TrendPointRead,
     YearSummaryRead,
 )
+from app.services import accounts as account_service
 from app.services import analytics
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -36,10 +38,28 @@ def summary(
         income_minor=result.income_minor,
         expense_minor=result.expense_minor,
         balance_minor=result.balance_minor,
-        balance_excl_savings_minor=result.balance_excl_savings_minor,
+        savings_minor=result.savings_minor,
         available_minor=result.available_minor,
+        net_worth_minor=result.net_worth_minor,
         savings_ratio=result.savings_ratio,
         fixed_cost_ratio=result.fixed_cost_ratio,
+        accounts=[
+            AccountBalanceRead(
+                account_id=row.account_id,
+                name=row.name,
+                kind=row.kind,
+                color=row.color,
+                include_in_available=row.include_in_available,
+                is_active=row.is_active,
+                opening_balance_minor=row.opening_balance_minor,
+                flow_minor=row.flow_minor,
+                transfer_minor=row.transfer_minor,
+                balance_minor=row.balance_minor,
+            )
+            for row in account_service.balances(
+                db, household, analytics.month_bounds(year, month)[1]
+            )
+        ],
         categories=[
             CategoryFigureRead(
                 category_id=figure.category_id,
@@ -50,6 +70,7 @@ def summary(
                 actual_minor=figure.actual_minor,
                 budget_minor=figure.budget_minor,
                 budget_source=figure.budget_source,
+                transfer_minor=figure.transfer_minor,
                 difference_minor=figure.difference_minor,
                 usage=figure.usage,
             )
@@ -231,6 +252,7 @@ def year_summary(
                 actual_minor=figure.actual_minor,
                 budget_minor=figure.budget_minor,
                 budget_source=figure.budget_source,
+                transfer_minor=figure.transfer_minor,
                 difference_minor=figure.difference_minor,
                 usage=figure.usage,
             )

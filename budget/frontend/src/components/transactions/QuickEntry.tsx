@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Lightbulb, Loader2, Plus } from "lucide-react";
 
-import { useCategories, useCreateTransaction, useMembers, useSuggestCategory } from "@/api/hooks";
+import {
+  useAccounts,
+  useCategories,
+  useCreateTransaction,
+  useMembers,
+  useSuggestCategory,
+} from "@/api/hooks";
 import type { SplitTemplate } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryDialog } from "@/components/budget/CategoryDialog";
 import { CategoryCombobox } from "./CategoryCombobox";
 import { SplitEditor, emptySplitState, toSplitSpec, type SplitState } from "./SplitEditor";
@@ -15,6 +22,18 @@ import { parseAmountInput } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 const TEMPLATE_KEY = "budget.lastSplitTemplate";
+const ACCOUNT_KEY = "budget.lastAccountId";
+/** Wert des Select-Eintrags "keine Umbuchung" — Radix erlaubt keinen leeren String. */
+const NO_TRANSFER = "none";
+
+function readAccountId(): number | null {
+  try {
+    const value = Number(localStorage.getItem(ACCOUNT_KEY));
+    return Number.isInteger(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
 
 function readTemplate(): SplitTemplate {
   try {
@@ -34,6 +53,7 @@ function readTemplate(): SplitTemplate {
 export function QuickEntry({ defaultDate, className }: { defaultDate?: string; className?: string }) {
   const { data: categories = [] } = useCategories();
   const { data: members = [] } = useMembers();
+  const { data: accounts = [] } = useAccounts();
   const create = useCreateTransaction();
 
   const amountRef = useRef<HTMLInputElement>(null);
@@ -48,6 +68,16 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
   const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState<string | null>(null);
+  const [accountId, setAccountId] = useState<number | null>(readAccountId);
+  const [counterAccountId, setCounterAccountId] = useState<number | null>(null);
+
+  const activeAccounts = accounts.filter((account) => account.is_active);
+  // Wie bei den Personen: die Vorauswahl wird beim Verwenden abgeleitet, statt sie
+  // nachtraeglich in einem Effekt zu setzen.
+  const effectiveAccountId =
+    activeAccounts.find((account) => account.id === accountId)?.id ?? activeAccounts[0]?.id ?? null;
+  const transferTarget =
+    counterAccountId !== null && counterAccountId !== effectiveAccountId ? counterAccountId : null;
 
   // Vorschlag aus frueheren Buchungen -- nur anzeigen, nie automatisch anwenden.
   const suggestion = useSuggestCategory(categoryId === null ? description : "");
@@ -86,10 +116,19 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
       await create.mutateAsync({
         date,
         category_id: categoryId,
+        account_id: effectiveAccountId,
+        counter_account_id: transferTarget,
         description: description.trim(),
         amount_minor: amountMinor,
         split: toSplitSpec(effectiveSplit, members, amountMinor),
       });
+      if (effectiveAccountId !== null) {
+        try {
+          localStorage.setItem(ACCOUNT_KEY, String(effectiveAccountId));
+        } catch {
+          /* egal */
+        }
+      }
       setAmountText("");
       setDescription("");
       setCategoryId(null);
@@ -179,6 +218,59 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
           {t.transactions.save}
         </Button>
       </div>
+
+      {activeAccounts.length > 1 && (
+        // Bei genau einem Konto waere die Auswahl nur Ballast -- dann bleibt das
+        // Formular so schmal wie bisher.
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <Label htmlFor="quick-account" className="text-muted-foreground">
+            Konto
+          </Label>
+          <Select
+            value={effectiveAccountId === null ? undefined : String(effectiveAccountId)}
+            onValueChange={(value) => setAccountId(Number(value))}
+          >
+            <SelectTrigger id="quick-account" className="h-8 w-[11rem]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {activeAccounts.map((account) => (
+                <SelectItem key={account.id} value={String(account.id)}>
+                  {account.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Label htmlFor="quick-counter-account" className="text-muted-foreground">
+            Umbuchung auf
+          </Label>
+          <Select
+            value={transferTarget === null ? NO_TRANSFER : String(transferTarget)}
+            onValueChange={(value) => setCounterAccountId(value === NO_TRANSFER ? null : Number(value))}
+          >
+            <SelectTrigger id="quick-counter-account" className="h-8 w-[11rem]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_TRANSFER}>— keine —</SelectItem>
+              {activeAccounts
+                .filter((account) => account.id !== effectiveAccountId)
+                .map((account) => (
+                  <SelectItem key={account.id} value={String(account.id)}>
+                    {account.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+
+          {transferTarget !== null && (
+            <span className="text-muted-foreground">
+              Umbuchung — weder Einnahme noch Ausgabe, nur ein Wechsel des Topfes.
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
         <SplitEditor

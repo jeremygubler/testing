@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useForecast, useMembers, useMonthSummary, useSettlement } from "@/api/hooks";
 import { Money } from "@/components/Money";
 import { useHouseholdContext } from "@/components/HouseholdProvider";
+import { AccountBalances } from "@/components/overview/AccountBalances";
 import { CategoryPie } from "@/components/overview/CategoryPie";
 import { GroupBudgetChart } from "@/components/overview/GroupBudgetChart";
 import { MemberBreakdown } from "@/components/overview/MemberBreakdown";
@@ -37,13 +38,18 @@ export function OverviewPage() {
 
   if (!summary) return null;
 
+  // Gespart ist, was auf ein Sparkonto umgebucht wurde -- nicht, was am Monatsende
+  // uebrig blieb. Deshalb steht der Betrag daneben, sonst waere die Quote nicht
+  // nachvollziehbar.
   const savingsHint =
-    summary.savings_ratio === null
-      ? "keine Einnahmen erfasst"
-      : `Fixkosten ${percent(
-          summary.fixed_cost_ratio === null ? null : summary.fixed_cost_ratio * 100,
-          0,
-        )}`;
+    summary.savings_ratio === null ? (
+      "keine Einnahmen erfasst"
+    ) : (
+      <>
+        <Money value={summary.savings_minor} bare colored={false} /> umgebucht · Fixkosten{" "}
+        {percent(summary.fixed_cost_ratio === null ? null : summary.fixed_cost_ratio * 100, 0)}
+      </>
+    );
 
   return (
     <div className="space-y-4">
@@ -75,9 +81,9 @@ export function OverviewPage() {
           value={<Money value={summary.balance_minor} />}
           hint={
             <>
-              ohne Sparen <Money value={summary.balance_excl_savings_minor} bare colored={false} />
-              {" · verfügbar "}
-              <Money value={summary.available_minor} bare colored={false} />
+              verfügbar <Money value={summary.available_minor} bare colored={false} />
+              {" · Vermögen "}
+              <Money value={summary.net_worth_minor} bare colored={false} />
               {forecast && forecast.open_count > 0 && (
                 <>
                   <br />
@@ -118,14 +124,30 @@ export function OverviewPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Verlauf</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TrendChart year={month.year} month={month.month} />
-        </CardContent>
-      </Card>
+      <div className="grid gap-3 xl:grid-cols-3">
+        <Card className="xl:col-span-2">
+          <CardHeader>
+            <CardTitle>Verlauf</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TrendChart year={month.year} month={month.month} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Konten zum Monatsende</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AccountBalances
+              accounts={summary.accounts}
+              netWorthMinor={summary.net_worth_minor}
+              availableMinor={summary.available_minor}
+              month={month}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-3 xl:grid-cols-3">
         <Card className="xl:col-span-2">

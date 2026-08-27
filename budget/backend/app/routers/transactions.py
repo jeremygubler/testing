@@ -27,6 +27,11 @@ def to_read(txn: Transaction) -> TransactionRead:
     return TransactionRead(
         id=txn.id,
         date=txn.date,
+        account_id=txn.account_id,
+        account_name=txn.account.name,
+        counter_account_id=txn.counter_account_id,
+        counter_account_name=txn.counter_account.name if txn.counter_account else None,
+        is_transfer=txn.counter_account_id is not None,
         category_id=txn.category_id,
         category_name=txn.category.name,
         category_group=txn.category.group,
@@ -59,6 +64,11 @@ def list_transactions(
     category_id: list[int] | None = Query(default=None),
     group: list[CategoryGroup] | None = Query(default=None),
     member_id: list[int] | None = Query(default=None),
+    account_id: list[int] | None = Query(default=None),
+    transfers: bool | None = Query(
+        default=None,
+        description="true = nur Umbuchungen, false = nur Einnahmen/Ausgaben, leer = alles",
+    ),
     q: str | None = Query(default=None, description="Freitextsuche in Beschreibung und Notiz"),
     recurring_rule_id: int | None = None,
     limit: int = Query(default=100, ge=1, le=1000),
@@ -74,6 +84,16 @@ def list_transactions(
         conditions.append(Transaction.category_id.in_(category_id))
     if recurring_rule_id is not None:
         conditions.append(Transaction.recurring_rule_id == recurring_rule_id)
+    if account_id:
+        conditions.append(
+            Transaction.account_id.in_(account_id) | Transaction.counter_account_id.in_(account_id)
+        )
+    if transfers is not None:
+        conditions.append(
+            Transaction.counter_account_id.is_not(None)
+            if transfers
+            else Transaction.counter_account_id.is_(None)
+        )
     if group:
         conditions.append(
             Transaction.category_id.in_(
@@ -100,7 +120,7 @@ def list_transactions(
             select(func.coalesce(func.sum(Transaction.amount_minor), 0))
             .select_from(Transaction)
             .join(Category, Category.id == Transaction.category_id)
-            .where(where, Category.flow == Flow.INCOME)
+            .where(where, Category.flow == Flow.INCOME, Transaction.counter_account_id.is_(None))
         )
         or 0
     )
@@ -109,7 +129,7 @@ def list_transactions(
             select(func.coalesce(func.sum(Transaction.amount_minor), 0))
             .select_from(Transaction)
             .join(Category, Category.id == Transaction.category_id)
-            .where(where, Category.flow == Flow.EXPENSE)
+            .where(where, Category.flow == Flow.EXPENSE, Transaction.counter_account_id.is_(None))
         )
         or 0
     )
@@ -154,6 +174,8 @@ def create_transaction(
         note=payload.note,
         amount_minor=payload.amount_minor,
         split=payload.split,
+        account_id=payload.account_id,
+        counter_account_id=payload.counter_account_id,
     )
     return to_read(txn)
 
@@ -215,6 +237,9 @@ def update_transaction(
         note=data.get("note"),
         amount_minor=data.get("amount_minor"),
         split=payload.split,
+        account_id=data.get("account_id"),
+        counter_account_id=data.get("counter_account_id"),
+        counter_account_set="counter_account_id" in data,
     )
     return to_read(txn)
 

@@ -116,6 +116,8 @@ def budget_proposal(
                 Transaction.household_id == household.id,
                 Transaction.date >= start,
                 Transaction.date <= end,
+                # Umbuchungen gehoeren nicht ins Ausgabenbudget.
+                Transaction.counter_account_id.is_(None),
             )
             .group_by(Transaction.category_id)
         ).all()

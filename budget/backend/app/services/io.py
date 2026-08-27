@@ -16,7 +16,9 @@ from sqlalchemy import select
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
+from app.enums import AccountKind
 from app.models import (
+    Account,
     Budget,
     CalendarEntry,
     Category,
@@ -60,12 +62,17 @@ def normalize(text: str | None) -> str:
 
 # ----------------------------------------------------------------------- Export
 
-#: Version 2 fuehrt settlement_payments. Version 1 bleibt lesbar.
-BACKUP_VERSION = 2
-SUPPORTED_BACKUP_VERSIONS = (1, 2)
+#: Version 2 fuehrt settlement_payments, Version 3 die Konten. Aeltere Backups
+#: bleiben lesbar: fehlen Konten, entsteht beim Einspielen ein Hauptkonto aus dem
+#: damaligen Startsaldo, und Buchungen in SPAREN-Kategorien werden zu Umbuchungen
+#: auf ein Sparkonto -- genau wie in Migration 0003.
+BACKUP_VERSION = 3
+SUPPORTED_BACKUP_VERSIONS = (1, 2, 3)
 
 TRANSACTION_CSV_HEADER = [
     "datum",
+    "konto",
+    "gegenkonto",
     "kategorie",
     "gruppe",
     "richtung",
@@ -101,6 +108,8 @@ def transactions_csv(db: Session, household: Household) -> str:
         writer.writerow(
             [
                 txn.date.isoformat(),
+                txn.account.name,
+                txn.counter_account.name if txn.counter_account else "",
                 txn.category.name,
                 txn.category.group.value,
                 txn.category.flow.value,
@@ -136,7 +145,6 @@ def household_json(db: Session, household: Household) -> dict[str, Any]:
             "currency": household.currency,
             "locale": household.locale,
             "timezone": household.timezone,
-            "opening_balance_minor": household.opening_balance_minor,
             "settlement_basis": household.settlement_basis.value,
         },
         "members": [
@@ -149,6 +157,19 @@ def household_json(db: Session, household: Household) -> dict[str, Any]:
                 "share_weight": m.share_weight,
             }
             for m in rows(Member, Member.sort_order)
+        ],
+        "accounts": [
+            {
+                "id": a.id,
+                "name": a.name,
+                "kind": a.kind.value if hasattr(a.kind, "value") else str(a.kind),
+                "opening_balance_minor": a.opening_balance_minor,
+                "color": a.color,
+                "include_in_available": a.include_in_available,
+                "is_active": a.is_active,
+                "sort_order": a.sort_order,
+            }
+            for a in rows(Account, Account.sort_order)
         ],
         "categories": [
             {
@@ -179,6 +200,8 @@ def household_json(db: Session, household: Household) -> dict[str, Any]:
                 "id": t.id,
                 "date": t.date.isoformat(),
                 "category_id": t.category_id,
+                "account_id": t.account_id,
+                "counter_account_id": t.counter_account_id,
                 "description": t.description,
                 "note": t.note,
                 "recurring_rule_id": t.recurring_rule_id,
@@ -322,6 +345,7 @@ _DELETE_ORDER = (
     "calendar_entry",
     "category",
     "member",
+    "account",
 )
 
 
@@ -356,6 +380,7 @@ def wipe(db: Session, household_id: int, keep_master_data: bool = False) -> dict
         "calendar_entry": "DELETE FROM calendar_entry WHERE household_id = :hid",
         "category": "DELETE FROM category WHERE household_id = :hid",
         "member": "DELETE FROM member WHERE household_id = :hid",
+        "account": "DELETE FROM account WHERE household_id = :hid",
     }
     for table in tables:
         result = db.execute(sql_text(scoped[table]), {"hid": household_id})
@@ -401,11 +426,71 @@ def restore_household(db: Session, household: Household, payload: dict) -> dict[
     household.currency = head.get("currency", household.currency)
     household.locale = head.get("locale", household.locale)
     household.timezone = head.get("timezone", household.timezone)
-    household.opening_balance_minor = int(head.get("opening_balance_minor", 0))
     household.settlement_basis = head.get("settlement_basis", household.settlement_basis)
     db.flush()
 
     counts: dict[str, int] = {}
+
+    # --- Konten. Aeltere Backups kennen sie nicht: dann entsteht ein Hauptkonto aus
+    # dem damaligen Startsaldo des Haushalts, genau wie in Migration 0003.
+    account_rows = payload.get("accounts")
+    legacy_savings_account_id: int | None = None
+    legacy_main_account_id: int | None = None
+    legacy_savings_categories: set[int] = set()
+
+    if account_rows:
+        for row in account_rows:
+            db.add(
+                Account(
+                    id=row["id"],
+                    household_id=household.id,
+                    name=row["name"],
+                    kind=row.get("kind", AccountKind.CHECKING),
+                    opening_balance_minor=int(row.get("opening_balance_minor", 0)),
+                    color=row.get("color", "#1e3a5f"),
+                    include_in_available=bool(row.get("include_in_available", True)),
+                    is_active=bool(row.get("is_active", True)),
+                    sort_order=int(row.get("sort_order", 0)),
+                )
+            )
+        counts["accounts"] = len(account_rows)
+    else:
+        main = Account(
+            household_id=household.id,
+            name="Hauptkonto",
+            kind=AccountKind.CHECKING,
+            opening_balance_minor=int(head.get("opening_balance_minor", 0)),
+            color="#1e3a5f",
+            include_in_available=True,
+            sort_order=0,
+        )
+        db.add(main)
+        db.flush()
+        legacy_main_account_id = main.id
+        counts["accounts"] = 1
+
+        savings_categories = {
+            row["id"] for row in _require(payload, "categories") if row.get("group") == "SPAREN"
+        }
+        if any(
+            row.get("category_id") in savings_categories
+            for row in _require(payload, "transactions")
+        ):
+            savings = Account(
+                household_id=household.id,
+                name="Sparkonto",
+                kind=AccountKind.SAVINGS,
+                opening_balance_minor=0,
+                color="#166534",
+                include_in_available=False,
+                sort_order=1,
+            )
+            db.add(savings)
+            db.flush()
+            legacy_savings_account_id = savings.id
+            counts["accounts"] = 2
+        legacy_savings_categories = savings_categories
+    db.flush()
 
     for row in _require(payload, "members"):
         db.add(
@@ -543,6 +628,16 @@ def restore_household(db: Session, household: Household, payload: dict) -> dict[
 
     transactions = _require(payload, "transactions")
     for row in transactions:
+        if account_rows:
+            account_id = row["account_id"]
+            counter_account_id = row.get("counter_account_id")
+        else:
+            account_id = legacy_main_account_id
+            counter_account_id = (
+                legacy_savings_account_id
+                if row.get("category_id") in legacy_savings_categories
+                else None
+            )
         # amount_minor wird bewusst nicht gesetzt -- die Trigger berechnen es aus den
         # Splits, und ein direkter Schreibzugriff waere ohnehin abgelehnt worden.
         db.add(
@@ -551,6 +646,8 @@ def restore_household(db: Session, household: Household, payload: dict) -> dict[
                 household_id=household.id,
                 date=dt.date.fromisoformat(row["date"]),
                 category_id=row["category_id"],
+                account_id=account_id,
+                counter_account_id=counter_account_id,
                 description=row.get("description", ""),
                 note=row.get("note"),
                 recurring_rule_id=row.get("recurring_rule_id"),

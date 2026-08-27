@@ -44,6 +44,26 @@ def test_sign_is_dropped_by_default_because_direction_lives_in_the_category(clie
     assert txn["splits"] == [{"member_id": anna.id, "amount_minor": 8900}]
 
 
+def test_import_books_onto_the_chosen_account(client, accounts, members):
+    """Ein Bankauszug gehoert zu genau einem Konto -- nicht zum erstbesten."""
+    savings = accounts["Sparkonto"]
+    body = _import_body(
+        [_row(1, "2026-03-01", "50.00", "Test", "Lebensmittel", "Anna")],
+        account_id=savings.id,
+    )
+    assert client.post("/api/io/import", json=body).json()["created"] == 1
+    txn = client.get("/api/transactions").json()["items"][0]
+    assert txn["account_id"] == savings.id
+    assert txn["account_name"] == "Sparkonto"
+    assert txn["is_transfer"] is False
+
+
+def test_import_without_account_uses_the_first_active_one(client, accounts, members):
+    body = _import_body([_row(1, "2026-03-01", "50.00", "Test", "Lebensmittel", "Anna")])
+    client.post("/api/io/import", json=body)
+    assert client.get("/api/transactions").json()["items"][0]["account_name"] == "Hauptkonto"
+
+
 def test_sign_can_be_kept_for_refunds(client, members):
     _anna, _ = members
     body = _import_body(

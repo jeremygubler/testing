@@ -18,6 +18,15 @@ class CategoryGroup(StrEnum):
     SCHULDEN = "SCHULDEN"
 
 
+class AccountKind(StrEnum):
+    """Art eines Kontos. Bestimmt nur Vorbelegungen und Darstellung, keine Logik."""
+
+    CHECKING = "CHECKING"
+    SAVINGS = "SAVINGS"
+    CASH = "CASH"
+    CREDIT_CARD = "CREDIT_CARD"
+
+
 class Interval(StrEnum):
     WEEKLY = "WEEKLY"
     MONTHLY = "MONTHLY"

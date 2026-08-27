@@ -12,7 +12,14 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.enums import CategoryGroup, Flow, Interval, SettlementBasis, SplitTemplate
+from app.enums import (
+    AccountKind,
+    CategoryGroup,
+    Flow,
+    Interval,
+    SettlementBasis,
+    SplitTemplate,
+)
 
 _HEX_COLOR = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
@@ -36,7 +43,6 @@ class HouseholdRead(ApiModel):
     currency: str
     locale: str
     timezone: str
-    opening_balance_minor: int
     settlement_basis: SettlementBasis
 
 
@@ -45,8 +51,67 @@ class HouseholdUpdate(BaseModel):
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     locale: str | None = Field(default=None, min_length=2, max_length=10)
     timezone: str | None = Field(default=None, min_length=1, max_length=64)
-    opening_balance_minor: int | None = None
     settlement_basis: SettlementBasis | None = None
+
+
+# ---------------------------------------------------------------------------- Account
+
+
+class AccountBase(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    kind: AccountKind = AccountKind.CHECKING
+    opening_balance_minor: int = 0
+    color: str = "#1e3a5f"
+    #: Zaehlt dieses Konto zum frei verfuegbaren Geld?
+    include_in_available: bool = True
+    sort_order: int = 0
+
+    _color = field_validator("color")(_validate_color)
+
+
+class AccountCreate(AccountBase):
+    pass
+
+
+class AccountUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    kind: AccountKind | None = None
+    opening_balance_minor: int | None = None
+    color: str | None = None
+    include_in_available: bool | None = None
+    sort_order: int | None = None
+    is_active: bool | None = None
+
+    @field_validator("color")
+    @classmethod
+    def _check_color(cls, value: str | None) -> str | None:
+        return None if value is None else _validate_color(value)
+
+
+class AccountRead(ApiModel):
+    id: int
+    name: str
+    kind: AccountKind
+    opening_balance_minor: int
+    color: str
+    include_in_available: bool
+    is_active: bool
+    sort_order: int
+
+
+class AccountBalanceRead(BaseModel):
+    account_id: int
+    name: str
+    kind: AccountKind
+    color: str
+    include_in_available: bool
+    is_active: bool
+    opening_balance_minor: int
+    #: Einnahmen minus Ausgaben auf diesem Konto, ohne Umbuchungen.
+    flow_minor: int
+    #: Zugefuehrt minus abgefuehrt durch Umbuchungen.
+    transfer_minor: int
+    balance_minor: int
 
 
 # ----------------------------------------------------------------------------- Member
@@ -169,6 +234,11 @@ class SplitSpec(BaseModel):
 class TransactionCreate(BaseModel):
     date: dt.date
     category_id: int
+    #: Konto, auf dem die Buchung stattfindet. Fehlt es, wird das erste aktive genommen.
+    account_id: int | None = None
+    #: Gesetzt macht die Buchung zur Umbuchung auf dieses Konto -- weder Einnahme
+    #: noch Ausgabe, sondern ein Wechsel des Topfes.
+    counter_account_id: int | None = None
     description: str = Field(default="", max_length=200)
     note: str | None = None
     amount_minor: int = Field(
@@ -187,6 +257,8 @@ class TransactionCreate(BaseModel):
 class TransactionUpdate(BaseModel):
     date: dt.date | None = None
     category_id: int | None = None
+    account_id: int | None = None
+    counter_account_id: int | None = None
     description: str | None = Field(default=None, max_length=200)
     note: str | None = None
     amount_minor: int | None = None
@@ -202,6 +274,12 @@ class TransactionUpdate(BaseModel):
 class TransactionRead(ApiModel):
     id: int
     date: dt.date
+    account_id: int
+    account_name: str
+    counter_account_id: int | None
+    counter_account_name: str | None
+    #: Umbuchung zwischen zwei Konten statt Einnahme oder Ausgabe.
+    is_transfer: bool
     category_id: int
     category_name: str
     category_group: CategoryGroup
@@ -280,6 +358,9 @@ class CategoryFigureRead(BaseModel):
     actual_minor: int
     budget_minor: int | None
     budget_source: str | None
+    #: Der Anteil des Ist, der aus Umbuchungen stammt -- fuers Budget zaehlt er mit,
+    #: als Ausgabe gilt er nicht.
+    transfer_minor: int
     difference_minor: int | None
     usage: float | None
 
@@ -304,10 +385,15 @@ class MonthSummaryRead(BaseModel):
     income_minor: int
     expense_minor: int
     balance_minor: int
-    balance_excl_savings_minor: int
+    #: Was in der Periode auf Sparkonten umgebucht wurde.
+    savings_minor: int
+    #: Frei verfuegbares Geld auf den dafuer vorgesehenen Konten.
     available_minor: int
+    #: Alle Konten zusammen.
+    net_worth_minor: int
     savings_ratio: float | None
     fixed_cost_ratio: float | None
+    accounts: list[AccountBalanceRead]
     categories: list[CategoryFigureRead]
     groups: list[GroupFigureRead]
     members: list[MemberFigureRead]
@@ -621,6 +707,8 @@ class ImportRow(BaseModel):
 
 class ImportRequest(BaseModel):
     rows: list[ImportRow]
+    #: Konto, auf das der Auszug gebucht wird. Fehlt es, wird das erste aktive genommen.
+    account_id: int | None = None
     #: Kategorie fuer Zeilen ohne erkennbare Kategorie.
     fallback_category_id: int | None = None
     #: Aufteilung fuer Zeilen ohne erkennbare Person.
@@ -672,7 +760,9 @@ class HouseholdCreate(BaseModel):
     currency: str = Field(min_length=3, max_length=3, default="CHF")
     locale: str = Field(min_length=2, max_length=10, default="de-CH")
     timezone: str = Field(min_length=1, max_length=64, default="Europe/Zurich")
+    #: Startsaldo des ersten Kontos, das dabei angelegt wird.
     opening_balance_minor: int = 0
+    account_name: str = Field(default="Hauptkonto", min_length=1, max_length=80)
     member_names: list[str] = Field(min_length=1, max_length=6)
     with_starter_categories: bool = True
 
