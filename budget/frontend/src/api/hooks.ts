@@ -2,8 +2,13 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@ta
 
 import { api, buildQuery } from "./client";
 import type {
+  Budget,
+  BudgetUpsert,
   Category,
   Household,
+  MonthSummary,
+  Settlement,
+  TrendPoint,
   Member,
   SplitLine,
   SplitSpec,
@@ -160,5 +165,61 @@ export function useDeactivateCategory() {
   return useMutation({
     mutationFn: (id: number) => api.delete<Category>(`/categories/${id}`),
     onSuccess: () => void client.invalidateQueries({ queryKey: queryKeys.categories }),
+  });
+}
+
+// --------------------------------------------------------------------- Auswertungen
+
+export function useMonthSummary(year: number, month: number) {
+  return useQuery({
+    queryKey: ["analytics", "summary", year, month],
+    queryFn: () => api.get<MonthSummary>(`/analytics/summary${buildQuery({ year, month })}`),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useSettlement(year: number, month: number, months = 1) {
+  return useQuery({
+    queryKey: ["analytics", "settlement", year, month, months],
+    queryFn: () => api.get<Settlement>(`/analytics/settlement${buildQuery({ year, month, months })}`),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useTrend(year: number, month: number, months = 6) {
+  return useQuery({
+    queryKey: ["analytics", "trend", year, month, months],
+    queryFn: () => api.get<TrendPoint[]>(`/analytics/trend${buildQuery({ year, month, months })}`),
+    placeholderData: (previous) => previous,
+  });
+}
+
+// -------------------------------------------------------------------------- Budgets
+
+export function useBudgets(year?: number, month?: number) {
+  return useQuery({
+    queryKey: ["budgets", year ?? null, month ?? null],
+    queryFn: () => api.get<Budget[]>(`/budgets${buildQuery({ year, month })}`),
+  });
+}
+
+function invalidateBudgetViews(client: ReturnType<typeof useQueryClient>) {
+  void client.invalidateQueries({ queryKey: ["budgets"] });
+  void client.invalidateQueries({ queryKey: ["analytics"] });
+}
+
+export function useUpsertBudget() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: BudgetUpsert) => api.put<Budget>("/budgets", input),
+    onSuccess: () => invalidateBudgetViews(client),
+  });
+}
+
+export function useDeleteBudget() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/budgets/${id}`),
+    onSuccess: () => invalidateBudgetViews(client),
   });
 }

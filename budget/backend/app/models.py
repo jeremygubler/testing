@@ -32,6 +32,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.enums import CategoryGroup, Flow, Interval, SettlementBasis, SplitTemplate
+from app.types import EnumStr
 
 
 class Household(Base):
@@ -44,7 +45,7 @@ class Household(Base):
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Europe/Zurich")
     opening_balance_minor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     settlement_basis: Mapped[SettlementBasis] = mapped_column(
-        String(16), nullable=False, default=SettlementBasis.WEIGHT
+        EnumStr(SettlementBasis, 16), nullable=False, default=SettlementBasis.WEIGHT
     )
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.current_timestamp()
@@ -93,8 +94,8 @@ class Category(Base):
         ForeignKey("household.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(80), nullable=False)
-    flow: Mapped[Flow] = mapped_column(String(10), nullable=False)
-    group: Mapped[CategoryGroup] = mapped_column("grp", String(16), nullable=False)
+    flow: Mapped[Flow] = mapped_column(EnumStr(Flow, 10), nullable=False)
+    group: Mapped[CategoryGroup] = mapped_column("grp", EnumStr(CategoryGroup, 16), nullable=False)
     icon: Mapped[str | None] = mapped_column(String(40), nullable=True)
     color: Mapped[str] = mapped_column(String(9), nullable=False, default="#64748b")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -218,7 +219,7 @@ class RecurringRule(Base):
     )
     description: Mapped[str] = mapped_column(String(200), nullable=False)
     amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
-    interval: Mapped[Interval] = mapped_column(String(16), nullable=False)
+    interval: Mapped[Interval] = mapped_column(EnumStr(Interval, 16), nullable=False)
     #: MONTHLY/QUARTERLY/YEARLY: Tag im Monat (1-31, wird auf Monatsende geklemmt).
     #: WEEKLY: Wochentag als 1=Montag ... 7=Sonntag.
     day_of_period: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -230,7 +231,7 @@ class RecurringRule(Base):
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     split_template: Mapped[SplitTemplate] = mapped_column(
-        String(10), nullable=False, default=SplitTemplate.EQUAL
+        EnumStr(SplitTemplate, 10), nullable=False, default=SplitTemplate.EQUAL
     )
     #: Nur bei split_template=SINGLE gesetzt.
     split_member_id: Mapped[int | None] = mapped_column(

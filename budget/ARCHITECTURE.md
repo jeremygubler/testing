@@ -229,3 +229,31 @@ zentral auf HTTP 422 abgebildet.
 Version 1 kennt genau einen Haushalt (`BUDGET_SINGLE_HOUSEHOLD_ID = 1`) und keine
 Registrierung. Alle Tabellen mit Nutzdaten tragen aber bereits eine `household_id`, sodass
 Mandantenfähigkeit später nur Authentifizierung plus ein Filter ist — kein Schema-Umbau.
+
+
+## Darstellung von Zahlen
+
+* Alle Beträge stehen rechtsbündig in `font-variant-numeric: tabular-nums`, damit
+  Stellen untereinander liegen.
+* Negative Beträge sind rot, positive neutral. Nicht alles wird grün eingefärbt —
+  Farbe soll Bedeutung tragen, nicht Stimmung.
+* Das Währungssymbol steht einmal in der Spaltenüberschrift, nicht in jeder Zeile.
+  `Intl.NumberFormat` setzt bei `de-CH` das Minus zwischen Symbol und Zahl
+  (`CHF-88.29`); die App stellt es voran (`-CHF 88.29`), weil sich das in einer
+  rechtsbündigen Spalte besser liest.
+
+### Chart-Farben
+
+Zwei getrennte Paletten mit zwei verschiedenen Aufgaben:
+
+* **Kategoriegruppen** (`--grp-*`) — feste Bedeutung, überall dieselbe Farbe.
+* **Kategoriale Chart-Palette** (`--chart-1` … `--chart-6`) — Identität einzelner
+  Kategorien in Kuchen- und Balkendiagrammen. Die Reihenfolge ist fix und wird nie
+  zyklisch fortgesetzt: ab der sechsten Kategorie fasst „Übrige" in einem neutralen
+  Grau zusammen. Die Palette ist in beiden Modi auf Helligkeitsband, Chroma,
+  Farbfehlsichtigkeits-Trennung und Kontrast geprüft; der dunkle Modus hat eigene
+  Stufen und ist kein automatisches Umdrehen des hellen.
+
+`--chart-reference` ist der zurückgenommene Budget-Balken: ein Referenzwert, keine
+eigenständige Kategorie. Budget und Ist teilen sich **eine** Achse — zwei Skalen in
+einem Diagramm gibt es nicht.

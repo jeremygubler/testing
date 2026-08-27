@@ -109,3 +109,90 @@ export interface TransactionQuery {
   offset?: number;
   sort?: string;
 }
+
+export interface Budget {
+  id: number;
+  category_id: number;
+  year: number | null;
+  month: number | null;
+  amount_minor: number;
+  is_default: boolean;
+}
+
+export interface BudgetUpsert {
+  category_id: number;
+  amount_minor: number;
+  year?: number | null;
+  month?: number | null;
+}
+
+export interface CategoryFigure {
+  category_id: number;
+  name: string;
+  group: CategoryGroup;
+  flow: Flow;
+  color: string;
+  actual_minor: number;
+  budget_minor: number | null;
+  budget_source: "MONTH" | "DEFAULT" | null;
+  difference_minor: number | null;
+  usage: number | null;
+}
+
+export interface GroupFigure {
+  group: CategoryGroup;
+  actual_minor: number;
+  budget_minor: number;
+  has_budget: boolean;
+}
+
+export interface MemberFigure {
+  member_id: number;
+  income_minor: number;
+  expense_minor: number;
+  balance_minor: number;
+}
+
+export interface MonthSummary {
+  year: number;
+  month: number;
+  income_minor: number;
+  expense_minor: number;
+  balance_minor: number;
+  balance_excl_savings_minor: number;
+  available_minor: number;
+  savings_ratio: number | null;
+  fixed_cost_ratio: number | null;
+  categories: CategoryFigure[];
+  groups: GroupFigure[];
+  members: MemberFigure[];
+}
+
+export interface MemberBalance {
+  member_id: number;
+  borne_minor: number;
+  share_minor: number;
+  balance_minor: number;
+}
+
+export interface Payment {
+  from_member_id: number;
+  to_member_id: number;
+  amount_minor: number;
+}
+
+export interface Settlement {
+  basis: SettlementBasis;
+  total_expense_minor: number;
+  balances: MemberBalance[];
+  payments: Payment[];
+}
+
+export interface TrendPoint {
+  year: number;
+  month: number;
+  income_minor: number;
+  expense_minor: number;
+  balance_minor: number;
+  savings_minor: number;
+}

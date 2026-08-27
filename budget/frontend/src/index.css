@@ -30,6 +30,20 @@
     --grp-variabel: 32 62% 40%;
     --grp-sparen: 142 45% 30%;
     --grp-schulden: 0 45% 38%;
+
+    /* Kategoriale Chart-Palette. Getrennt von den Gruppenfarben, weil sie eine
+       andere Aufgabe hat: Identität einzelner Kategorien in Kuchen/Balken.
+       Reihenfolge ist fix (nie zyklisch) und in beiden Modi auf CVD-Trennung
+       geprüft (siehe ARCHITECTURE.md). --chart-other ist bewusst neutral. */
+    --chart-1: #2a78d6;
+    --chart-2: #eb6834;
+    --chart-3: #1baf7a;
+    --chart-4: #eda100;
+    --chart-5: #e87ba4;
+    --chart-6: #008300;
+    --chart-other: #9ca3af;
+    --chart-reference: #cbd5e1;
+    --chart-grid: 220 13% 91%;
   }
 
   .dark {
@@ -58,6 +72,17 @@
     --grp-variabel: 32 55% 58%;
     --grp-sparen: 142 38% 52%;
     --grp-schulden: 0 50% 60%;
+
+    /* Eigene Stufen für den dunklen Grund, kein automatisches Umdrehen. */
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
+    --chart-4: #c98500;
+    --chart-5: #d55181;
+    --chart-6: #008300;
+    --chart-other: #6b7280;
+    --chart-reference: #3f4657;
+    --chart-grid: 222 14% 22%;
   }
 
   * {

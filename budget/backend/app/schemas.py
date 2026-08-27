@@ -230,3 +230,104 @@ class SplitPreviewRequest(BaseModel):
 class SplitPreviewResponse(BaseModel):
     lines: list[SplitLineRead]
     total_minor: int
+
+
+# ----------------------------------------------------------------------------- Budget
+
+
+class BudgetUpsert(BaseModel):
+    """Setzt ein Budget. ``year``/``month`` weglassen = Standardbudget."""
+
+    category_id: int
+    amount_minor: int = Field(ge=0)
+    year: int | None = Field(default=None, ge=1900, le=2200)
+    month: int | None = Field(default=None, ge=1, le=12)
+
+    @model_validator(mode="after")
+    def _check_shape(self) -> BudgetUpsert:
+        if (self.year is None) != (self.month is None):
+            raise ValueError("Jahr und Monat muessen gemeinsam gesetzt oder gemeinsam leer sein.")
+        return self
+
+
+class BudgetRead(ApiModel):
+    id: int
+    category_id: int
+    year: int | None
+    month: int | None
+    amount_minor: int
+    is_default: bool
+
+
+# ------------------------------------------------------------------------- Analytics
+
+
+class CategoryFigureRead(BaseModel):
+    category_id: int
+    name: str
+    group: CategoryGroup
+    flow: Flow
+    color: str
+    actual_minor: int
+    budget_minor: int | None
+    budget_source: str | None
+    difference_minor: int | None
+    usage: float | None
+
+
+class GroupFigureRead(BaseModel):
+    group: CategoryGroup
+    actual_minor: int
+    budget_minor: int
+    has_budget: bool
+
+
+class MemberFigureRead(BaseModel):
+    member_id: int
+    income_minor: int
+    expense_minor: int
+    balance_minor: int
+
+
+class MonthSummaryRead(BaseModel):
+    year: int
+    month: int
+    income_minor: int
+    expense_minor: int
+    balance_minor: int
+    balance_excl_savings_minor: int
+    available_minor: int
+    savings_ratio: float | None
+    fixed_cost_ratio: float | None
+    categories: list[CategoryFigureRead]
+    groups: list[GroupFigureRead]
+    members: list[MemberFigureRead]
+
+
+class MemberBalanceRead(BaseModel):
+    member_id: int
+    borne_minor: int
+    share_minor: int
+    balance_minor: int
+
+
+class PaymentRead(BaseModel):
+    from_member_id: int
+    to_member_id: int
+    amount_minor: int
+
+
+class SettlementRead(BaseModel):
+    basis: SettlementBasis
+    total_expense_minor: int
+    balances: list[MemberBalanceRead]
+    payments: list[PaymentRead]
+
+
+class TrendPointRead(BaseModel):
+    year: int
+    month: int
+    income_minor: int
+    expense_minor: int
+    balance_minor: int
+    savings_minor: int
