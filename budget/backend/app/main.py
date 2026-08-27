@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
-import app.ddl  # noqa: F401  registriert Trigger/Index-DDL an der Metadata
+import app.ddl
 from app.config import get_settings
 from app.routers import (
     analytics,
@@ -62,9 +62,7 @@ def health() -> dict[str, str]:
 @app.exception_handler(SplitError)
 async def _split_error_handler(_request: Request, exc: SplitError) -> JSONResponse:
     """Fachliche Fehler der Aufteilungslogik werden zu 422 mit lesbarer Meldung."""
-    return JSONResponse(
-        status_code=422, content={"detail": str(exc)}
-    )
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
 app.include_router(households.router)

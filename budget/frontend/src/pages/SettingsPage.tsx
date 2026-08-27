@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FileJson, FileUp, Plus, Table2, Undo2 } from "lucide-react";
 
 import {
@@ -139,13 +139,19 @@ function HouseholdForm({
   const [opening, setOpening] = useState(toDecimalString(household.opening_balance_minor));
   const [basis, setBasis] = useState<SettlementBasis>(household.settlement_basis);
 
-  useEffect(() => {
+  // Nach dem Speichern liefert der Server den normalisierten Stand zurueck (etwa die
+  // Waehrung in Grossbuchstaben). Den uebernehmen wir waehrend des Renderns, sobald
+  // sich das Objekt aendert -- ein Effekt wuerde nur einen zusaetzlichen Durchgang
+  // mit veralteten Werten erzeugen.
+  const [lastHousehold, setLastHousehold] = useState(household);
+  if (lastHousehold !== household) {
+    setLastHousehold(household);
     setName(household.name);
     setCurrency(household.currency);
     setLocale(household.locale);
     setOpening(toDecimalString(household.opening_balance_minor));
     setBasis(household.settlement_basis);
-  }, [household]);
+  }
 
   const openingMinor = parseAmountInput(opening);
   const dirty =

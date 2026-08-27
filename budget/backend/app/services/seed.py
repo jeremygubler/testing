@@ -152,34 +152,126 @@ def seed_demo(db: Session, reference_date: dt.date | None = None) -> Household:
     )
 
     rules_spec: list[dict] = [
-        dict(cat="Lohn Anna", desc="Lohn Anna", chf=6200, iv=Interval.MONTHLY, day=25,
-             tpl=SplitTemplate.SINGLE, single=anna),
-        dict(cat="Lohn Ben", desc="Lohn Ben", chf=4800, iv=Interval.MONTHLY, day=25,
-             tpl=SplitTemplate.SINGLE, single=ben),
-        dict(cat="Miete", desc="Miete Wohnung", chf=2150, iv=Interval.MONTHLY, day=1,
-             tpl=SplitTemplate.KEY),
-        dict(cat="Krankenkasse", desc="Krankenkasse Anna", chf=410, iv=Interval.MONTHLY, day=5,
-             tpl=SplitTemplate.SINGLE, single=anna),
-        dict(cat="Krankenkasse", desc="Krankenkasse Ben", chf=350, iv=Interval.MONTHLY, day=5,
-             tpl=SplitTemplate.SINGLE, single=ben),
-        dict(cat="Internet & Handy", desc="Internet & Handy", chf=119, iv=Interval.MONTHLY, day=8,
-             tpl=SplitTemplate.EQUAL),
-        dict(cat="Streaming", desc="Streaming-Abo", chf=42, iv=Interval.MONTHLY, day=12,
-             tpl=SplitTemplate.EQUAL),
-        dict(cat="Fitness", desc="Fitness-Abo Ben", chf=89, iv=Interval.MONTHLY, day=3,
-             tpl=SplitTemplate.SINGLE, single=ben),
-        dict(cat="Strom & Wasser", desc="Strom & Wasser", chf=130, iv=Interval.MONTHLY, day=18,
-             tpl=SplitTemplate.KEY),
-        dict(cat="Sparkonto", desc="Dauerauftrag Sparkonto", chf=800, iv=Interval.MONTHLY, day=26,
-             tpl=SplitTemplate.KEY),
-        dict(cat="Saeule 3a", desc="Saeule 3a", chf=590, iv=Interval.MONTHLY, day=26,
-             tpl=SplitTemplate.EQUAL),
-        dict(cat="Kreditrueckzahlung", desc="Kredit Auto", chf=400, iv=Interval.MONTHLY, day=28,
-             tpl=SplitTemplate.KEY),
-        dict(cat="Versicherungen", desc="Hausrat & Haftpflicht", chf=285, iv=Interval.QUARTERLY,
-             day=15, anchor=first_month.month, tpl=SplitTemplate.KEY),
-        dict(cat="OeV-Abo", desc="OeV-Jahresabo Anna", chf=1980, iv=Interval.YEARLY, day=20,
-             anchor=first_month.month, tpl=SplitTemplate.SINGLE, single=anna),
+        {
+            "cat": "Lohn Anna",
+            "desc": "Lohn Anna",
+            "chf": 6200,
+            "iv": Interval.MONTHLY,
+            "day": 25,
+            "tpl": SplitTemplate.SINGLE,
+            "single": anna,
+        },
+        {
+            "cat": "Lohn Ben",
+            "desc": "Lohn Ben",
+            "chf": 4800,
+            "iv": Interval.MONTHLY,
+            "day": 25,
+            "tpl": SplitTemplate.SINGLE,
+            "single": ben,
+        },
+        {
+            "cat": "Miete",
+            "desc": "Miete Wohnung",
+            "chf": 2150,
+            "iv": Interval.MONTHLY,
+            "day": 1,
+            "tpl": SplitTemplate.KEY,
+        },
+        {
+            "cat": "Krankenkasse",
+            "desc": "Krankenkasse Anna",
+            "chf": 410,
+            "iv": Interval.MONTHLY,
+            "day": 5,
+            "tpl": SplitTemplate.SINGLE,
+            "single": anna,
+        },
+        {
+            "cat": "Krankenkasse",
+            "desc": "Krankenkasse Ben",
+            "chf": 350,
+            "iv": Interval.MONTHLY,
+            "day": 5,
+            "tpl": SplitTemplate.SINGLE,
+            "single": ben,
+        },
+        {
+            "cat": "Internet & Handy",
+            "desc": "Internet & Handy",
+            "chf": 119,
+            "iv": Interval.MONTHLY,
+            "day": 8,
+            "tpl": SplitTemplate.EQUAL,
+        },
+        {
+            "cat": "Streaming",
+            "desc": "Streaming-Abo",
+            "chf": 42,
+            "iv": Interval.MONTHLY,
+            "day": 12,
+            "tpl": SplitTemplate.EQUAL,
+        },
+        {
+            "cat": "Fitness",
+            "desc": "Fitness-Abo Ben",
+            "chf": 89,
+            "iv": Interval.MONTHLY,
+            "day": 3,
+            "tpl": SplitTemplate.SINGLE,
+            "single": ben,
+        },
+        {
+            "cat": "Strom & Wasser",
+            "desc": "Strom & Wasser",
+            "chf": 130,
+            "iv": Interval.MONTHLY,
+            "day": 18,
+            "tpl": SplitTemplate.KEY,
+        },
+        {
+            "cat": "Sparkonto",
+            "desc": "Dauerauftrag Sparkonto",
+            "chf": 800,
+            "iv": Interval.MONTHLY,
+            "day": 26,
+            "tpl": SplitTemplate.KEY,
+        },
+        {
+            "cat": "Saeule 3a",
+            "desc": "Saeule 3a",
+            "chf": 590,
+            "iv": Interval.MONTHLY,
+            "day": 26,
+            "tpl": SplitTemplate.EQUAL,
+        },
+        {
+            "cat": "Kreditrueckzahlung",
+            "desc": "Kredit Auto",
+            "chf": 400,
+            "iv": Interval.MONTHLY,
+            "day": 28,
+            "tpl": SplitTemplate.KEY,
+        },
+        {
+            "cat": "Versicherungen",
+            "desc": "Hausrat & Haftpflicht",
+            "chf": 285,
+            "iv": Interval.QUARTERLY,
+            "day": 15,
+            "anchor": first_month.month,
+            "tpl": SplitTemplate.KEY,
+        },
+        {
+            "cat": "OeV-Abo",
+            "desc": "OeV-Jahresabo Anna",
+            "chf": 1980,
+            "iv": Interval.YEARLY,
+            "day": 20,
+            "anchor": first_month.month,
+            "tpl": SplitTemplate.SINGLE,
+            "single": anna,
+        },
     ]
 
     rules: list[tuple[RecurringRule, Category]] = []
@@ -267,12 +359,8 @@ def seed_demo(db: Session, reference_date: dt.date | None = None) -> Household:
                     [SplitTemplate.KEY, SplitTemplate.SINGLE, SplitTemplate.EQUAL],
                     weights=[5, 3, 2],
                 )[0]
-                lines = build_splits(
-                    template, amount, members, single_member_id=payer.id
-                )
-                add_transaction(
-                    date, categories[cat_name], rng.choice(descriptions), lines
-                )
+                lines = build_splits(template, amount, members, single_member_id=payer.id)
+                add_transaction(date, categories[cat_name], rng.choice(descriptions), lines)
 
     db.add_all(
         [

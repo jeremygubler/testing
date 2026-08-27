@@ -84,7 +84,12 @@ def test_per_member_figures_come_from_the_splits(db, household, book, members):
 
 def test_month_budget_overrides_the_default(client, categories):
     category_id = categories["Lebensmittel"].id
-    assert client.put("/api/budgets", json={"category_id": category_id, "amount_minor": 90_000}).status_code == 200
+    assert (
+        client.put(
+            "/api/budgets", json={"category_id": category_id, "amount_minor": 90_000}
+        ).status_code
+        == 200
+    )
     assert (
         client.put(
             "/api/budgets",
@@ -98,7 +103,9 @@ def test_month_budget_overrides_the_default(client, categories):
     by_id = {row["category_id"]: row for row in march["categories"]}
     assert by_id[category_id]["budget_minor"] == 120_000
     assert by_id[category_id]["budget_source"] == "MONTH"
-    assert {row["category_id"]: row for row in april["categories"]}[category_id]["budget_source"] == "DEFAULT"
+    assert {row["category_id"]: row for row in april["categories"]}[category_id][
+        "budget_source"
+    ] == "DEFAULT"
 
 
 def test_upsert_replaces_instead_of_duplicating(client, categories, db, household):
@@ -192,7 +199,12 @@ def test_trend_returns_a_point_per_month_even_without_bookings(client):
     points = client.get("/api/analytics/trend?year=2026&month=3&months=6").json()
     assert len(points) == 6
     assert [(p["year"], p["month"]) for p in points] == [
-        (2025, 10), (2025, 11), (2025, 12), (2026, 1), (2026, 2), (2026, 3)
+        (2025, 10),
+        (2025, 11),
+        (2025, 12),
+        (2026, 1),
+        (2026, 2),
+        (2026, 3),
     ]
     assert all(point["balance_minor"] == 0 for point in points)
 
@@ -278,7 +290,9 @@ def test_proposal_rounds_to_whole_currency_units(client, categories, members):
 
 
 def test_proposal_shows_the_current_budget_for_comparison(client, categories):
-    client.put("/api/budgets", json={"category_id": categories["Miete"].id, "amount_minor": 210_000})
+    client.put(
+        "/api/budgets", json={"category_id": categories["Miete"].id, "amount_minor": 210_000}
+    )
     proposal = client.get("/api/budgets/proposal?year=2026&month=3").json()
     row = next(r for r in proposal["rows"] if r["category_id"] == categories["Miete"].id)
     assert row["current_minor"] == 210_000
@@ -308,7 +322,9 @@ def test_bulk_upsert_applies_a_proposal(client, categories):
 
 
 def test_bulk_upsert_can_target_a_single_month(client, categories):
-    client.put("/api/budgets", json={"category_id": categories["Miete"].id, "amount_minor": 200_000})
+    client.put(
+        "/api/budgets", json={"category_id": categories["Miete"].id, "amount_minor": 200_000}
+    )
     client.put(
         "/api/budgets/bulk",
         json={
@@ -319,8 +335,12 @@ def test_bulk_upsert_can_target_a_single_month(client, categories):
     )
     march = client.get("/api/analytics/summary?year=2026&month=3").json()
     april = client.get("/api/analytics/summary?year=2026&month=4").json()
-    assert {r["category_id"]: r for r in march["categories"]}[categories["Miete"].id]["budget_minor"] == 250_000
-    assert {r["category_id"]: r for r in april["categories"]}[categories["Miete"].id]["budget_minor"] == 200_000
+    assert {r["category_id"]: r for r in march["categories"]}[categories["Miete"].id][
+        "budget_minor"
+    ] == 250_000
+    assert {r["category_id"]: r for r in april["categories"]}[categories["Miete"].id][
+        "budget_minor"
+    ] == 200_000
 
 
 def test_proposal_divides_by_months_with_data_not_by_window_width(client, categories, members):
@@ -337,7 +357,9 @@ def test_proposal_divides_by_months_with_data_not_by_window_width(client, catego
     assert row["based_on_months"] == 2
 
 
-def test_a_category_without_spending_in_a_recorded_month_counts_as_zero(client, categories, members):
+def test_a_category_without_spending_in_a_recorded_month_counts_as_zero(
+    client, categories, members
+):
     """Innerhalb der Monate, in denen gebucht wurde, ist eine leere Kategorie eine
     echte Null -- nicht fehlende Daten."""
     anna, _ = members

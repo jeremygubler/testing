@@ -26,16 +26,12 @@ def test_shares_follow_the_household_key():
 
 def test_shares_sum_exactly_to_total_expenses():
     for total in range(0, 500):
-        balances = compute_balances(
-            borne={1: total, 2: 0, 3: 0}, weights={1: 1, 2: 1, 3: 1}
-        )
+        balances = compute_balances(borne={1: total, 2: 0, 3: 0}, weights={1: 1, 2: 1, 3: 1})
         assert sum(b.share_minor for b in balances) == total
 
 
 def test_balances_always_net_to_zero():
-    balances = compute_balances(
-        borne={1: 33_333, 2: 12_500, 3: 7}, weights={1: 3, 2: 2, 3: 1}
-    )
+    balances = compute_balances(borne={1: 33_333, 2: 12_500, 3: 7}, weights={1: 3, 2: 2, 3: 1})
     assert sum(b.balance_minor for b in balances) == 0
 
 
@@ -56,8 +52,10 @@ def test_inactive_member_with_expenses_gets_no_share():
 
 def test_settle_produces_one_payment_for_two_people():
     payments = settle(
-        [MemberBalance(1, borne_minor=10_000, share_minor=5000),
-         MemberBalance(2, borne_minor=0, share_minor=5000)]
+        [
+            MemberBalance(1, borne_minor=10_000, share_minor=5000),
+            MemberBalance(2, borne_minor=0, share_minor=5000),
+        ]
     )
     assert len(payments) == 1
     assert payments[0].from_member_id == 2
@@ -67,10 +65,10 @@ def test_settle_produces_one_payment_for_two_people():
 
 def test_settle_needs_at_most_n_minus_one_payments():
     balances = [
-        MemberBalance(1, borne_minor=12_000, share_minor=4000),   # +8000
-        MemberBalance(2, borne_minor=1000, share_minor=4000),     # -3000
-        MemberBalance(3, borne_minor=0, share_minor=4000),        # -4000
-        MemberBalance(4, borne_minor=3000, share_minor=4000),     # -1000
+        MemberBalance(1, borne_minor=12_000, share_minor=4000),  # +8000
+        MemberBalance(2, borne_minor=1000, share_minor=4000),  # -3000
+        MemberBalance(3, borne_minor=0, share_minor=4000),  # -4000
+        MemberBalance(4, borne_minor=3000, share_minor=4000),  # -1000
     ]
     payments = settle(balances)
     assert len(payments) <= len(balances) - 1

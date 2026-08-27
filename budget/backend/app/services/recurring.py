@@ -166,9 +166,7 @@ def occurrences_for_period(
             key = (rule.id, due)
             if key in booked:
                 txn_id, amount, date = booked[key]
-                result.append(
-                    RuleOccurrence(rule.id, due, CONFIRMED, txn_id, amount, date)
-                )
+                result.append(RuleOccurrence(rule.id, due, CONFIRMED, txn_id, amount, date))
             elif key in skipped:
                 result.append(RuleOccurrence(rule.id, due, SKIPPED))
             else:

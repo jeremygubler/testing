@@ -37,7 +37,8 @@ export function detectDelimiter(text: string): string {
 }
 
 export function parseCsv(input: string, delimiter?: string): ParsedCsv {
-  const text = input.replace(/^﻿/, "");
+  // \uFEFF ist die Byte-Order-Mark, die Excel jeder CSV voranstellt.
+  const text = input.replace(/^\uFEFF/, "");
   const sep = delimiter ?? detectDelimiter(text);
 
   const rows: string[][] = [];

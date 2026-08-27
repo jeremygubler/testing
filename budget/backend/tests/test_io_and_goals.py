@@ -1,7 +1,6 @@
 """Import, Export, Sparziele und Kalendertermine."""
 
 import csv
-import datetime as dt
 import io
 
 import pytest
@@ -46,7 +45,7 @@ def test_sign_is_dropped_by_default_because_direction_lives_in_the_category(clie
 
 
 def test_sign_can_be_kept_for_refunds(client, members):
-    anna, _ = members
+    _anna, _ = members
     body = _import_body(
         [_row(1, "2026-03-01", "-89.00", "Rueckerstattung", "Lebensmittel", "Anna")],
         keep_sign=True,
@@ -172,7 +171,15 @@ def test_csv_export_round_trips_into_the_import(client, categories, members):
 
     # Dieselbe Datei wieder eingelesen wird als Dublette erkannt.
     body = _import_body(
-        [_row(1, rows[0]["datum"], rows[0]["betrag"], rows[0]["beschreibung"], rows[0]["kategorie"])]
+        [
+            _row(
+                1,
+                rows[0]["datum"],
+                rows[0]["betrag"],
+                rows[0]["beschreibung"],
+                rows[0]["kategorie"],
+            )
+        ]
     )
     preview = client.post("/api/io/import/preview", json=body).json()
     assert preview["duplicates"] == 1
@@ -267,7 +274,8 @@ def test_savings_before_the_start_date_do_not_count(client, categories, members)
 def test_calendar_entries_are_plain_appointments(client, members):
     anna, _ = members
     created = client.post(
-        "/api/calendar", json={"title": "Geburtstag Anna", "date": "2026-03-14", "member_id": anna.id}
+        "/api/calendar",
+        json={"title": "Geburtstag Anna", "date": "2026-03-14", "member_id": anna.id},
     ).json()
     assert created["title"] == "Geburtstag Anna"
 
@@ -280,5 +288,7 @@ def test_calendar_entries_are_plain_appointments(client, members):
 
 
 def test_calendar_entry_rejects_unknown_member(client):
-    response = client.post("/api/calendar", json={"title": "X", "date": "2026-03-14", "member_id": 999})
+    response = client.post(
+        "/api/calendar", json={"title": "X", "date": "2026-03-14", "member_id": 999}
+    )
     assert response.status_code == 404

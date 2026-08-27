@@ -52,15 +52,21 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
   // Vorschlag aus frueheren Buchungen -- nur anzeigen, nie automatisch anwenden.
   const suggestion = useSuggestCategory(categoryId === null ? description : "");
 
-  useEffect(() => {
-    if (split.singleMemberId === null && members.length > 0) {
-      setSplit((state) => ({ ...state, singleMemberId: members.find((m) => m.is_active)?.id ?? null }));
-    }
-  }, [members, split.singleMemberId]);
+  // Die Personen kommen asynchron. Statt den Zustand nachtraeglich in einem Effekt
+  // zu fuellen, wird die Vorauswahl beim Verwenden abgeleitet -- dann gibt es keinen
+  // Moment, in dem beides auseinanderlaeuft.
+  const effectiveSplit: SplitState = {
+    ...split,
+    singleMemberId: split.singleMemberId ?? members.find((member) => member.is_active)?.id ?? null,
+  };
 
-  useEffect(() => {
-    if (defaultDate) setDate(defaultDate);
-  }, [defaultDate]);
+  // Wechselt der Monat, folgt das Datumsfeld -- angeglichen waehrend des Renderns,
+  // nicht in einem Effekt.
+  const [lastDefaultDate, setLastDefaultDate] = useState(defaultDate);
+  if (defaultDate && lastDefaultDate !== defaultDate) {
+    setLastDefaultDate(defaultDate);
+    setDate(defaultDate);
+  }
 
   useEffect(() => {
     try {
@@ -82,7 +88,7 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
         category_id: categoryId,
         description: description.trim(),
         amount_minor: amountMinor,
-        split: toSplitSpec(split, members, amountMinor),
+        split: toSplitSpec(effectiveSplit, members, amountMinor),
       });
       setAmountText("");
       setDescription("");
@@ -178,7 +184,7 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
         <SplitEditor
           members={members}
           totalMinor={amountMinor ?? 0}
-          value={split}
+          value={effectiveSplit}
           onChange={setSplit}
           compact
           className={cn("flex-1", split.template === "MANUAL" ? "min-w-[16rem]" : "min-w-0")}

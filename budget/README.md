@@ -49,10 +49,13 @@ python seed.py                # Beispieldaten (optional)
 uvicorn app.main:app --reload # http://localhost:8000
 ```
 
-Tests:
+Tests, Lint und Format:
 
 ```bash
-cd backend && .venv/bin/pytest
+cd backend
+.venv/bin/pytest          # Testsuite
+.venv/bin/ruff check .    # Lint
+.venv/bin/ruff format .   # Formatierung
 ```
 
 ### Frontend
@@ -63,13 +66,20 @@ npm install
 npm run dev                   # http://localhost:5173, /api wird auf :8000 geproxyt
 ```
 
-Tests und Typecheck:
+Tests, Typecheck und Lint:
 
 ```bash
 cd frontend
-npm test        # Vitest: die kritischen Berechnungen
-npm run lint    # tsc --noEmit
+npm test              # Vitest: die kritischen Berechnungen
+npm run lint          # tsc --noEmit
+npm run lint:eslint   # ESLint, vor allem die React-Hook-Regeln
 ```
+
+## Automatische Prüfung
+
+`.github/workflows/budget-ci.yml` läuft bei jeder Änderung unter `budget/` und prüft
+beides: Backend (Ruff, pytest, Migrationen vorwärts *und* rückwärts, Seed-Lauf) und
+Frontend (Typecheck, ESLint ohne Warnungen, Vitest, Build).
 
 ## Konfiguration
 

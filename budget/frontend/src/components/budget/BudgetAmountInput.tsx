@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { parseAmountInput, toDecimalString } from "@/lib/money";
@@ -19,9 +19,14 @@ interface BudgetAmountInputProps {
 export function BudgetAmountInput({ value, onCommit, placeholder, className, ...rest }: BudgetAmountInputProps) {
   const [text, setText] = useState(value === null ? "" : toDecimalString(value));
 
-  useEffect(() => {
+  // Aendert sich der gespeicherte Betrag von aussen, das Feld angleichen. Das
+  // passiert waehrend des Renderns statt in einem Effekt -- so gibt es keinen
+  // Durchgang, in dem das Feld noch den alten Wert zeigt.
+  const [lastValue, setLastValue] = useState(value);
+  if (lastValue !== value) {
+    setLastValue(value);
     setText(value === null ? "" : toDecimalString(value));
-  }, [value]);
+  }
 
   function commit() {
     const trimmed = text.trim();

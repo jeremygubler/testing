@@ -30,7 +30,9 @@ def filled(client, categories, members):
             "split": {"template": "SINGLE", "member_id": ben.id},
         },
     )
-    client.put("/api/budgets", json={"category_id": categories["Lebensmittel"].id, "amount_minor": 90_000})
+    client.put(
+        "/api/budgets", json={"category_id": categories["Lebensmittel"].id, "amount_minor": 90_000}
+    )
     client.post(
         "/api/recurring",
         json={
@@ -45,9 +47,15 @@ def filled(client, categories, members):
     )
     client.post(
         "/api/savings-goals",
-        json={"name": "Ferien", "target_amount_minor": 500_000, "category_id": categories["Sparkonto"].id},
+        json={
+            "name": "Ferien",
+            "target_amount_minor": 500_000,
+            "category_id": categories["Sparkonto"].id,
+        },
     )
-    client.post("/api/calendar", json={"title": "Geburtstag", "date": "2026-03-14", "member_id": anna.id})
+    client.post(
+        "/api/calendar", json={"title": "Geburtstag", "date": "2026-03-14", "member_id": anna.id}
+    )
     return client
 
 
@@ -235,9 +243,10 @@ def test_reset_refuses_without_the_exact_confirmation(filled, confirm):
 @pytest.mark.parametrize("confirm", ["LOESCHEN", "loeschen", "Löschen", " LÖSCHEN "])
 def test_reset_accepts_the_word_in_any_writing(filled, confirm):
     client = filled
-    assert client.post(
-        "/api/io/reset", json={"scope": "TRANSACTIONS", "confirm": confirm}
-    ).status_code == 200
+    assert (
+        client.post("/api/io/reset", json={"scope": "TRANSACTIONS", "confirm": confirm}).status_code
+        == 200
+    )
 
 
 def test_version_1_backups_without_settlements_still_restore(filled):

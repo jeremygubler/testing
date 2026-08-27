@@ -21,9 +21,10 @@ def _saved(db: Session, goal: SavingsGoal, until: dt.date) -> int:
     ]
     if goal.start_date:
         conditions.append(Transaction.date >= goal.start_date)
-    return db.scalar(
-        select(func.coalesce(func.sum(Transaction.amount_minor), 0)).where(*conditions)
-    ) or 0
+    return (
+        db.scalar(select(func.coalesce(func.sum(Transaction.amount_minor), 0)).where(*conditions))
+        or 0
+    )
 
 
 def _to_read(db: Session, goal: SavingsGoal, today: dt.date) -> SavingsGoalRead:
@@ -35,8 +36,7 @@ def _to_read(db: Session, goal: SavingsGoal, today: dt.date) -> SavingsGoalRead:
     if goal.target_date:
         months_left = max(
             0,
-            (goal.target_date.year * 12 + goal.target_date.month)
-            - (today.year * 12 + today.month),
+            (goal.target_date.year * 12 + goal.target_date.month) - (today.year * 12 + today.month),
         )
         if remaining == 0:
             monthly_needed = 0

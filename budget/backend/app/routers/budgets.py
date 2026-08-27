@@ -37,9 +37,7 @@ def list_budgets(
 
 
 @router.put("", response_model=BudgetRead)
-def upsert_budget(
-    payload: BudgetUpsert, household: CurrentHousehold, db: DbSession
-) -> BudgetRead:
+def upsert_budget(payload: BudgetUpsert, household: CurrentHousehold, db: DbSession) -> BudgetRead:
     category = db.get(Category, payload.category_id)
     if category is None or category.household_id != household.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Kategorie nicht gefunden.")
@@ -123,13 +121,16 @@ def budget_proposal(
         ).all()
     )
     # Monate mit mindestens einer Buchung -- das ist der ehrliche Nenner.
-    recorded_months = db.scalar(
-        select(func.count(func.distinct(func.strftime("%Y-%m", Transaction.date)))).where(
-            Transaction.household_id == household.id,
-            Transaction.date >= start,
-            Transaction.date <= end,
+    recorded_months = (
+        db.scalar(
+            select(func.count(func.distinct(func.strftime("%Y-%m", Transaction.date)))).where(
+                Transaction.household_id == household.id,
+                Transaction.date >= start,
+                Transaction.date <= end,
+            )
         )
-    ) or 0
+        or 0
+    )
     divisor = max(1, min(window, recorded_months))
 
     existing = analytics.resolve_budgets(db, household.id, year, month)
@@ -143,7 +144,7 @@ def budget_proposal(
         total = totals.get(category.id, 0)
         average = total / divisor
         # Auf ganze Waehrungseinheiten runden, kaufmaennisch.
-        proposed = int(round(average / 100.0)) * 100
+        proposed = round(average / 100.0) * 100
         current = existing.get(category.id)
         rows.append(
             BudgetProposalRow(

@@ -73,10 +73,12 @@ def household(db: Session) -> Household:
 @pytest.fixture
 def members(db: Session, household: Household) -> list[Member]:
     rows = [
-        Member(household_id=household.id, name="Anna", color="#2563eb", sort_order=0,
-               share_weight=60),
-        Member(household_id=household.id, name="Ben", color="#c2410c", sort_order=1,
-               share_weight=40),
+        Member(
+            household_id=household.id, name="Anna", color="#2563eb", sort_order=0, share_weight=60
+        ),
+        Member(
+            household_id=household.id, name="Ben", color="#c2410c", sort_order=1, share_weight=40
+        ),
     ]
     db.add_all(rows)
     db.flush()

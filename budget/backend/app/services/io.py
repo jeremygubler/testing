@@ -12,7 +12,8 @@ import datetime as dt
 import io
 from typing import Any
 
-from sqlalchemy import select, text as sql_text
+from sqlalchemy import select
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -498,9 +499,13 @@ def restore_household(db: Session, household: Household, payload: dict) -> dict[
                 household_id=household.id,
                 name=row["name"],
                 target_amount_minor=int(row["target_amount_minor"]),
-                target_date=dt.date.fromisoformat(row["target_date"]) if row.get("target_date") else None,
+                target_date=dt.date.fromisoformat(row["target_date"])
+                if row.get("target_date")
+                else None,
                 category_id=row["category_id"],
-                start_date=dt.date.fromisoformat(row["start_date"]) if row.get("start_date") else None,
+                start_date=dt.date.fromisoformat(row["start_date"])
+                if row.get("start_date")
+                else None,
                 is_active=bool(row.get("is_active", True)),
             )
         )

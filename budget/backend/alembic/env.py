@@ -1,11 +1,10 @@
 from logging.config import fileConfig
 
+import app.ddl
+import app.models  # noqa: F401  registriert alle Tabellen an Base.metadata
 from alembic import context
-
 from app.config import get_settings
 from app.db import Base, engine
-import app.ddl  # noqa: F401  registriert die after_create-Hooks
-import app.models  # noqa: F401  registriert alle Tabellen an Base.metadata
 
 config = context.config
 if config.config_file_name is not None:

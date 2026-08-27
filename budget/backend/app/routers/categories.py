@@ -37,9 +37,7 @@ def create_category(
     payload: CategoryCreate, household: CurrentHousehold, db: DbSession
 ) -> CategoryRead:
     if db.scalar(
-        select(Category).where(
-            Category.household_id == household.id, Category.name == payload.name
-        )
+        select(Category).where(Category.household_id == household.id, Category.name == payload.name)
     ):
         raise HTTPException(
             status.HTTP_409_CONFLICT, f"Die Kategorie '{payload.name}' existiert bereits."
@@ -74,9 +72,9 @@ def update_category(
         # Ein Gruppenwechsel ueber die Flow-Grenze wuerde alle Auswertungen der
         # Vergangenheit umdrehen. Das ist keine Aenderung, das ist eine neue Kategorie.
         used = db.scalar(
-            select(func.count()).select_from(Transaction).where(
-                Transaction.category_id == category.id
-            )
+            select(func.count())
+            .select_from(Transaction)
+            .where(Transaction.category_id == category.id)
         )
         if used:
             raise HTTPException(

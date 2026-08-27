@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Loader2, Wand2 } from "lucide-react";
 
 import { useBudgetProposal, useBulkUpsertBudgets } from "@/api/hooks";
@@ -54,12 +54,15 @@ export function ProposalDialog({ open, onOpenChange, year, month }: ProposalDial
   const { data, isFetching } = useBudgetProposal(year, month, source, months, open);
   const apply = useBulkUpsertBudgets();
 
-  useEffect(() => {
-    if (open) {
-      setSkipped(new Set());
-      setError(null);
-    }
-  }, [open, source, months]);
+  // Beim Oeffnen und bei jeder Aenderung der Grundlage gilt die bisherige Abwahl nicht
+  // mehr -- die Zeilen zeigen dann andere Zahlen. Angeglichen waehrend des Renderns.
+  const signature = `${open}:${source}:${months}`;
+  const [lastSignature, setLastSignature] = useState(signature);
+  if (lastSignature !== signature) {
+    setLastSignature(signature);
+    setSkipped(new Set());
+    setError(null);
+  }
 
   // Zeilen ohne Vorschlag und ohne bisheriges Budget sind nur Rauschen.
   const rows = useMemo(

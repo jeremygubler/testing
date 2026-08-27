@@ -95,18 +95,24 @@ def list_transactions(
     where = and_(*conditions)
     total = db.scalar(select(func.count()).select_from(Transaction).where(where)) or 0
 
-    income_sum = db.scalar(
-        select(func.coalesce(func.sum(Transaction.amount_minor), 0))
-        .select_from(Transaction)
-        .join(Category, Category.id == Transaction.category_id)
-        .where(where, Category.flow == Flow.INCOME)
-    ) or 0
-    expense_sum = db.scalar(
-        select(func.coalesce(func.sum(Transaction.amount_minor), 0))
-        .select_from(Transaction)
-        .join(Category, Category.id == Transaction.category_id)
-        .where(where, Category.flow == Flow.EXPENSE)
-    ) or 0
+    income_sum = (
+        db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount_minor), 0))
+            .select_from(Transaction)
+            .join(Category, Category.id == Transaction.category_id)
+            .where(where, Category.flow == Flow.INCOME)
+        )
+        or 0
+    )
+    expense_sum = (
+        db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount_minor), 0))
+            .select_from(Transaction)
+            .join(Category, Category.id == Transaction.category_id)
+            .where(where, Category.flow == Flow.EXPENSE)
+        )
+        or 0
+    )
 
     descending = sort.startswith("-")
     key = sort.lstrip("-")
@@ -159,8 +165,11 @@ def preview_split(
     """Loest eine Vorlage auf, ohne zu speichern -- fuer die Live-Vorschau im Formular."""
     lines = service.resolve_split(db, household, payload.amount_minor, payload.split)
     return SplitPreviewResponse(
-        lines=[SplitLineRead(member_id=l.member_id, amount_minor=l.amount_minor) for l in lines],
-        total_minor=sum(l.amount_minor for l in lines),
+        lines=[
+            SplitLineRead(member_id=line.member_id, amount_minor=line.amount_minor)
+            for line in lines
+        ],
+        total_minor=sum(line.amount_minor for line in lines),
     )
 
 
@@ -186,9 +195,7 @@ def suggest_category(
 
 
 @router.get("/{txn_id}", response_model=TransactionRead)
-def read_transaction(
-    txn_id: int, household: CurrentHousehold, db: DbSession
-) -> TransactionRead:
+def read_transaction(txn_id: int, household: CurrentHousehold, db: DbSession) -> TransactionRead:
     return to_read(_get(db, household.id, txn_id))
 
 

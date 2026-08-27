@@ -60,9 +60,7 @@ def compute_balances(
     keinen Soll-Anteil mehr.
     """
     settled = settled or {}
-    member_ids = list(weights.keys()) + [
-        m for m in {**borne, **settled} if m not in weights
-    ]
+    member_ids = list(weights.keys()) + [m for m in {**borne, **settled} if m not in weights]
     if not member_ids:
         return []
 

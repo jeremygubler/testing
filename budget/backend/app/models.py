@@ -21,7 +21,6 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
-    Index,
     Integer,
     String,
     Text,
@@ -85,9 +84,7 @@ class Member(Base):
 
 class Category(Base):
     __tablename__ = "category"
-    __table_args__ = (
-        UniqueConstraint("household_id", "name", name="uq_category_household_name"),
-    )
+    __table_args__ = (UniqueConstraint("household_id", "name", name="uq_category_household_name"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     household_id: Mapped[int] = mapped_column(
@@ -269,9 +266,7 @@ class RecurringSkip(Base):
     """Ein bewusst uebersprungener Faelligkeitstermin einer Regel."""
 
     __tablename__ = "recurring_skip"
-    __table_args__ = (
-        UniqueConstraint("rule_id", "occurrence_date", name="uq_skip_rule_date"),
-    )
+    __table_args__ = (UniqueConstraint("rule_id", "occurrence_date", name="uq_skip_rule_date"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     rule_id: Mapped[int] = mapped_column(
@@ -284,9 +279,7 @@ class SavingsGoal(Base):
     """Sparziel. Fortschritt wird aus den Buchungen der Kategorie berechnet."""
 
     __tablename__ = "savings_goal"
-    __table_args__ = (
-        CheckConstraint("target_amount_minor > 0", name="ck_goal_target_positive"),
-    )
+    __table_args__ = (CheckConstraint("target_amount_minor > 0", name="ck_goal_target_positive"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     household_id: Mapped[int] = mapped_column(

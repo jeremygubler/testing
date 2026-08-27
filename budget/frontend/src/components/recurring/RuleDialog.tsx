@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { useCategories, useCreateRule, useMembers, useUpdateRule } from "@/api/hooks";
 import type { IntervalKind, RecurringRule } from "@/api/types";
@@ -29,53 +29,58 @@ interface RuleDialogProps {
   rule?: RecurringRule | null;
 }
 
+/**
+ * Der Inhalt wird nur gerendert, solange der Dialog offen ist, und trägt einen `key`
+ * aus der bearbeiteten Regel. Dadurch startet das Formular bei jedem Öffnen frisch —
+ * ohne einen Effekt, der Zustand aus Props zurücksetzt.
+ */
 export function RuleDialog({ open, onOpenChange, rule }: RuleDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        {open && (
+          <RuleForm key={rule?.id ?? "neu"} rule={rule} onClose={() => onOpenChange(false)} />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RuleForm({
+  rule,
+  onClose,
+}: {
+  rule?: RecurringRule | null;
+  onClose: () => void;
+}) {
   const { data: categories = [] } = useCategories();
   const { data: members = [] } = useMembers();
   const create = useCreateRule();
   const update = useUpdateRule();
-
   const descriptionRef = useRef<HTMLInputElement>(null);
-  const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState<number | null>(null);
-  const [amountText, setAmountText] = useState("");
-  const [interval, setInterval] = useState<IntervalKind>("MONTHLY");
-  const [day, setDay] = useState(1);
-  const [anchorMonth, setAnchorMonth] = useState<number | null>(null);
-  const [startDate, setStartDate] = useState(todayIso());
-  const [endDate, setEndDate] = useState("");
-  const [split, setSplit] = useState<SplitState>(() => emptySplitState(members, "KEY"));
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setError(null);
-    if (rule) {
-      setDescription(rule.description);
-      setCategoryId(rule.category_id);
-      setAmountText(toDecimalString(rule.amount_minor));
-      setInterval(rule.interval);
-      setDay(rule.day_of_period);
-      setAnchorMonth(rule.anchor_month);
-      setStartDate(rule.start_date);
-      setEndDate(rule.end_date ?? "");
-      setSplit({
-        template: rule.split.template,
-        singleMemberId: rule.split.member_id ?? members.find((m) => m.is_active)?.id ?? null,
-        manual: Object.fromEntries((rule.split.lines ?? []).map((line) => [line.member_id, line.amount_minor])),
-      });
-    } else {
-      setDescription("");
-      setCategoryId(null);
-      setAmountText("");
-      setInterval("MONTHLY");
-      setDay(1);
-      setAnchorMonth(null);
-      setStartDate(todayIso());
-      setEndDate("");
-      setSplit(emptySplitState(members.filter((m) => m.is_active), "KEY"));
-    }
-  }, [open, rule, members]);
+  const activeMembers = members.filter((member) => member.is_active);
+
+  const [description, setDescription] = useState(rule?.description ?? "");
+  const [categoryId, setCategoryId] = useState<number | null>(rule?.category_id ?? null);
+  const [amountText, setAmountText] = useState(rule ? toDecimalString(rule.amount_minor) : "");
+  const [interval, setInterval] = useState<IntervalKind>(rule?.interval ?? "MONTHLY");
+  const [day, setDay] = useState(rule?.day_of_period ?? 1);
+  const [anchorMonth, setAnchorMonth] = useState<number | null>(rule?.anchor_month ?? null);
+  const [startDate, setStartDate] = useState(rule?.start_date ?? todayIso());
+  const [endDate, setEndDate] = useState(rule?.end_date ?? "");
+  const [split, setSplit] = useState<SplitState>(() =>
+    rule
+      ? {
+          template: rule.split.template,
+          singleMemberId: rule.split.member_id ?? activeMembers[0]?.id ?? null,
+          manual: Object.fromEntries(
+            (rule.split.lines ?? []).map((line) => [line.member_id, line.amount_minor]),
+          ),
+        }
+      : emptySplitState(activeMembers, "KEY"),
+  );
+  const [error, setError] = useState<string | null>(null);
 
   const amountMinor = parseAmountInput(amountText);
   const canSubmit = Boolean(description.trim()) && categoryId !== null && amountMinor !== null && amountMinor !== 0;
@@ -97,7 +102,7 @@ export function RuleDialog({ open, onOpenChange, rule }: RuleDialogProps) {
     try {
       if (rule) await update.mutateAsync({ id: rule.id, patch: input });
       else await create.mutateAsync(input);
-      onOpenChange(false);
+      onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t.app.error);
     }
@@ -107,9 +112,8 @@ export function RuleDialog({ open, onOpenChange, rule }: RuleDialogProps) {
   const needsAnchor = interval === "QUARTERLY" || interval === "YEARLY";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+    <>
+      <DialogHeader>
           <DialogTitle>{rule ? "Regel bearbeiten" : "Neue wiederkehrende Buchung"}</DialogTitle>
           <DialogDescription>
             Die Regel bucht nie von selbst — sie erzeugt Vorschläge, die du bestätigst.
@@ -260,16 +264,15 @@ export function RuleDialog({ open, onOpenChange, rule }: RuleDialogProps) {
 
           {error && <p className="text-xs text-destructive">{error}</p>}
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              {t.app.cancel}
-            </Button>
-            <Button type="submit" disabled={!canSubmit || create.isPending || update.isPending}>
-              {t.app.save}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            {t.app.cancel}
+          </Button>
+          <Button type="submit" disabled={!canSubmit || create.isPending || update.isPending}>
+            {t.app.save}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
   );
 }

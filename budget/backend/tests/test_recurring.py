@@ -21,7 +21,9 @@ def _rule(**kwargs) -> RecurringRule:
 
 
 def test_monthly_clamps_to_the_last_day_of_short_months():
-    dates = occurrences(_rule(interval=Interval.MONTHLY, day=31), dt.date(2026, 1, 1), dt.date(2026, 4, 30))
+    dates = occurrences(
+        _rule(interval=Interval.MONTHLY, day=31), dt.date(2026, 1, 1), dt.date(2026, 4, 30)
+    )
     assert dates == [
         dt.date(2026, 1, 31),
         dt.date(2026, 2, 28),
@@ -32,7 +34,9 @@ def test_monthly_clamps_to_the_last_day_of_short_months():
 
 def test_quarterly_follows_the_anchor_month():
     dates = occurrences(
-        _rule(interval=Interval.QUARTERLY, day=15, anchor=2), dt.date(2026, 1, 1), dt.date(2026, 12, 31)
+        _rule(interval=Interval.QUARTERLY, day=15, anchor=2),
+        dt.date(2026, 1, 1),
+        dt.date(2026, 12, 31),
     )
     assert [d.month for d in dates] == [2, 5, 8, 11]
 
@@ -45,13 +49,17 @@ def test_yearly_repeats_once_per_year():
 
 
 def test_weekly_uses_the_weekday():
-    dates = occurrences(_rule(interval=Interval.WEEKLY, day=3), dt.date(2026, 1, 1), dt.date(2026, 2, 1))
+    dates = occurrences(
+        _rule(interval=Interval.WEEKLY, day=3), dt.date(2026, 1, 1), dt.date(2026, 2, 1)
+    )
     assert all(date.weekday() == 2 for date in dates)
     assert dates[0] == dt.date(2026, 1, 7)
 
 
 def test_no_occurrence_before_start_or_after_end():
-    rule = _rule(interval=Interval.MONTHLY, day=10, start=dt.date(2026, 3, 1), end=dt.date(2026, 5, 31))
+    rule = _rule(
+        interval=Interval.MONTHLY, day=10, start=dt.date(2026, 3, 1), end=dt.date(2026, 5, 31)
+    )
     dates = occurrences(rule, dt.date(2026, 1, 1), dt.date(2026, 12, 31))
     assert dates == [dt.date(2026, 3, 10), dt.date(2026, 4, 10), dt.date(2026, 5, 10)]
 
@@ -76,7 +84,7 @@ def test_projection(interval, amount, yearly, monthly):
 
 @pytest.fixture
 def rule_payload(categories, members):
-    anna, _ = members
+    _anna, _ = members
     return {
         "category_id": categories["Miete"].id,
         "description": "Miete Wohnung",
@@ -111,7 +119,10 @@ def test_confirming_creates_a_real_transaction(client, rule_payload, members):
         anna.id: 120_000,
         ben.id: 80_000,
     }
-    assert client.get("/api/recurring/occurrences?year=2026&month=3").json()[0]["status"] == "CONFIRMED"
+    assert (
+        client.get("/api/recurring/occurrences?year=2026&month=3").json()[0]["status"]
+        == "CONFIRMED"
+    )
 
 
 def test_amount_and_date_are_adjustable_on_confirmation(client, rule_payload):
@@ -181,12 +192,17 @@ def test_skipping_removes_the_suggestion_without_booking(client, rule_payload):
 
 def test_a_skipped_occurrence_can_still_be_confirmed_later(client, rule_payload):
     rule = client.post("/api/recurring", json=rule_payload).json()
-    client.post("/api/recurring/occurrences/skip", json={"rule_id": rule["id"], "due_date": "2026-03-01"})
+    client.post(
+        "/api/recurring/occurrences/skip", json={"rule_id": rule["id"], "due_date": "2026-03-01"}
+    )
     client.post(
         "/api/recurring/occurrences/confirm",
         json={"occurrences": [{"rule_id": rule["id"], "due_date": "2026-03-01"}]},
     )
-    assert client.get("/api/recurring/occurrences?year=2026&month=3").json()[0]["status"] == "CONFIRMED"
+    assert (
+        client.get("/api/recurring/occurrences?year=2026&month=3").json()[0]["status"]
+        == "CONFIRMED"
+    )
 
 
 def test_open_streak_flags_a_forgotten_subscription(client, rule_payload):

@@ -167,7 +167,12 @@ def commit_import(
     skipped = 0
 
     for row in rows:
-        if row.error is not None or row.date is None or row.amount_minor is None or row.category_id is None:
+        if (
+            row.error is not None
+            or row.date is None
+            or row.amount_minor is None
+            or row.category_id is None
+        ):
             skipped += 1
             continue
         if skip_duplicates and row.is_duplicate:
@@ -201,9 +206,7 @@ def commit_import(
 
 
 @router.post("/restore", response_model=RestoreResult)
-def restore(
-    payload: RestoreRequest, household: CurrentHousehold, db: DbSession
-) -> RestoreResult:
+def restore(payload: RestoreRequest, household: CurrentHousehold, db: DbSession) -> RestoreResult:
     """Spielt ein JSON-Backup zurueck.
 
     Der bestehende Haushalt wird dabei vollstaendig ersetzt. Weil das nicht

@@ -8,10 +8,9 @@ from app.services.seed import seed_demo
 
 def main() -> int:
     if "--reset" in sys.argv:
-        from app.models import Base  # noqa: F401
-
         import app.ddl  # noqa: F401
         from app.db import Base as MetaBase
+        from app.models import Base  # noqa: F401
 
         MetaBase.metadata.drop_all(engine)
         MetaBase.metadata.create_all(engine)

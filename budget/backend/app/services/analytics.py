@@ -42,18 +42,20 @@ def ratio(part: int, whole: int) -> float | None:
 # --------------------------------------------------------------------------- Budgets
 
 
-def resolve_budgets(db: Session, household_id: int, year: int, month: int) -> dict[int, tuple[int, str]]:
+def resolve_budgets(
+    db: Session, household_id: int, year: int, month: int
+) -> dict[int, tuple[int, str]]:
     """Kategorie-ID -> (Budget in Minoreinheiten, Herkunft ``MONTH``/``DEFAULT``).
 
     Kategorien ohne jeden Budgeteintrag fehlen im Ergebnis -- ``0`` waere eine Aussage,
     "kein Budget gesetzt" ist eine andere.
     """
     rows = db.execute(
-        select(Budget.category_id, Budget.amount_minor, Budget.is_default, Budget.year, Budget.month)
-        .where(
+        select(
+            Budget.category_id, Budget.amount_minor, Budget.is_default, Budget.year, Budget.month
+        ).where(
             Budget.household_id == household_id,
-            (Budget.is_default.is_(True))
-            | ((Budget.year == year) & (Budget.month == month)),
+            (Budget.is_default.is_(True)) | ((Budget.year == year) & (Budget.month == month)),
         )
     ).all()
 
@@ -138,7 +140,7 @@ def _actuals_by_category(
         )
         .group_by(Transaction.category_id)
     ).all()
-    return {category_id: total for category_id, total in rows}
+    return dict(rows)
 
 
 def _actuals_by_member(
@@ -178,7 +180,7 @@ def cumulative_balance(db: Session, household_id: int, until: dt.date) -> int:
         .where(Transaction.household_id == household_id, Transaction.date <= until)
         .group_by(Category.flow)
     ).all()
-    totals = {flow: total for flow, total in rows}
+    totals = dict(rows)
     return totals.get(Flow.INCOME, 0) - totals.get(Flow.EXPENSE, 0)
 
 
@@ -225,7 +227,9 @@ def month_summary(db: Session, household: Household, year: int, month: int) -> M
 
     income = groups[CategoryGroup.EINKOMMEN].actual_minor
     expense = sum(
-        figure.actual_minor for group, figure in groups.items() if group is not CategoryGroup.EINKOMMEN
+        figure.actual_minor
+        for group, figure in groups.items()
+        if group is not CategoryGroup.EINKOMMEN
     )
     savings = groups[CategoryGroup.SPAREN].actual_minor
     fixed = groups[CategoryGroup.FIXKOSTEN].actual_minor
@@ -236,7 +240,9 @@ def month_summary(db: Session, household: Household, year: int, month: int) -> M
     member_figures = _actuals_by_member(db, household.id, start, end)
     members = list(
         db.scalars(
-            select(Member).where(Member.household_id == household.id).order_by(Member.sort_order, Member.id)
+            select(Member)
+            .where(Member.household_id == household.id)
+            .order_by(Member.sort_order, Member.id)
         )
     )
     ordered_members = [
@@ -281,7 +287,9 @@ def settlement_for_period(
 ) -> SettlementResult:
     """Wer hat mehr getragen als sein Anteil -- und wie gleicht man das aus?"""
     rows = db.execute(
-        select(TransactionSplit.member_id, func.coalesce(func.sum(TransactionSplit.amount_minor), 0))
+        select(
+            TransactionSplit.member_id, func.coalesce(func.sum(TransactionSplit.amount_minor), 0)
+        )
         .join(Transaction, Transaction.id == TransactionSplit.txn_id)
         .join(Category, Category.id == Transaction.category_id)
         .where(
@@ -292,7 +300,7 @@ def settlement_for_period(
         )
         .group_by(TransactionSplit.member_id)
     ).all()
-    borne = {member_id: total for member_id, total in rows}
+    borne = dict(rows)
 
     members = list(
         db.scalars(
@@ -304,7 +312,10 @@ def settlement_for_period(
 
     if household.settlement_basis is SettlementBasis.INCOME:
         income_rows = db.execute(
-            select(TransactionSplit.member_id, func.coalesce(func.sum(TransactionSplit.amount_minor), 0))
+            select(
+                TransactionSplit.member_id,
+                func.coalesce(func.sum(TransactionSplit.amount_minor), 0),
+            )
             .join(Transaction, Transaction.id == TransactionSplit.txn_id)
             .join(Category, Category.id == Transaction.category_id)
             .where(
@@ -375,7 +386,9 @@ class TrendPoint:
     has_data: bool = False
 
 
-def trend(db: Session, household: Household, year: int, month: int, months: int) -> list[TrendPoint]:
+def trend(
+    db: Session, household: Household, year: int, month: int, months: int
+) -> list[TrendPoint]:
     """Die letzten ``months`` Monate bis einschliesslich ``(year, month)``."""
     index = year * 12 + (month - 1)
     first_index = index - (months - 1)
@@ -546,13 +559,16 @@ def comparison(
             .group_by(Transaction.category_id)
         ).all()
     )
-    recorded = db.scalar(
-        select(func.count(func.distinct(func.strftime("%Y-%m", Transaction.date)))).where(
-            Transaction.household_id == household.id,
-            Transaction.date >= start,
-            Transaction.date <= end,
+    recorded = (
+        db.scalar(
+            select(func.count(func.distinct(func.strftime("%Y-%m", Transaction.date)))).where(
+                Transaction.household_id == household.id,
+                Transaction.date >= start,
+                Transaction.date <= end,
+            )
         )
-    ) or 0
+        or 0
+    )
     divisor = max(1, min(months, recorded))
 
     current_start, current_end = month_bounds(year, month)

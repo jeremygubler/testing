@@ -13,6 +13,7 @@ from app.models import (
     RecurringSkip,
     Transaction,
 )
+from app.routers.transactions import to_read
 from app.schemas import (
     ConfirmBatch,
     ConfirmOccurrence,
@@ -25,11 +26,10 @@ from app.schemas import (
     SplitSpec,
     TransactionRead,
 )
-from app.routers.transactions import to_read
 from app.services import recurring as service
-from app.services.clock import household_today
 from app.services import transactions as txn_service
 from app.services.analytics import month_bounds
+from app.services.clock import household_today
 from app.services.splits import SplitError
 
 router = APIRouter(prefix="/api/recurring", tags=["recurring"])
@@ -96,9 +96,7 @@ def _apply_split(db: Session, rule: RecurringRule, spec: SplitSpec) -> None:
             raise SplitError("Fuer die manuelle Aufteilung fehlen die Betraege.")
         total = sum(line.amount_minor for line in lines)
         if total != rule.amount_minor:
-            raise SplitError(
-                f"Die Aufteilung ergibt {total} statt {rule.amount_minor}."
-            )
+            raise SplitError(f"Die Aufteilung ergibt {total} statt {rule.amount_minor}.")
         for line in lines:
             db.add(
                 RecurringRuleSplit(
@@ -119,7 +117,9 @@ def list_rules(
     if not include_inactive:
         query = query.where(RecurringRule.is_active.is_(True))
     reference = today or household_today(household)
-    rows = db.scalars(query.order_by(RecurringRule.interval, RecurringRule.day_of_period, RecurringRule.id))
+    rows = db.scalars(
+        query.order_by(RecurringRule.interval, RecurringRule.day_of_period, RecurringRule.id)
+    )
     return [_to_read(db, rule, reference) for rule in rows]
 
 
@@ -166,14 +166,17 @@ def update_rule(
     schedule_changed = any(
         field in data and data[field] != getattr(rule, field) for field in SCHEDULE_FIELDS
     )
-    confirmed = db.scalar(
-        select(func.count())
-        .select_from(Transaction)
-        .where(
-            Transaction.recurring_rule_id == rule.id,
-            Transaction.recurring_occurrence_date.is_not(None),
+    confirmed = (
+        db.scalar(
+            select(func.count())
+            .select_from(Transaction)
+            .where(
+                Transaction.recurring_rule_id == rule.id,
+                Transaction.recurring_occurrence_date.is_not(None),
+            )
         )
-    ) or 0
+        or 0
+    )
 
     if schedule_changed and confirmed:
         return _supersede(db, household, rule, payload, data, today)
@@ -226,9 +229,7 @@ def _supersede(
 
 
 @router.delete("/{rule_id}", response_model=RecurringRuleRead)
-def deactivate_rule(
-    rule_id: int, household: CurrentHousehold, db: DbSession
-) -> RecurringRuleRead:
+def deactivate_rule(rule_id: int, household: CurrentHousehold, db: DbSession) -> RecurringRuleRead:
     """Regeln werden deaktiviert -- bereits daraus gebuchte Transaktionen bleiben."""
     rule = _get_rule(db, household.id, rule_id)
     rule.is_active = False
@@ -275,9 +276,7 @@ def list_occurrences(
     return result
 
 
-def _confirm_one(
-    db: Session, household, entry: ConfirmOccurrence
-) -> TransactionRead:
+def _confirm_one(db: Session, household, entry: ConfirmOccurrence) -> TransactionRead:
     rule = _get_rule(db, household.id, entry.rule_id)
     already = db.scalar(
         select(Transaction.id).where(
@@ -324,9 +323,7 @@ def confirm_occurrences(
 
 
 @router.post("/occurrences/skip", status_code=status.HTTP_204_NO_CONTENT)
-def skip_occurrence(
-    payload: SkipOccurrence, household: CurrentHousehold, db: DbSession
-) -> None:
+def skip_occurrence(payload: SkipOccurrence, household: CurrentHousehold, db: DbSession) -> None:
     rule = _get_rule(db, household.id, payload.rule_id)
     existing = db.scalar(
         select(RecurringSkip).where(

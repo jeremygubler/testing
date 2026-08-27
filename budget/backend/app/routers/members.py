@@ -27,9 +27,7 @@ def list_members(
 
 
 @router.post("", response_model=MemberRead, status_code=status.HTTP_201_CREATED)
-def create_member(
-    payload: MemberCreate, household: CurrentHousehold, db: DbSession
-) -> MemberRead:
+def create_member(payload: MemberCreate, household: CurrentHousehold, db: DbSession) -> MemberRead:
     existing = db.scalar(
         select(func.count())
         .select_from(Member)
@@ -75,13 +73,13 @@ def update_member(
 
 
 @router.delete("/{member_id}", response_model=MemberRead)
-def deactivate_member(
-    member_id: int, household: CurrentHousehold, db: DbSession
-) -> MemberRead:
+def deactivate_member(member_id: int, household: CurrentHousehold, db: DbSession) -> MemberRead:
     """Personen werden nie hart geloescht, damit historische Buchungen intakt bleiben."""
     member = _get(db, household, member_id)
     active_left = db.scalar(
-        select(func.count()).select_from(Member).where(
+        select(func.count())
+        .select_from(Member)
+        .where(
             Member.household_id == household.id,
             Member.is_active.is_(True),
             Member.id != member.id,

@@ -85,14 +85,14 @@ def suggest_category(
     for candidates, basis in ((exact, "EXACT"), (token_hits, "TOKEN")):
         if not candidates:
             continue
-        category_id, (count, name) = max(candidates.items(), key=lambda item: (item[1][0], -item[0]))
+        category_id, (count, name) = max(
+            candidates.items(), key=lambda item: (item[1][0], -item[0])
+        )
         return Suggestion(category_id=category_id, category_name=name, matches=count, basis=basis)
     return None
 
 
-def suggest_many(
-    db: Session, household_id: int, descriptions: list[str]
-) -> dict[str, Suggestion]:
+def suggest_many(db: Session, household_id: int, descriptions: list[str]) -> dict[str, Suggestion]:
     """Vorschlaege fuer viele Beschreibungen -- fuer den Import, ohne N Abfragen."""
     unique = {normalize(text): text for text in descriptions if normalize(text)}
     if not unique:
@@ -112,7 +112,9 @@ def suggest_many(
     if not rows:
         return {}
 
-    history = [(normalize(desc), set(_tokens(desc)), cat_id, cat_name) for desc, cat_id, cat_name in rows]
+    history = [
+        (normalize(desc), set(_tokens(desc)), cat_id, cat_name) for desc, cat_id, cat_name in rows
+    ]
     result: dict[str, Suggestion] = {}
 
     for key, original in unique.items():

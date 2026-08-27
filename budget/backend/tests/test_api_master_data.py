@@ -37,14 +37,10 @@ def test_invalid_color_is_rejected(client):
 
 
 def test_category_flow_follows_the_group(client):
-    created = client.post(
-        "/api/categories", json={"name": "Bonus", "group": "EINKOMMEN"}
-    ).json()
+    created = client.post("/api/categories", json={"name": "Bonus", "group": "EINKOMMEN"}).json()
     assert created["flow"] == "INCOME"
 
-    created = client.post(
-        "/api/categories", json={"name": "Hobby", "group": "VARIABEL"}
-    ).json()
+    created = client.post("/api/categories", json={"name": "Hobby", "group": "VARIABEL"}).json()
     assert created["flow"] == "EXPENSE"
 
 
@@ -60,9 +56,7 @@ def test_category_cannot_flip_flow_once_it_has_transactions(client, categories, 
             "split": {"template": "SINGLE", "member_id": anna.id},
         },
     )
-    response = client.patch(
-        f"/api/categories/{categories['Lohn'].id}", json={"group": "VARIABEL"}
-    )
+    response = client.patch(f"/api/categories/{categories['Lohn'].id}", json={"group": "VARIABEL"})
     assert response.status_code == 422
     assert "Einnahme und Ausgabe" in response.json()["detail"]
 
@@ -161,7 +155,11 @@ def test_household_timezone_drives_today(db, household):
 
     from app.services.clock import household_now, household_today
 
-    for zone, offset in (("Pacific/Kiritimati", 14), ("Pacific/Niue", -11), ("Europe/Zurich", None)):
+    for zone, offset in (
+        ("Pacific/Kiritimati", 14),
+        ("Pacific/Niue", -11),
+        ("Europe/Zurich", None),
+    ):
         household.timezone = zone
         db.flush()
         now = household_now(household)

@@ -21,9 +21,7 @@ def owing(client, categories, members):
 
 
 def settlement(client, year=2026, month=3, months=1):
-    return client.get(
-        f"/api/analytics/settlement?year={year}&month={month}&months={months}"
-    ).json()
+    return client.get(f"/api/analytics/settlement?year={year}&month={month}&months={months}").json()
 
 
 def test_recording_a_payment_closes_the_open_amount(client, owing):

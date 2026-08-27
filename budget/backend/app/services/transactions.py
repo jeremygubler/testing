@@ -36,7 +36,9 @@ def resolve_split(
         else None
     )
     if manual:
-        known = {m.id for m in db.scalars(select(Member).where(Member.household_id == household.id))}
+        known = {
+            m.id for m in db.scalars(select(Member).where(Member.household_id == household.id))
+        }
         unknown = [line.member_id for line in manual if line.member_id not in known]
         if unknown:
             raise SplitError(f"Unbekannte Person(en) in der Aufteilung: {unknown}")

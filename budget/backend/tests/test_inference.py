@@ -79,7 +79,9 @@ def test_suggest_many_matches_single_lookups(db, household, history):
 
 
 def test_endpoint_returns_null_instead_of_guessing(client, history):
-    assert client.get("/api/transactions/suggest-category?description=Coop").json()["basis"] == "EXACT"
+    assert (
+        client.get("/api/transactions/suggest-category?description=Coop").json()["basis"] == "EXACT"
+    )
     assert client.get("/api/transactions/suggest-category?description=Nie%20gesehen").json() is None
 
 

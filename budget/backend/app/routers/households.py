@@ -12,9 +12,7 @@ def create_household(payload: HouseholdCreate, db: DbSession) -> HouseholdRead:
     """Erstinbetriebnahme. Existiert bereits ein Haushalt, wird abgelehnt --
     ein Ueberschreiben waere Datenverlust, kein Einrichten."""
     if setup.household_exists(db):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "Es ist bereits ein Haushalt eingerichtet."
-        )
+        raise HTTPException(status.HTTP_409_CONFLICT, "Es ist bereits ein Haushalt eingerichtet.")
     household = setup.create_household(
         db,
         name=payload.name,

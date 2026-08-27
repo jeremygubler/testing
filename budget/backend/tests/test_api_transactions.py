@@ -56,9 +56,7 @@ def test_manual_split_must_add_up(client, categories, members):
 
 
 def test_single_split_on_unknown_member_is_rejected(client, categories):
-    response = _create(
-        client, categories, split={"template": "SINGLE", "member_id": 4242}
-    )
+    response = _create(client, categories, split={"template": "SINGLE", "member_id": 4242})
     assert response.status_code == 422
 
 
@@ -78,9 +76,7 @@ def test_inactive_category_is_rejected(client, categories, db):
 def test_update_amount_keeps_the_existing_proportion(client, categories, members):
     anna, ben = members
     created = _create(client, categories, amount_minor=10_000).json()
-    response = client.patch(
-        f"/api/transactions/{created['id']}", json={"amount_minor": 20_000}
-    )
+    response = client.patch(f"/api/transactions/{created['id']}", json={"amount_minor": 20_000})
     assert response.status_code == 200
     body = response.json()
     assert body["amount_minor"] == 20_000
@@ -128,13 +124,29 @@ def test_preview_split_does_not_persist(client, categories, members, db):
 
 def test_filters_narrow_the_list(client, categories, members):
     anna, ben = members
-    _create(client, categories, amount_minor=5000, description="Migros",
-            split={"template": "SINGLE", "member_id": anna.id})
-    _create(client, categories, amount_minor=7000, description="Coop", date="2026-04-02",
-            split={"template": "SINGLE", "member_id": ben.id})
-    _create(client, categories, amount_minor=900_000, description="Lohn Maerz",
-            category_id=categories["Lohn"].id, split={"template": "SINGLE",
-                                                      "member_id": anna.id})
+    _create(
+        client,
+        categories,
+        amount_minor=5000,
+        description="Migros",
+        split={"template": "SINGLE", "member_id": anna.id},
+    )
+    _create(
+        client,
+        categories,
+        amount_minor=7000,
+        description="Coop",
+        date="2026-04-02",
+        split={"template": "SINGLE", "member_id": ben.id},
+    )
+    _create(
+        client,
+        categories,
+        amount_minor=900_000,
+        description="Lohn Maerz",
+        category_id=categories["Lohn"].id,
+        split={"template": "SINGLE", "member_id": anna.id},
+    )
 
     assert client.get("/api/transactions").json()["total"] == 3
     assert client.get("/api/transactions?q=coop").json()["total"] == 1
@@ -149,10 +161,16 @@ def test_filters_narrow_the_list(client, categories, members):
 
 def test_list_sums_are_signed_by_flow_not_by_storage(client, categories, members):
     anna, _ = members
-    _create(client, categories, amount_minor=2000,
-            split={"template": "SINGLE", "member_id": anna.id})
-    _create(client, categories, amount_minor=500_000, category_id=categories["Lohn"].id,
-            split={"template": "SINGLE", "member_id": anna.id})
+    _create(
+        client, categories, amount_minor=2000, split={"template": "SINGLE", "member_id": anna.id}
+    )
+    _create(
+        client,
+        categories,
+        amount_minor=500_000,
+        category_id=categories["Lohn"].id,
+        split={"template": "SINGLE", "member_id": anna.id},
+    )
     page = client.get("/api/transactions").json()
     assert page["sum_income_minor"] == 500_000
     assert page["sum_expense_minor"] == 2000

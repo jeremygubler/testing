@@ -54,7 +54,8 @@ export function parseAmountInput(input: string): number | null {
   if (!raw) return null;
 
   const cleaned = raw
-    .replace(/['’\s ]/g, "")
+    // Geschütztes und schmales geschütztes Leerzeichen kommen als Tausendertrenner vor.
+    .replace(/['’\s\u00A0\u202F]/g, "")
     .replace(/(CHF|EUR|€|\$)/gi, "")
     .replace(/\.-$/, "");
 

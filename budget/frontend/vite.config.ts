@@ -7,6 +7,18 @@ export default defineConfig({
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Recharts und React aendern sich selten -- als eigene Dateien bleiben sie
+        // ueber Versionen hinweg im Browser-Cache stehen.
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          charts: ["recharts"],
+        },
+      },
+    },
+  },
   server: {
     host: true,
     port: 5173,

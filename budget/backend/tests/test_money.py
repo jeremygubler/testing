@@ -28,9 +28,7 @@ def test_allocate_known_cases(total, weights, expected):
 def test_allocate_never_loses_money():
     for total in range(-250, 250):
         for count in range(1, 7):
-            for weights in itertools.islice(
-                itertools.product([1, 2, 3, 5], repeat=count), 40
-            ):
+            for weights in itertools.islice(itertools.product([1, 2, 3, 5], repeat=count), 40):
                 parts = allocate(total, list(weights))
                 assert sum(parts) == total, (total, weights, parts)
                 assert len(parts) == count

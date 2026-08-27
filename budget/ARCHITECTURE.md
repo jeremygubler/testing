@@ -389,6 +389,31 @@ Jede Ansicht hat drei mögliche Zustände, und alle drei sind gestaltet:
 Zusätzlich gibt es einen vierten Zustand vor allen anderen: **keine Installation**. Liefert
 `GET /api/household` ein 404, zeigt `HouseholdGate` die Erstinbetriebnahme statt der App.
 
+## Werkzeuge
+
+* **Ruff** ersetzt im Backend Flake8, isort und Black in einem Werkzeug (`ruff.toml`).
+  Die Regeln `RUF001–003` sind aus: deutsche Kommentare enthalten Umlaute, und die als
+  „ambiguous unicode" zu melden ist hier keine Verwechslungsgefahr, sondern Sprache.
+* **ESLint** ist im Frontend vor allem wegen der React-Hook-Regeln da — der TypeScript-
+  Compiler fängt ungenutzte Variablen und Typfehler bereits. Warnungen lässt CI nicht
+  durch (`--max-warnings 0`), damit sich keine ansammeln.
+
+Die Regel `react-hooks/set-state-in-effect` hat einen echten Missstand aufgedeckt:
+mehrere Dialoge setzten ihren Zustand in einem Effekt aus Props zurück. Das ist jetzt
+anders gelöst — der Dialoginhalt wird nur gerendert, solange er offen ist, und trägt
+einen `key` aus dem bearbeiteten Objekt. Dadurch startet das Formular bei jedem Öffnen
+frisch, ohne Effekt und ohne den Zwischenzustand mit alten Werten. Wo ein Zustand
+tatsächlich einer Prop folgen muss, geschieht das während des Renderns über einen
+Vergleich mit dem letzten Wert.
+
+### Auslieferung
+
+Die Seiten werden per Route nachgeladen (`React.lazy`). Erfassen ist der häufigste Weg
+in die App und bleibt im Einstiegs-Bundle; die Diagrammbibliothek wiegt allein mehr als
+der ganze Rest und hat auf dem Handy nichts im ersten Ladevorgang zu suchen. React und
+Recharts liegen als eigene Dateien vor, damit sie über Versionen hinweg im Browser-Cache
+bleiben.
+
 ## Mehrbenutzer-Fähigkeit
 
 Version 1 kennt genau einen Haushalt (`BUDGET_SINGLE_HOUSEHOLD_ID = 1`) und keine
