@@ -438,3 +438,130 @@ class ConfirmBatch(BaseModel):
 class SkipOccurrence(BaseModel):
     rule_id: int
     due_date: dt.date
+
+
+# ------------------------------------------------------------------- SavingsGoal
+
+
+class SavingsGoalBase(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    target_amount_minor: int = Field(gt=0)
+    target_date: dt.date | None = None
+    category_id: int
+    start_date: dt.date | None = None
+
+
+class SavingsGoalCreate(SavingsGoalBase):
+    pass
+
+
+class SavingsGoalUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    target_amount_minor: int | None = Field(default=None, gt=0)
+    target_date: dt.date | None = None
+    category_id: int | None = None
+    start_date: dt.date | None = None
+    is_active: bool | None = None
+
+
+class SavingsGoalRead(BaseModel):
+    id: int
+    name: str
+    target_amount_minor: int
+    target_date: dt.date | None
+    category_id: int
+    category_name: str
+    category_color: str
+    start_date: dt.date | None
+    is_active: bool
+    saved_minor: int
+    remaining_minor: int
+    progress: float | None
+    #: Was ab jetzt monatlich noetig waere, um das Ziel puenktlich zu erreichen.
+    monthly_needed_minor: int | None
+    months_left: int | None
+
+
+# ----------------------------------------------------------------- CalendarEntry
+
+
+class CalendarEntryBase(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    date: dt.date
+    member_id: int | None = None
+    note: str | None = None
+
+
+class CalendarEntryCreate(CalendarEntryBase):
+    pass
+
+
+class CalendarEntryUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    date: dt.date | None = None
+    member_id: int | None = None
+    note: str | None = None
+
+
+class CalendarEntryRead(ApiModel):
+    id: int
+    title: str
+    date: dt.date
+    member_id: int | None
+    note: str | None
+
+
+# ------------------------------------------------------------------ Import/Export
+
+
+class ImportRow(BaseModel):
+    """Eine Zeile aus der CSV, bereits den Spalten zugeordnet."""
+
+    row_number: int
+    date: str
+    amount: str
+    description: str = ""
+    note: str | None = None
+    category: str | None = None
+    member: str | None = None
+
+
+class ImportRequest(BaseModel):
+    rows: list[ImportRow]
+    #: Kategorie fuer Zeilen ohne erkennbare Kategorie.
+    fallback_category_id: int | None = None
+    #: Aufteilung fuer Zeilen ohne erkennbare Person.
+    fallback_split: SplitSpec = SplitSpec()
+    #: Vorzeichen der CSV behalten? Standard: nein -- die Richtung steckt in der
+    #: Kategorie, Bankauszuege schreiben Ausgaben nur konventionell negativ.
+    keep_sign: bool = False
+
+
+class ImportRowPreview(BaseModel):
+    row_number: int
+    date: dt.date | None
+    amount_minor: int | None
+    description: str
+    category_id: int | None
+    category_name: str | None
+    member_id: int | None
+    is_duplicate: bool
+    duplicate_transaction_id: int | None
+    error: str | None
+
+    @property
+    def importable(self) -> bool:
+        return self.error is None
+
+
+class ImportPreview(BaseModel):
+    rows: list[ImportRowPreview]
+    total: int
+    importable: int
+    duplicates: int
+    errors: int
+
+
+class ImportResult(BaseModel):
+    created: int
+    skipped: int

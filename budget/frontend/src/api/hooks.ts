@@ -4,13 +4,20 @@ import { api, buildQuery } from "./client";
 import type {
   Budget,
   BudgetUpsert,
+  CalendarEntry,
+  CalendarEntryInput,
   Category,
   ConfirmOccurrence,
   Household,
   MonthSummary,
   Occurrence,
+  ImportPreview,
+  ImportRequest,
+  ImportResult,
   RecurringRule,
   RecurringRuleInput,
+  SavingsGoal,
+  SavingsGoalInput,
   Settlement,
   TrendPoint,
   Member,
@@ -292,5 +299,94 @@ export function useSkipOccurrence() {
     mutationFn: (input: { rule_id: number; due_date: string }) =>
       api.post<void>("/recurring/occurrences/skip", input),
     onSuccess: () => invalidateRecurringViews(client),
+  });
+}
+
+// ------------------------------------------------------------------- Sparziele
+
+export function useSavingsGoals() {
+  return useQuery({
+    queryKey: ["savings", "goals"],
+    queryFn: () => api.get<SavingsGoal[]>("/savings-goals"),
+  });
+}
+
+function invalidateSavings(client: ReturnType<typeof useQueryClient>) {
+  void client.invalidateQueries({ queryKey: ["savings"] });
+}
+
+export function useCreateSavingsGoal() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SavingsGoalInput) => api.post<SavingsGoal>("/savings-goals", input),
+    onSuccess: () => invalidateSavings(client),
+  });
+}
+
+export function useUpdateSavingsGoal() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: Partial<SavingsGoalInput> & { is_active?: boolean } }) =>
+      api.patch<SavingsGoal>(`/savings-goals/${id}`, patch),
+    onSuccess: () => invalidateSavings(client),
+  });
+}
+
+export function useDeleteSavingsGoal() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/savings-goals/${id}`),
+    onSuccess: () => invalidateSavings(client),
+  });
+}
+
+// -------------------------------------------------------------------- Kalender
+
+export function useCalendarEntries(dateFrom: string, dateTo: string) {
+  return useQuery({
+    queryKey: ["calendar", dateFrom, dateTo],
+    queryFn: () =>
+      api.get<CalendarEntry[]>(`/calendar${buildQuery({ date_from: dateFrom, date_to: dateTo })}`),
+  });
+}
+
+function invalidateCalendar(client: ReturnType<typeof useQueryClient>) {
+  void client.invalidateQueries({ queryKey: ["calendar"] });
+}
+
+export function useCreateCalendarEntry() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CalendarEntryInput) => api.post<CalendarEntry>("/calendar", input),
+    onSuccess: () => invalidateCalendar(client),
+  });
+}
+
+export function useDeleteCalendarEntry() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/calendar/${id}`),
+    onSuccess: () => invalidateCalendar(client),
+  });
+}
+
+// --------------------------------------------------------------- Import/Export
+
+export function usePreviewImport() {
+  return useMutation({
+    mutationFn: (input: ImportRequest) => api.post<ImportPreview>("/io/import/preview", input),
+  });
+}
+
+export function useCommitImport() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ input, skipDuplicates }: { input: ImportRequest; skipDuplicates: boolean }) =>
+      api.post<ImportResult>(`/io/import${buildQuery({ skip_duplicates: skipDuplicates })}`, input),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["transactions"] });
+      void client.invalidateQueries({ queryKey: ["analytics"] });
+      void client.invalidateQueries({ queryKey: ["savings"] });
+    },
   });
 }

@@ -256,3 +256,86 @@ export interface RecurringRuleInput {
   note?: string | null;
   split: SplitSpec;
 }
+
+export interface SavingsGoal {
+  id: number;
+  name: string;
+  target_amount_minor: number;
+  target_date: string | null;
+  category_id: number;
+  category_name: string;
+  category_color: string;
+  start_date: string | null;
+  is_active: boolean;
+  saved_minor: number;
+  remaining_minor: number;
+  progress: number | null;
+  monthly_needed_minor: number | null;
+  months_left: number | null;
+}
+
+export interface SavingsGoalInput {
+  name: string;
+  target_amount_minor: number;
+  target_date?: string | null;
+  category_id: number;
+  start_date?: string | null;
+}
+
+export interface CalendarEntry {
+  id: number;
+  title: string;
+  date: string;
+  member_id: number | null;
+  note: string | null;
+}
+
+export interface CalendarEntryInput {
+  title: string;
+  date: string;
+  member_id?: number | null;
+  note?: string | null;
+}
+
+export interface ImportRow {
+  row_number: number;
+  date: string;
+  amount: string;
+  description?: string;
+  note?: string | null;
+  category?: string | null;
+  member?: string | null;
+}
+
+export interface ImportRequest {
+  rows: ImportRow[];
+  fallback_category_id?: number | null;
+  fallback_split?: SplitSpec;
+  keep_sign?: boolean;
+}
+
+export interface ImportRowPreview {
+  row_number: number;
+  date: string | null;
+  amount_minor: number | null;
+  description: string;
+  category_id: number | null;
+  category_name: string | null;
+  member_id: number | null;
+  is_duplicate: boolean;
+  duplicate_transaction_id: number | null;
+  error: string | null;
+}
+
+export interface ImportPreview {
+  rows: ImportRowPreview[];
+  total: number;
+  importable: number;
+  duplicates: number;
+  errors: number;
+}
+
+export interface ImportResult {
+  created: number;
+  skipped: number;
+}

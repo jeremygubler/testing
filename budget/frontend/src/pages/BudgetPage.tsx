@@ -16,8 +16,10 @@ import { Money } from "@/components/Money";
 import { useHouseholdContext } from "@/components/HouseholdProvider";
 import { BudgetAmountInput } from "@/components/budget/BudgetAmountInput";
 import { CategoryDialog } from "@/components/budget/CategoryDialog";
+import { SavingsGoals } from "@/components/budget/SavingsGoals";
 import { UsageBar } from "@/components/budget/UsageBar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
@@ -175,6 +177,15 @@ export function BudgetPage() {
           </Table>
         )}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sparziele</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SavingsGoals />
+        </CardContent>
+      </Card>
 
       <CategoryDialog open={dialogOpen} onOpenChange={setDialogOpen} category={editing} />
     </div>

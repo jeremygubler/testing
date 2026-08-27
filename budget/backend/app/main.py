@@ -9,10 +9,13 @@ from app.config import get_settings
 from app.routers import (
     analytics,
     budgets,
+    calendar,
     categories,
     households,
+    io,
     members,
     recurring,
+    savings,
     transactions,
 )
 from app.services.splits import SplitError
@@ -64,3 +67,6 @@ app.include_router(transactions.router)
 app.include_router(budgets.router)
 app.include_router(analytics.router)
 app.include_router(recurring.router)
+app.include_router(savings.router)
+app.include_router(calendar.router)
+app.include_router(io.router)

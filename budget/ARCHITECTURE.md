@@ -219,6 +219,34 @@ eine Entscheidung und kein Versäumnis.
 `monthly_estimate` ist ein Zwölftel davon, kaufmännisch gerundet. Das ist eine Schätzung
 und wird nirgends verbucht.
 
+## Import und Export
+
+**CSV-Export** (`/api/io/export/transactions.csv`): Semikolon-getrennt, mit BOM, damit
+Excel Umlaute richtig liest. Beträge als Dezimalzahl mit Punkt, die Aufteilung als
+`Person=Betrag` je Person.
+
+**JSON-Backup** (`/api/io/export/household.json`): der vollständige Haushalt inklusive
+Splits, Regeln, Sparzielen und Terminen — aber ohne abgeleitete Werte (kein
+`txn.amount_minor`, keine Kennzahlen). Was sich berechnen lässt, gehört nicht ins Backup.
+
+**CSV-Import** läuft in zwei Schritten und schreibt erst im zweiten:
+
+1. Die Datei wird **im Browser** gelesen (`lib/csv.ts`: Trennzeichenerkennung, Quoting,
+   eingebettete Zeilenumbrüche) und die Spaltenzuordnung geraten. Der Nutzer korrigiert sie.
+2. `POST /api/io/import/preview` liefert für jede Zeile den Zustand: gelesenes Datum,
+   Betrag, aufgelöste Kategorie, Dublette ja/nein, Fehlertext. Nichts wird geschrieben.
+3. `POST /api/io/import` übernimmt die fehlerfreien Zeilen.
+
+Fehlerhafte Zeilen werden **gemeldet, nicht stillschweigend übersprungen**.
+
+*Dublettenerkennung* über Datum, Betrag und Beschreibung (ohne Beachtung der
+Gross-/Kleinschreibung), sowohl gegen den Bestand als auch innerhalb derselben Datei.
+
+*Vorzeichen*: Bankauszüge schreiben Ausgaben negativ, im Datenmodell steckt die Richtung
+aber in der Kategorie. Standardmässig wird das Vorzeichen deshalb verworfen (`-89.00` auf
+einer Ausgabenkategorie wird zu einer Ausgabe von 89.00). Wer Rückerstattungen als negative
+Beträge importieren will, schaltet „Vorzeichen behalten" ein.
+
 ## Schichten
 
 ```
