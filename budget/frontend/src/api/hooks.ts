@@ -27,6 +27,8 @@ import type {
   SavingsGoal,
   SavingsGoalInput,
   Settlement,
+  SettlementPayment,
+  SettlementPaymentInput,
   TrendPoint,
   Member,
   SplitLine,
@@ -513,5 +515,37 @@ export function useYearSummary(year: number) {
     queryKey: ["analytics", "year", year],
     queryFn: () => api.get<YearSummary>(`/analytics/year${buildQuery({ year })}`),
     placeholderData: (previous) => previous,
+  });
+}
+
+// --------------------------------------------------------------------- Ausgleich
+
+function invalidateSettlement(client: ReturnType<typeof useQueryClient>) {
+  void client.invalidateQueries({ queryKey: ["analytics"] });
+  void client.invalidateQueries({ queryKey: ["settlements"] });
+}
+
+export function useSettlementPayments(year?: number, month?: number, months = 1) {
+  return useQuery({
+    queryKey: ["settlements", year ?? null, month ?? null, months],
+    queryFn: () =>
+      api.get<SettlementPayment[]>(`/settlements${buildQuery({ year, month, months })}`),
+  });
+}
+
+export function useRecordSettlement() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SettlementPaymentInput) =>
+      api.post<SettlementPayment>("/settlements", input),
+    onSuccess: () => invalidateSettlement(client),
+  });
+}
+
+export function useDeleteSettlement() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/settlements/${id}`),
+    onSuccess: () => invalidateSettlement(client),
   });
 }

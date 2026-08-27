@@ -173,9 +173,33 @@ def test_restore_reports_what_it_wrote(filled):
     assert restored["recurring_rules"] == 1
     assert restored["savings_goals"] == 1
     assert restored["calendar_entries"] == 1
+    assert restored["settlement_payments"] == 0
 
 
 # -------------------------------------------------------------------------- Reset
+
+
+def test_reset_transactions_also_clears_settlements(filled, members):
+    """Ausgleichszahlungen gleichen konkrete Ausgaben aus. Ohne diese Ausgaben
+    stuenden sie als unbegruendete Guthaben da."""
+    client = filled
+    anna, ben = members
+    client.post(
+        "/api/settlements",
+        json={
+            "from_member_id": ben.id,
+            "to_member_id": anna.id,
+            "amount_minor": 1000,
+            "date": "2026-03-20",
+            "period_year": 2026,
+            "period_month": 3,
+        },
+    )
+    assert len(client.get("/api/settlements").json()) == 1
+
+    client.post("/api/io/reset", json={"scope": "TRANSACTIONS", "confirm": "LOESCHEN"})
+    assert client.get("/api/settlements").json() == []
+    assert len(client.get("/api/members").json()) == 2
 
 
 def test_reset_transactions_keeps_the_master_data(filled):
@@ -214,3 +238,18 @@ def test_reset_accepts_the_word_in_any_writing(filled, confirm):
     assert client.post(
         "/api/io/reset", json={"scope": "TRANSACTIONS", "confirm": confirm}
     ).status_code == 200
+
+
+def test_version_1_backups_without_settlements_still_restore(filled):
+    """Ein Backup von vor der Ausgleichs-Tabelle muss weiter einspielbar sein."""
+    client = filled
+    backup = client.get("/api/io/export/household.json").json()
+    assert backup["version"] == 2
+
+    old = {key: value for key, value in backup.items() if key != "settlement_payments"}
+    old["version"] = 1
+
+    response = client.post("/api/io/restore", json={"backup": old, "confirm_replace": True})
+    assert response.status_code == 200
+    assert response.json()["restored"]["settlement_payments"] == 0
+    assert client.get("/api/transactions?limit=1000").json()["total"] == 2

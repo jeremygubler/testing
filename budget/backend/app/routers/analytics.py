@@ -12,6 +12,7 @@ from app.schemas import (
     MemberFigureRead,
     MonthSummaryRead,
     PaymentRead,
+    SettlementPaymentRead,
     SettlementRead,
     TrendPointRead,
     YearSummaryRead,
@@ -96,6 +97,8 @@ def settlement(
                 member_id=balance.member_id,
                 borne_minor=balance.borne_minor,
                 share_minor=balance.share_minor,
+                settled_minor=balance.settled_minor,
+                gross_balance_minor=balance.gross_balance_minor,
                 balance_minor=balance.balance_minor,
             )
             for balance in result.balances
@@ -108,6 +111,7 @@ def settlement(
             )
             for payment in result.payments
         ],
+        recorded=[SettlementPaymentRead.model_validate(row) for row in result.recorded],
     )
 
 

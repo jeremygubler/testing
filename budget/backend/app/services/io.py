@@ -25,6 +25,7 @@ from app.models import (
     RecurringRuleSplit,
     RecurringSkip,
     SavingsGoal,
+    SettlementPayment,
     Transaction,
     TransactionSplit,
 )
@@ -57,6 +58,10 @@ def normalize(text: str | None) -> str:
 
 
 # ----------------------------------------------------------------------- Export
+
+#: Version 2 fuehrt settlement_payments. Version 1 bleibt lesbar.
+BACKUP_VERSION = 2
+SUPPORTED_BACKUP_VERSIONS = (1, 2)
 
 TRANSACTION_CSV_HEADER = [
     "datum",
@@ -110,7 +115,11 @@ def transactions_csv(db: Session, household: Household) -> str:
 
 def household_json(db: Session, household: Household) -> dict[str, Any]:
     """Vollstaendiges Backup. Enthaelt alles, was noetig ist, um den Haushalt
-    wiederherzustellen -- inklusive der Splits, aber ohne abgeleitete Werte."""
+    wiederherzustellen -- inklusive der Splits, aber ohne abgeleitete Werte.
+
+    Version 2 fuehrt ``settlement_payments``. Aeltere Backups (Version 1) lassen sich
+    weiterhin einspielen; sie haben schlicht keine Ausgleichszahlungen.
+    """
 
     def rows(model, order):
         return db.scalars(
@@ -119,7 +128,7 @@ def household_json(db: Session, household: Household) -> dict[str, Any]:
 
     return {
         "format": "haushaltsbudget-backup",
-        "version": 1,
+        "version": BACKUP_VERSION,
         "exported_at": dt.datetime.now().isoformat(timespec="seconds"),
         "household": {
             "name": household.name,
@@ -225,6 +234,19 @@ def household_json(db: Session, household: Household) -> dict[str, Any]:
             }
             for g in rows(SavingsGoal, SavingsGoal.id)
         ],
+        "settlement_payments": [
+            {
+                "id": p.id,
+                "from_member_id": p.from_member_id,
+                "to_member_id": p.to_member_id,
+                "amount_minor": p.amount_minor,
+                "date": p.date.isoformat(),
+                "period_year": p.period_year,
+                "period_month": p.period_month,
+                "note": p.note,
+            }
+            for p in rows(SettlementPayment, SettlementPayment.date)
+        ],
         "calendar_entries": [
             {
                 "id": e.id,
@@ -290,6 +312,7 @@ def parse_amount_cell(text: str, keep_sign: bool) -> tuple[int | None, str | Non
 _DELETE_ORDER = (
     "txn_split",
     "txn",
+    "settlement_payment",
     "recurring_skip",
     "recurring_rule_split",
     "recurring_rule",
@@ -309,9 +332,11 @@ def wipe(db: Session, household_id: int, keep_master_data: bool = False) -> dict
     """Leert den Haushalt. Gibt zurueck, wie viele Zeilen je Tabelle entfernt wurden.
 
     ``keep_master_data=True`` behaelt Personen, Kategorien, Budgets, Regeln, Sparziele
-    und Termine -- geloescht werden dann nur die Buchungen.
+    und Termine -- geloescht werden dann die Buchungen samt der Ausgleichszahlungen.
+    Letztere gleichen konkrete Ausgaben aus; ohne diese Ausgaben stuenden sie als
+    unbegruendete Guthaben da.
     """
-    tables = ("txn_split", "txn") if keep_master_data else _DELETE_ORDER
+    tables = ("txn_split", "txn", "settlement_payment") if keep_master_data else _DELETE_ORDER
     removed: dict[str, int] = {}
 
     # Alles, was am Haushalt haengt, ueber die jeweilige Verbindung einsammeln.
@@ -319,6 +344,7 @@ def wipe(db: Session, household_id: int, keep_master_data: bool = False) -> dict
         "txn_split": "DELETE FROM txn_split WHERE txn_id IN"
         " (SELECT id FROM txn WHERE household_id = :hid)",
         "txn": "DELETE FROM txn WHERE household_id = :hid",
+        "settlement_payment": "DELETE FROM settlement_payment WHERE household_id = :hid",
         "recurring_skip": "DELETE FROM recurring_skip WHERE rule_id IN"
         " (SELECT id FROM recurring_rule WHERE household_id = :hid)",
         "recurring_rule_split": "DELETE FROM recurring_rule_split WHERE rule_id IN"
@@ -358,8 +384,11 @@ def restore_household(db: Session, household: Household, payload: dict) -> dict[
             "Das ist kein Backup dieser Anwendung (Feld 'format' fehlt oder passt nicht)."
         )
     version = payload.get("version")
-    if version != 1:
-        raise RestoreError(f"Unbekannte Backup-Version: {version!r}.")
+    if version not in SUPPORTED_BACKUP_VERSIONS:
+        raise RestoreError(
+            f"Unbekannte Backup-Version: {version!r}. "
+            f"Lesbar sind {', '.join(str(v) for v in SUPPORTED_BACKUP_VERSIONS)}."
+        )
 
     head = payload.get("household")
     if not isinstance(head, dict):
@@ -476,6 +505,22 @@ def restore_household(db: Session, household: Household, payload: dict) -> dict[
             )
         )
     counts["savings_goals"] = len(_require(payload, "savings_goals"))
+
+    for row in _require(payload, "settlement_payments"):
+        db.add(
+            SettlementPayment(
+                id=row["id"],
+                household_id=household.id,
+                from_member_id=row["from_member_id"],
+                to_member_id=row["to_member_id"],
+                amount_minor=int(row["amount_minor"]),
+                date=dt.date.fromisoformat(row["date"]),
+                period_year=row.get("period_year"),
+                period_month=row.get("period_month"),
+                note=row.get("note"),
+            )
+        )
+    counts["settlement_payments"] = len(_require(payload, "settlement_payments"))
 
     for row in _require(payload, "calendar_entries"):
         db.add(

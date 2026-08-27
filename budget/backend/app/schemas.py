@@ -317,6 +317,11 @@ class MemberBalanceRead(BaseModel):
     member_id: int
     borne_minor: int
     share_minor: int
+    #: Netto bereits ausgeglichen: erhaltene minus geleistete Zahlungen.
+    settled_minor: int
+    #: Saldo vor Beruecksichtigung der Zahlungen.
+    gross_balance_minor: int
+    #: Was noch offen ist.
     balance_minor: int
 
 
@@ -326,11 +331,45 @@ class PaymentRead(BaseModel):
     amount_minor: int
 
 
+class SettlementPaymentRead(ApiModel):
+    id: int
+    from_member_id: int
+    to_member_id: int
+    amount_minor: int
+    date: dt.date
+    period_year: int | None
+    period_month: int | None
+    note: str | None
+
+
+class SettlementPaymentCreate(BaseModel):
+    """Haelt eine tatsaechlich geleistete Ausgleichszahlung fest."""
+
+    from_member_id: int
+    to_member_id: int
+    amount_minor: int = Field(gt=0)
+    date: dt.date
+    #: Welche Periode die Zahlung ausgleicht -- getrennt vom Zahlungsdatum, weil man
+    #: die Januar-Schuld typischerweise im Februar begleicht.
+    period_year: int = Field(ge=1900, le=2200)
+    period_month: int = Field(ge=1, le=12)
+    note: str | None = None
+
+    @model_validator(mode="after")
+    def _distinct(self) -> SettlementPaymentCreate:
+        if self.from_member_id == self.to_member_id:
+            raise ValueError("Eine Person kann nicht an sich selbst zahlen.")
+        return self
+
+
 class SettlementRead(BaseModel):
     basis: SettlementBasis
     total_expense_minor: int
     balances: list[MemberBalanceRead]
+    #: Empfehlungen fuer das, was noch offen ist.
     payments: list[PaymentRead]
+    #: Bereits festgehaltene Zahlungen der Periode.
+    recorded: list[SettlementPaymentRead]
 
 
 class TrendPointRead(BaseModel):

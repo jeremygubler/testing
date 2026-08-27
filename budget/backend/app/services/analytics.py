@@ -20,6 +20,7 @@ from app.models import (
     Household,
     Member,
     RecurringRule,
+    SettlementPayment,
     Transaction,
     TransactionSplit,
 )
@@ -269,7 +270,10 @@ class SettlementResult:
     basis: SettlementBasis
     total_expense_minor: int
     balances: list[MemberBalance]
+    #: Empfehlungen fuer das, was noch offen ist.
     payments: list[Payment]
+    #: Bereits festgehaltene Zahlungen der Periode.
+    recorded: list[SettlementPayment]
 
 
 def settlement_for_period(
@@ -320,12 +324,36 @@ def settlement_for_period(
     else:
         weights = {member.id: member.share_weight for member in members}
 
-    balances = compute_balances(borne, weights)
+    # Bereits geleistete Ausgleichszahlungen der Periode. Wer erhalten hat, ist
+    # entschaedigt; wer gezahlt hat, hat getilgt.
+    recorded = list(
+        db.scalars(
+            select(SettlementPayment)
+            .where(
+                SettlementPayment.household_id == household.id,
+                SettlementPayment.period_year.is_not(None),
+                (SettlementPayment.period_year * 12 + SettlementPayment.period_month)
+                >= (start.year * 12 + start.month),
+                (SettlementPayment.period_year * 12 + SettlementPayment.period_month)
+                <= (end.year * 12 + end.month),
+            )
+            .order_by(SettlementPayment.date, SettlementPayment.id)
+        )
+    )
+    settled: dict[int, int] = {}
+    for payment in recorded:
+        settled[payment.to_member_id] = settled.get(payment.to_member_id, 0) + payment.amount_minor
+        settled[payment.from_member_id] = (
+            settled.get(payment.from_member_id, 0) - payment.amount_minor
+        )
+
+    balances = compute_balances(borne, weights, settled)
     return SettlementResult(
         basis=household.settlement_basis,
         total_expense_minor=sum(borne.values()),
         balances=balances,
         payments=settle(balances),
+        recorded=recorded,
     )
 
 

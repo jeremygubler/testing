@@ -320,3 +320,50 @@ class CalendarEntry(Base):
         ForeignKey("member.id", ondelete="SET NULL"), nullable=True
     )
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class SettlementPayment(Base):
+    """Eine tatsaechlich getaetigte Ausgleichszahlung zwischen zwei Personen.
+
+    Ohne diese Tabelle war der Ausgleich nur eine Anzeige: die App rechnete jeden
+    Monat neu aus, wer wem was schuldet, aber eine geleistete Ueberweisung liess sich
+    nirgends festhalten. Der Folgemonat begann wieder bei null, und offene Betraege
+    verschwanden lautlos.
+    """
+
+    __tablename__ = "settlement_payment"
+    __table_args__ = (
+        CheckConstraint("amount_minor > 0", name="ck_settlement_amount_positive"),
+        CheckConstraint("from_member_id <> to_member_id", name="ck_settlement_distinct_members"),
+        CheckConstraint(
+            "(period_year IS NULL AND period_month IS NULL)"
+            " OR (period_year IS NOT NULL AND period_month IS NOT NULL)",
+            name="ck_settlement_period_shape",
+        ),
+        CheckConstraint(
+            "period_month IS NULL OR (period_month BETWEEN 1 AND 12)",
+            name="ck_settlement_period_month_range",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    household_id: Mapped[int] = mapped_column(
+        ForeignKey("household.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    from_member_id: Mapped[int] = mapped_column(
+        ForeignKey("member.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    to_member_id: Mapped[int] = mapped_column(
+        ForeignKey("member.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    #: Wann die Zahlung geflossen ist.
+    date: Mapped[dt.date] = mapped_column(Date, nullable=False, index=True)
+    #: Welche Periode sie ausgleicht. Getrennt vom Zahlungsdatum, weil man die
+    #: Januar-Schuld typischerweise im Februar begleicht.
+    period_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    period_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.current_timestamp()
+    )

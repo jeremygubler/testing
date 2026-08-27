@@ -189,7 +189,33 @@ export interface MemberBalance {
   member_id: number;
   borne_minor: number;
   share_minor: number;
+  /** Netto bereits ausgeglichen: erhaltene minus geleistete Zahlungen. */
+  settled_minor: number;
+  /** Saldo vor Berücksichtigung der Zahlungen. */
+  gross_balance_minor: number;
+  /** Was noch offen ist. */
   balance_minor: number;
+}
+
+export interface SettlementPayment {
+  id: number;
+  from_member_id: number;
+  to_member_id: number;
+  amount_minor: number;
+  date: string;
+  period_year: number | null;
+  period_month: number | null;
+  note: string | null;
+}
+
+export interface SettlementPaymentInput {
+  from_member_id: number;
+  to_member_id: number;
+  amount_minor: number;
+  date: string;
+  period_year: number;
+  period_month: number;
+  note?: string | null;
 }
 
 export interface Payment {
@@ -202,7 +228,10 @@ export interface Settlement {
   basis: SettlementBasis;
   total_expense_minor: number;
   balances: MemberBalance[];
+  /** Empfehlungen für das, was noch offen ist. */
   payments: Payment[];
+  /** Bereits festgehaltene Zahlungen der Periode. */
+  recorded: SettlementPayment[];
 }
 
 export interface TrendPoint {

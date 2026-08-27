@@ -133,7 +133,13 @@ export function OverviewPage() {
             <CardTitle>Personen</CardTitle>
           </CardHeader>
           <CardContent>
-            <MemberBreakdown members={members} figures={summary.members} settlement={settlement} />
+            <MemberBreakdown
+              members={members}
+              figures={summary.members}
+              settlement={settlement}
+              year={month.year}
+              month={month.month}
+            />
           </CardContent>
         </Card>
 

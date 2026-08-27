@@ -18,11 +18,22 @@ class MemberBalance:
     """Was diese Person tatsaechlich getragen hat."""
     share_minor: int
     """Was sie nach Schluessel haette tragen sollen."""
+    settled_minor: int = 0
+    """Netto bereits ausgeglichen: erhaltene minus geleistete Ausgleichszahlungen.
+
+    Wer Geld erhalten hat, ist um diesen Betrag entschaedigt; wer gezahlt hat, hat
+    seine Schuld um diesen Betrag getilgt.
+    """
+
+    @property
+    def gross_balance_minor(self) -> int:
+        """Vor Beruecksichtigung geleisteter Zahlungen."""
+        return self.borne_minor - self.share_minor
 
     @property
     def balance_minor(self) -> int:
-        """Positiv = hat vorgelegt und bekommt zurueck. Negativ = schuldet."""
-        return self.borne_minor - self.share_minor
+        """Was noch offen ist. Positiv = bekommt zurueck. Negativ = schuldet."""
+        return self.gross_balance_minor - self.settled_minor
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,18 +46,23 @@ class Payment:
 def compute_balances(
     borne: dict[int, int],
     weights: dict[int, int],
+    settled: dict[int, int] | None = None,
 ) -> list[MemberBalance]:
     """Verteilt die Gesamtausgaben gewichtet und stellt sie dem Getragenen gegenueber.
 
     ``borne``   Person -> tatsaechlich getragene Ausgaben (Minoreinheiten)
     ``weights`` Person -> Gewicht des fairen Anteils (Schluessel oder Einkommensanteil)
+    ``settled`` Person -> netto bereits erhaltene Ausgleichszahlungen (negativ: geleistet)
 
     Alle Personen aus ``weights`` erscheinen im Ergebnis, auch wenn sie nichts getragen
     haben. Personen, die nur in ``borne`` vorkommen (z. B. inzwischen deaktiviert, aber mit
     Buchungen in der Periode), bekommen Gewicht 0 -- ihr Beitrag zaehlt, aber sie tragen
     keinen Soll-Anteil mehr.
     """
-    member_ids = list(weights.keys()) + [m for m in borne if m not in weights]
+    settled = settled or {}
+    member_ids = list(weights.keys()) + [
+        m for m in {**borne, **settled} if m not in weights
+    ]
     if not member_ids:
         return []
 
@@ -65,6 +81,7 @@ def compute_balances(
             member_id=member_id,
             borne_minor=borne.get(member_id, 0),
             share_minor=share,
+            settled_minor=settled.get(member_id, 0),
         )
         for member_id, share in zip(member_ids, shares, strict=True)
     ]

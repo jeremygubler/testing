@@ -154,6 +154,23 @@ gespeichert.
 ### CalendarEntry
 `title`, `date`, `member_id` (optional), `note`. Kein Geldbezug.
 
+### SettlementPayment
+`from_member_id`, `to_member_id`, `amount_minor`, `date`, `period_year`, `period_month`,
+`note`.
+
+Eine tatsächlich geleistete Ausgleichszahlung. Ohne diese Tabelle war der Ausgleich nur
+eine Anzeige: die App rechnete jeden Monat neu aus, wer wem was schuldet, aber eine
+geleistete Überweisung liess sich nirgends festhalten — der Folgemonat begann wieder bei
+null und offene Beträge verschwanden lautlos.
+
+`date` und `period_*` sind bewusst getrennt: die Januar-Schuld begleicht man typischerweise
+im Februar.
+
+**Eine Ausgleichszahlung ist keine Buchung.** Sie verschiebt Geld zwischen Personen, ändert
+aber weder Einnahmen noch Ausgaben des Haushalts und damit auch nicht den Kontostand.
+Deshalb liegt sie in einer eigenen Tabelle und nicht in `txn` — eine Buchung daraus zu
+machen würde die Ausgaben des Monats doppelt zählen.
+
 ## Berechnungslogik
 
 ### Aufteilung (`services/splits.py`)
@@ -236,10 +253,18 @@ sind der zuverlässigste Weg, jemanden zu täuschen.
 3. `soll_i` = Gesamtausgaben, verteilt nach `settlement_basis` — `WEIGHT` nach
    `share_weight`, `INCOME` nach dem Einkommensanteil der Periode. Verteilt wird wieder mit
    `allocate`, damit `Σ soll_i` exakt den Gesamtausgaben entspricht.
-4. `saldo_i = getragen_i − soll_i`. Positiv = hat vorgelegt, negativ = schuldet.
-5. Greedy-Ausgleich: größter Schuldner zahlt an größten Gläubiger, Betrag = Minimum der
-   beiden Beträge; wiederholen. Das erzeugt höchstens `n − 1` Zahlungen und ist damit
-   minimal in der Anzahl, solange keine Teilmenge exakt auf null aufgeht.
+4. `brutto_i = getragen_i − soll_i`. Positiv = hat vorgelegt, negativ = schuldet.
+5. `beglichen_i` = erhaltene minus geleistete Ausgleichszahlungen der Periode.
+   `offen_i = brutto_i − beglichen_i`.
+6. Greedy-Ausgleich über die **offenen** Beträge: größter Schuldner zahlt an größten
+   Gläubiger, Betrag = Minimum der beiden Beträge; wiederholen. Das erzeugt höchstens
+   `n − 1` Zahlungen und ist damit minimal in der Anzahl, solange keine Teilmenge exakt
+   auf null aufgeht.
+
+Eine Teilzahlung lässt den Rest offen, eine Überzahlung dreht die Richtung um — beides
+fällt ohne Sonderfall aus derselben Rechnung. Zahlungen wirken nur auf die Periode, für die
+sie erfasst wurden; ein Fenster über mehrere Monate berücksichtigt entsprechend alle darin
+liegenden.
 
 Ausgegeben wird eine Liste konkreter Empfehlungen („Anna überweist Ben 240.50“), keine
 Matrix.
@@ -301,8 +326,12 @@ Excel Umlaute richtig liest. Beträge als Dezimalzahl mit Punkt, die Aufteilung 
 `Person=Betrag` je Person.
 
 **JSON-Backup** (`/api/io/export/household.json`): der vollständige Haushalt inklusive
-Splits, Regeln, Sparzielen und Terminen — aber ohne abgeleitete Werte (kein
-`txn.amount_minor`, keine Kennzahlen). Was sich berechnen lässt, gehört nicht ins Backup.
+Splits, Regeln, Sparzielen, Terminen und Ausgleichszahlungen — aber ohne abgeleitete Werte
+(kein `txn.amount_minor`, keine Kennzahlen). Was sich berechnen lässt, gehört nicht ins
+Backup.
+
+Das Format trägt eine Version. Version 2 führt `settlement_payments`; Version 1 bleibt
+lesbar und wird ohne Ausgleichszahlungen eingespielt.
 
 **CSV-Import** läuft in zwei Schritten und schreibt erst im zweiten:
 
@@ -330,8 +359,9 @@ Splits neu berechnet; ein direkter Schreibzugriff darauf würde ohnehin abgelehn
 Schlägt der Restore mitten in der Arbeit fehl — etwa weil eine Buchung im Backup keine
 Aufteilung hat —, rollt die Transaktion zurück und der bisherige Haushalt steht unverändert.
 
-**Zurücksetzen** (`POST /api/io/reset`) kennt zwei Umfänge: `TRANSACTIONS` löscht nur
-Buchungen und Splits, `ALL` löscht auch die Stammdaten und den Haushalt selbst — danach
+**Zurücksetzen** (`POST /api/io/reset`) kennt zwei Umfänge: `TRANSACTIONS` löscht Buchungen,
+Splits und Ausgleichszahlungen — Letztere gleichen konkrete Ausgaben aus und stünden ohne
+diese als unbegründete Guthaben da —, `ALL` löscht auch die Stammdaten und den Haushalt selbst — danach
 zeigt die App wieder ihre Einrichtung. Beides verlangt das Wort `LOESCHEN` im Request; ein
 Klick allein ist zu wenig für etwas, das sich nicht rückgängig machen lässt.
 

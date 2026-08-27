@@ -16,6 +16,7 @@ from app.routers import (
     members,
     recurring,
     savings,
+    settlements,
     transactions,
 )
 from app.services.splits import SplitError
@@ -76,3 +77,4 @@ app.include_router(recurring.router)
 app.include_router(savings.router)
 app.include_router(calendar.router)
 app.include_router(io.router)
+app.include_router(settlements.router)
