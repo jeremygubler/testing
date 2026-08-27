@@ -225,3 +225,126 @@ def test_trend_sums_match_the_month_summary(client, categories, members):
     assert point["expense_minor"] == summary["expense_minor"]
     assert point["balance_minor"] == summary["balance_minor"]
     assert point["savings_minor"] == 80_000
+
+
+# ------------------------------------------------------------- Budgetvorschlaege
+
+
+def _book(client, categories, member_id, category: str, day: int, month: int, amount: int):
+    return client.post(
+        "/api/transactions",
+        json={
+            "date": f"2026-{month:02d}-{day:02d}",
+            "category_id": categories[category].id,
+            "description": category,
+            "amount_minor": amount,
+            "split": {"template": "SINGLE", "member_id": member_id},
+        },
+    )
+
+
+def test_proposal_averages_completed_months_only(client, categories, members):
+    anna, _ = members
+    # Januar 100, Februar 200, Maerz (laufender Monat) nur 10 -- der Schnitt der
+    # abgeschlossenen Monate ist 150, nicht 103.
+    _book(client, categories, anna.id, "Lebensmittel", 10, 1, 10_000)
+    _book(client, categories, anna.id, "Lebensmittel", 10, 2, 20_000)
+    _book(client, categories, anna.id, "Lebensmittel", 10, 3, 1_000)
+
+    proposal = client.get("/api/budgets/proposal?year=2026&month=3&source=AVERAGE&months=2").json()
+    row = next(r for r in proposal["rows"] if r["category_id"] == categories["Lebensmittel"].id)
+    assert row["proposed_minor"] == 15_000
+    assert row["based_on_months"] == 2
+
+
+def test_proposal_from_last_month(client, categories, members):
+    anna, _ = members
+    _book(client, categories, anna.id, "Lebensmittel", 10, 1, 10_000)
+    _book(client, categories, anna.id, "Lebensmittel", 10, 2, 20_000)
+
+    proposal = client.get("/api/budgets/proposal?year=2026&month=3&source=LAST_MONTH").json()
+    row = next(r for r in proposal["rows"] if r["category_id"] == categories["Lebensmittel"].id)
+    assert row["proposed_minor"] == 20_000
+    assert row["based_on_months"] == 1
+
+
+def test_proposal_rounds_to_whole_currency_units(client, categories, members):
+    anna, _ = members
+    _book(client, categories, anna.id, "Lebensmittel", 10, 2, 94_783)
+    proposal = client.get("/api/budgets/proposal?year=2026&month=3&source=LAST_MONTH").json()
+    row = next(r for r in proposal["rows"] if r["category_id"] == categories["Lebensmittel"].id)
+    # 947.83 waere eine Genauigkeit, die es nicht gibt.
+    assert row["proposed_minor"] == 94_800
+
+
+def test_proposal_shows_the_current_budget_for_comparison(client, categories):
+    client.put("/api/budgets", json={"category_id": categories["Miete"].id, "amount_minor": 210_000})
+    proposal = client.get("/api/budgets/proposal?year=2026&month=3").json()
+    row = next(r for r in proposal["rows"] if r["category_id"] == categories["Miete"].id)
+    assert row["current_minor"] == 210_000
+    assert row["proposed_minor"] == 0
+
+
+def test_proposal_writes_nothing(client, categories, members):
+    anna, _ = members
+    _book(client, categories, anna.id, "Lebensmittel", 10, 2, 20_000)
+    client.get("/api/budgets/proposal?year=2026&month=3")
+    assert client.get("/api/budgets").json() == []
+
+
+def test_bulk_upsert_applies_a_proposal(client, categories):
+    entries = [
+        {"category_id": categories["Lebensmittel"].id, "amount_minor": 95_000},
+        {"category_id": categories["Miete"].id, "amount_minor": 210_000},
+    ]
+    response = client.put("/api/budgets/bulk", json={"entries": entries})
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+    summary = client.get("/api/analytics/summary?year=2026&month=3").json()
+    by_id = {row["category_id"]: row for row in summary["categories"]}
+    assert by_id[categories["Miete"].id]["budget_minor"] == 210_000
+    assert by_id[categories["Miete"].id]["budget_source"] == "DEFAULT"
+
+
+def test_bulk_upsert_can_target_a_single_month(client, categories):
+    client.put("/api/budgets", json={"category_id": categories["Miete"].id, "amount_minor": 200_000})
+    client.put(
+        "/api/budgets/bulk",
+        json={
+            "entries": [{"category_id": categories["Miete"].id, "amount_minor": 250_000}],
+            "year": 2026,
+            "month": 3,
+        },
+    )
+    march = client.get("/api/analytics/summary?year=2026&month=3").json()
+    april = client.get("/api/analytics/summary?year=2026&month=4").json()
+    assert {r["category_id"]: r for r in march["categories"]}[categories["Miete"].id]["budget_minor"] == 250_000
+    assert {r["category_id"]: r for r in april["categories"]}[categories["Miete"].id]["budget_minor"] == 200_000
+
+
+def test_proposal_divides_by_months_with_data_not_by_window_width(client, categories, members):
+    """Wer die App seit zwei Monaten benutzt und ein Halbjahr waehlt, darf nicht die
+    halbe Miete vorgeschlagen bekommen. Monate vor der ersten Buchung sind keine
+    Monate ohne Ausgaben, sondern Monate ohne Daten."""
+    anna, _ = members
+    _book(client, categories, anna.id, "Miete", 1, 1, 200_000)
+    _book(client, categories, anna.id, "Miete", 1, 2, 200_000)
+
+    proposal = client.get("/api/budgets/proposal?year=2026&month=3&source=AVERAGE&months=6").json()
+    row = next(r for r in proposal["rows"] if r["category_id"] == categories["Miete"].id)
+    assert row["proposed_minor"] == 200_000
+    assert row["based_on_months"] == 2
+
+
+def test_a_category_without_spending_in_a_recorded_month_counts_as_zero(client, categories, members):
+    """Innerhalb der Monate, in denen gebucht wurde, ist eine leere Kategorie eine
+    echte Null -- nicht fehlende Daten."""
+    anna, _ = members
+    _book(client, categories, anna.id, "Miete", 1, 1, 200_000)
+    _book(client, categories, anna.id, "Miete", 1, 2, 200_000)
+    _book(client, categories, anna.id, "Lebensmittel", 5, 2, 60_000)
+
+    proposal = client.get("/api/budgets/proposal?year=2026&month=3&source=AVERAGE&months=6").json()
+    row = next(r for r in proposal["rows"] if r["category_id"] == categories["Lebensmittel"].id)
+    assert row["proposed_minor"] == 30_000  # 600 in zwei erfassten Monaten

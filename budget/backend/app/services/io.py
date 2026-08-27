@@ -12,7 +12,7 @@ import datetime as dt
 import io
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text as sql_text
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -26,6 +26,7 @@ from app.models import (
     RecurringSkip,
     SavingsGoal,
     Transaction,
+    TransactionSplit,
 )
 from app.services.money import format_amount, parse_amount
 
@@ -280,3 +281,256 @@ def parse_amount_cell(text: str, keep_sign: bool) -> tuple[int | None, str | Non
     if value == 0:
         return None, "Betrag ist 0"
     return (value if keep_sign else abs(value)), None
+
+
+# --------------------------------------------------------- Wiederherstellen / Leeren
+
+#: Reihenfolge, in der geloescht werden muss. Kategorien und Personen haengen an
+#: Buchungen mit ON DELETE RESTRICT -- die muessen zuerst weg.
+_DELETE_ORDER = (
+    "txn_split",
+    "txn",
+    "recurring_skip",
+    "recurring_rule_split",
+    "recurring_rule",
+    "budget",
+    "savings_goal",
+    "calendar_entry",
+    "category",
+    "member",
+)
+
+
+class RestoreError(ValueError):
+    """Das Backup ist unbrauchbar. Es wird nichts angefasst."""
+
+
+def wipe(db: Session, household_id: int, keep_master_data: bool = False) -> dict[str, int]:
+    """Leert den Haushalt. Gibt zurueck, wie viele Zeilen je Tabelle entfernt wurden.
+
+    ``keep_master_data=True`` behaelt Personen, Kategorien, Budgets, Regeln, Sparziele
+    und Termine -- geloescht werden dann nur die Buchungen.
+    """
+    tables = ("txn_split", "txn") if keep_master_data else _DELETE_ORDER
+    removed: dict[str, int] = {}
+
+    # Alles, was am Haushalt haengt, ueber die jeweilige Verbindung einsammeln.
+    scoped = {
+        "txn_split": "DELETE FROM txn_split WHERE txn_id IN"
+        " (SELECT id FROM txn WHERE household_id = :hid)",
+        "txn": "DELETE FROM txn WHERE household_id = :hid",
+        "recurring_skip": "DELETE FROM recurring_skip WHERE rule_id IN"
+        " (SELECT id FROM recurring_rule WHERE household_id = :hid)",
+        "recurring_rule_split": "DELETE FROM recurring_rule_split WHERE rule_id IN"
+        " (SELECT id FROM recurring_rule WHERE household_id = :hid)",
+        "recurring_rule": "DELETE FROM recurring_rule WHERE household_id = :hid",
+        "budget": "DELETE FROM budget WHERE household_id = :hid",
+        "savings_goal": "DELETE FROM savings_goal WHERE household_id = :hid",
+        "calendar_entry": "DELETE FROM calendar_entry WHERE household_id = :hid",
+        "category": "DELETE FROM category WHERE household_id = :hid",
+        "member": "DELETE FROM member WHERE household_id = :hid",
+    }
+    for table in tables:
+        result = db.execute(sql_text(scoped[table]), {"hid": household_id})
+        removed[table] = result.rowcount or 0
+    db.flush()
+    return removed
+
+
+def _require(payload: dict, key: str) -> list:
+    value = payload.get(key, [])
+    if not isinstance(value, list):
+        raise RestoreError(f"'{key}' muss eine Liste sein.")
+    return value
+
+
+def restore_household(db: Session, household: Household, payload: dict) -> dict[str, int]:
+    """Spielt ein JSON-Backup zurueck und ersetzt dabei den gesamten Haushalt.
+
+    Die urspruenglichen IDs werden beibehalten, weil der Haushalt vorher vollstaendig
+    geleert wird. Damit bleiben alle Querverweise des Backups gueltig, ohne sie
+    umschreiben zu muessen.
+    """
+    if not isinstance(payload, dict):
+        raise RestoreError("Das Backup ist kein JSON-Objekt.")
+    if payload.get("format") != "haushaltsbudget-backup":
+        raise RestoreError(
+            "Das ist kein Backup dieser Anwendung (Feld 'format' fehlt oder passt nicht)."
+        )
+    version = payload.get("version")
+    if version != 1:
+        raise RestoreError(f"Unbekannte Backup-Version: {version!r}.")
+
+    head = payload.get("household")
+    if not isinstance(head, dict):
+        raise RestoreError("Im Backup fehlt der Abschnitt 'household'.")
+
+    wipe(db, household.id)
+
+    household.name = head.get("name", household.name)
+    household.currency = head.get("currency", household.currency)
+    household.locale = head.get("locale", household.locale)
+    household.timezone = head.get("timezone", household.timezone)
+    household.opening_balance_minor = int(head.get("opening_balance_minor", 0))
+    household.settlement_basis = head.get("settlement_basis", household.settlement_basis)
+    db.flush()
+
+    counts: dict[str, int] = {}
+
+    for row in _require(payload, "members"):
+        db.add(
+            Member(
+                id=row["id"],
+                household_id=household.id,
+                name=row["name"],
+                color=row.get("color", "#64748b"),
+                is_active=bool(row.get("is_active", True)),
+                sort_order=int(row.get("sort_order", 0)),
+                share_weight=int(row.get("share_weight", 1)),
+            )
+        )
+    counts["members"] = len(_require(payload, "members"))
+
+    for row in _require(payload, "categories"):
+        db.add(
+            Category(
+                id=row["id"],
+                household_id=household.id,
+                name=row["name"],
+                flow=row["flow"],
+                group=row["group"],
+                icon=row.get("icon"),
+                color=row.get("color", "#64748b"),
+                is_active=bool(row.get("is_active", True)),
+                sort_order=int(row.get("sort_order", 0)),
+            )
+        )
+    counts["categories"] = len(_require(payload, "categories"))
+    db.flush()
+
+    for row in _require(payload, "budgets"):
+        db.add(
+            Budget(
+                id=row["id"],
+                household_id=household.id,
+                category_id=row["category_id"],
+                year=row.get("year"),
+                month=row.get("month"),
+                amount_minor=int(row["amount_minor"]),
+                is_default=bool(row.get("is_default", False)),
+            )
+        )
+    counts["budgets"] = len(_require(payload, "budgets"))
+
+    for row in _require(payload, "recurring_rules"):
+        db.add(
+            RecurringRule(
+                id=row["id"],
+                household_id=household.id,
+                category_id=row["category_id"],
+                description=row["description"],
+                amount_minor=int(row["amount_minor"]),
+                interval=row["interval"],
+                day_of_period=int(row.get("day_of_period", 1)),
+                anchor_month=row.get("anchor_month"),
+                start_date=dt.date.fromisoformat(row["start_date"]),
+                end_date=dt.date.fromisoformat(row["end_date"]) if row.get("end_date") else None,
+                is_active=bool(row.get("is_active", True)),
+                note=row.get("note"),
+                split_template=row.get("split_template", "EQUAL"),
+                split_member_id=row.get("split_member_id"),
+            )
+        )
+    counts["recurring_rules"] = len(_require(payload, "recurring_rules"))
+    db.flush()
+
+    for row in _require(payload, "recurring_rules"):
+        for line in row.get("manual_splits", []):
+            db.add(
+                RecurringRuleSplit(
+                    rule_id=row["id"],
+                    member_id=line["member_id"],
+                    amount_minor=int(line["amount_minor"]),
+                )
+            )
+
+    for row in _require(payload, "recurring_skips"):
+        db.add(
+            RecurringSkip(
+                rule_id=row["rule_id"],
+                occurrence_date=dt.date.fromisoformat(row["occurrence_date"]),
+            )
+        )
+
+    for row in _require(payload, "savings_goals"):
+        db.add(
+            SavingsGoal(
+                id=row["id"],
+                household_id=household.id,
+                name=row["name"],
+                target_amount_minor=int(row["target_amount_minor"]),
+                target_date=dt.date.fromisoformat(row["target_date"]) if row.get("target_date") else None,
+                category_id=row["category_id"],
+                start_date=dt.date.fromisoformat(row["start_date"]) if row.get("start_date") else None,
+                is_active=bool(row.get("is_active", True)),
+            )
+        )
+    counts["savings_goals"] = len(_require(payload, "savings_goals"))
+
+    for row in _require(payload, "calendar_entries"):
+        db.add(
+            CalendarEntry(
+                id=row["id"],
+                household_id=household.id,
+                title=row["title"],
+                date=dt.date.fromisoformat(row["date"]),
+                member_id=row.get("member_id"),
+                note=row.get("note"),
+            )
+        )
+    counts["calendar_entries"] = len(_require(payload, "calendar_entries"))
+    db.flush()
+
+    transactions = _require(payload, "transactions")
+    for row in transactions:
+        # amount_minor wird bewusst nicht gesetzt -- die Trigger berechnen es aus den
+        # Splits, und ein direkter Schreibzugriff waere ohnehin abgelehnt worden.
+        db.add(
+            Transaction(
+                id=row["id"],
+                household_id=household.id,
+                date=dt.date.fromisoformat(row["date"]),
+                category_id=row["category_id"],
+                description=row.get("description", ""),
+                note=row.get("note"),
+                recurring_rule_id=row.get("recurring_rule_id"),
+                recurring_occurrence_date=(
+                    dt.date.fromisoformat(row["recurring_occurrence_date"])
+                    if row.get("recurring_occurrence_date")
+                    else None
+                ),
+            )
+        )
+    db.flush()
+
+    splits = 0
+    for row in transactions:
+        lines = row.get("splits") or []
+        if not lines:
+            raise RestoreError(
+                f"Buchung {row['id']} hat keine Aufteilung -- das Backup ist unvollstaendig."
+            )
+        for line in lines:
+            db.add(
+                TransactionSplit(
+                    txn_id=row["id"],
+                    member_id=line["member_id"],
+                    amount_minor=int(line["amount_minor"]),
+                )
+            )
+            splits += 1
+    db.flush()
+
+    counts["transactions"] = len(transactions)
+    counts["splits"] = splits
+    return counts

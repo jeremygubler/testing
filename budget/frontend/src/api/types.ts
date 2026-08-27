@@ -358,3 +358,28 @@ export interface ImportResult {
   created: number;
   skipped: number;
 }
+
+export interface RestoreResult {
+  restored: Record<string, number>;
+}
+
+export type ResetScope = "TRANSACTIONS" | "ALL";
+
+export interface ResetResult {
+  removed: Record<string, number>;
+  household_deleted: boolean;
+}
+
+export interface BudgetProposalRow {
+  category_id: number;
+  name: string;
+  group: CategoryGroup;
+  current_minor: number | null;
+  proposed_minor: number;
+  based_on_months: number;
+}
+
+export interface BudgetProposal {
+  source: "AVERAGE" | "LAST_MONTH";
+  rows: BudgetProposalRow[];
+}

@@ -10,6 +10,7 @@ import {
   useUpdateMember,
 } from "@/api/hooks";
 import type { Member, SettlementBasis } from "@/api/types";
+import { DangerZone } from "@/components/settings/DangerZone";
 import { ImportDialog } from "@/components/settings/ImportDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,7 +95,8 @@ export function SettingsPage() {
               <p className="text-sm font-medium">Sicherung</p>
               <p className="text-xs text-muted-foreground">
                 Die gesamte Anwendung liegt in einer SQLite-Datei. Ein Backup ist ein Kopieren
-                dieser Datei — der JSON-Export darüber hinaus ist lesbar und versionierbar.
+                dieser Datei — der JSON-Export darüber hinaus ist lesbar, versionierbar und
+                lässt sich unten wieder zurückspielen.
               </p>
             </div>
           </CardContent>
@@ -107,6 +109,15 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <MemberList members={members} />
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="text-destructive">Nicht umkehrbar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DangerZone />
         </CardContent>
       </Card>
 

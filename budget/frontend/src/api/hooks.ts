@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@ta
 import { ApiError, api, buildQuery } from "./client";
 import type {
   Budget,
+  BudgetProposal,
   BudgetUpsert,
   CalendarEntry,
   CalendarEntryInput,
@@ -18,6 +19,9 @@ import type {
   ImportResult,
   RecurringRule,
   RecurringRuleInput,
+  ResetResult,
+  ResetScope,
+  RestoreResult,
   SavingsGoal,
   SavingsGoalInput,
   Settlement,
@@ -429,5 +433,57 @@ export function useSuggestCategory(description: string) {
       ),
     enabled: trimmed.length >= 3,
     staleTime: 60_000,
+  });
+}
+
+// ------------------------------------------------ Wiederherstellen und Zuruecksetzen
+
+export function useRestoreBackup() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (backup: unknown) =>
+      api.post<RestoreResult>("/io/restore", { backup, confirm_replace: true }),
+    onSuccess: () => void client.invalidateQueries(),
+  });
+}
+
+export function useResetHousehold() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ scope, confirm }: { scope: ResetScope; confirm: string }) =>
+      api.post<ResetResult>("/io/reset", { scope, confirm }),
+    onSuccess: () => void client.invalidateQueries(),
+  });
+}
+
+// ---------------------------------------------------------------- Budgetvorschlaege
+
+export function useBudgetProposal(
+  year: number,
+  month: number,
+  source: "AVERAGE" | "LAST_MONTH",
+  months: number,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["budgets", "proposal", year, month, source, months],
+    queryFn: () =>
+      api.get<BudgetProposal>(`/budgets/proposal${buildQuery({ year, month, source, months })}`),
+    enabled,
+  });
+}
+
+export function useBulkUpsertBudgets() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      entries: { category_id: number; amount_minor: number }[];
+      year?: number | null;
+      month?: number | null;
+    }) => api.put<Budget[]>("/budgets/bulk", input),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["budgets"] });
+      void client.invalidateQueries({ queryKey: ["analytics"] });
+    },
   });
 }

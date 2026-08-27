@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -611,3 +612,81 @@ class HouseholdCreate(BaseModel):
     @classmethod
     def _upper(cls, value: str) -> str:
         return value.upper()
+
+
+class RestoreRequest(BaseModel):
+    """Spielt ein JSON-Backup zurueck. Ersetzt den gesamten Haushalt."""
+
+    backup: dict
+    #: Muss ausdruecklich gesetzt werden -- das Zurueckspielen loescht alles Bisherige.
+    confirm_replace: bool = False
+
+
+class RestoreResult(BaseModel):
+    restored: dict[str, int]
+
+
+class ResetScope(StrEnum):
+    TRANSACTIONS = "TRANSACTIONS"
+    ALL = "ALL"
+
+
+class ResetRequest(BaseModel):
+    """Leert den Haushalt.
+
+    ``TRANSACTIONS`` behaelt Personen, Kategorien, Budgets, Regeln, Sparziele und
+    Termine und loescht nur die Buchungen. ``ALL`` loescht auch die Stammdaten -- die
+    App zeigt danach wieder die Einrichtung.
+    """
+
+    scope: ResetScope = ResetScope.TRANSACTIONS
+    #: Muss woertlich "LOESCHEN" sein. Ein Klick allein ist zu wenig fuer etwas,
+    #: das sich nicht rueckgaengig machen laesst.
+    confirm: str
+
+    @field_validator("confirm")
+    @classmethod
+    def _check(cls, value: str) -> str:
+        if value.strip().upper().replace("Ö", "OE") != "LOESCHEN":
+            raise ValueError("Zur Bestaetigung muss 'LOESCHEN' eingegeben werden.")
+        return value
+
+
+class ResetResult(BaseModel):
+    removed: dict[str, int]
+    household_deleted: bool
+
+
+# --------------------------------------------------------------- Budgetvorschlaege
+
+
+class BudgetProposalRow(BaseModel):
+    category_id: int
+    name: str
+    group: CategoryGroup
+    current_minor: int | None
+    proposed_minor: int
+    #: Anzahl Monate, aus denen der Vorschlag stammt (nur bei AVERAGE aussagekraeftig).
+    based_on_months: int
+
+
+class BudgetProposal(BaseModel):
+    source: str
+    rows: list[BudgetProposalRow]
+
+
+class BudgetBulkEntry(BaseModel):
+    category_id: int
+    amount_minor: int = Field(ge=0)
+
+
+class BudgetBulkUpsert(BaseModel):
+    entries: list[BudgetBulkEntry] = Field(min_length=1)
+    year: int | None = Field(default=None, ge=1900, le=2200)
+    month: int | None = Field(default=None, ge=1, le=12)
+
+    @model_validator(mode="after")
+    def _check_shape(self) -> BudgetBulkUpsert:
+        if (self.year is None) != (self.month is None):
+            raise ValueError("Jahr und Monat muessen gemeinsam gesetzt oder gemeinsam leer sein.")
+        return self

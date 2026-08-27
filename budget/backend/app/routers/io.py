@@ -11,6 +11,11 @@ from app.schemas import (
     ImportRequest,
     ImportResult,
     ImportRowPreview,
+    ResetRequest,
+    ResetResult,
+    ResetScope,
+    RestoreRequest,
+    RestoreResult,
     SplitSpec,
 )
 from app.services import inference
@@ -193,3 +198,44 @@ def commit_import(
         created += 1
 
     return ImportResult(created=created, skipped=skipped)
+
+
+@router.post("/restore", response_model=RestoreResult)
+def restore(
+    payload: RestoreRequest, household: CurrentHousehold, db: DbSession
+) -> RestoreResult:
+    """Spielt ein JSON-Backup zurueck.
+
+    Der bestehende Haushalt wird dabei vollstaendig ersetzt. Weil das nicht
+    rueckgaengig zu machen ist, muss ``confirm_replace`` ausdruecklich gesetzt sein --
+    ein versehentlicher Aufruf soll keine Daten kosten.
+    """
+    if not payload.confirm_replace:
+        raise HTTPException(
+            422,
+            "Das Zurueckspielen ersetzt den gesamten Haushalt. "
+            "Bitte ausdruecklich bestaetigen (confirm_replace).",
+        )
+    try:
+        counts = service.restore_household(db, household, payload.backup)
+    except service.RestoreError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except (KeyError, TypeError, ValueError) as exc:
+        # Ein kaputtes Backup darf keinen halben Haushalt hinterlassen -- die Session
+        # wird von get_db zurueckgerollt.
+        raise HTTPException(422, f"Das Backup ist fehlerhaft: {exc}") from exc
+    return RestoreResult(restored=counts)
+
+
+@router.post("/reset", response_model=ResetResult)
+def reset(payload: ResetRequest, household: CurrentHousehold, db: DbSession) -> ResetResult:
+    """Leert den Haushalt -- entweder nur die Buchungen oder alles."""
+    keep_master_data = payload.scope is ResetScope.TRANSACTIONS
+    removed = service.wipe(db, household.id, keep_master_data=keep_master_data)
+
+    if payload.scope is ResetScope.ALL:
+        # Ohne Haushalt zeigt die App wieder ihre Einrichtung -- das ist hier gewollt.
+        db.delete(household)
+        db.flush()
+        return ResetResult(removed=removed, household_deleted=True)
+    return ResetResult(removed=removed, household_deleted=False)

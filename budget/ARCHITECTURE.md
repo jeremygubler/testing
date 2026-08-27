@@ -76,7 +76,23 @@ Monatsbudget je (Kategorie, Jahr, Monat). Eine CHECK-Constraint erzwingt zusätz
 die beiden Formen nicht vermischt werden.
 
 Auflösung zur Laufzeit: `budget(kategorie, jahr, monat)` = Monatseintrag, sonst Default,
-sonst `0`.
+sonst „kein Budget" (`null`, nicht `0`).
+
+**Vorschlagen statt tippen** (`GET /api/budgets/proposal`): Budgets lassen sich aus dem
+tatsächlichen Verlauf ableiten — Durchschnitt über N Monate oder schlicht der Vormonat.
+Zwei Entscheidungen dabei:
+
+* Gerechnet wird über die **abgeschlossenen** Monate vor dem gewählten; der laufende ist
+  unvollständig und zöge den Schnitt nach unten.
+* Geteilt wird durch die Monate, **in denen überhaupt gebucht wurde**, nicht durch die
+  Fensterbreite. Wer die App seit zwei Monaten benutzt und ein Halbjahr auswählt, bekäme
+  sonst ein Drittel der Miete vorgeschlagen: Monate vor der ersten Buchung sind keine
+  Monate ohne Ausgaben, sondern Monate ohne Daten. Innerhalb der erfassten Monate ist eine
+  leere Kategorie dagegen eine echte Null.
+
+Beträge werden auf ganze Währungseinheiten gerundet — 947.83 wäre eine Genauigkeit, die es
+nicht gibt. Der Vorschlag wird wie beim Import erst gezeigt und einzeln abwählbar, bevor
+`PUT /api/budgets/bulk` ihn schreibt.
 
 ### Transaction / TransactionSplit
 `Transaction`: `date`, `category_id`, `description`, `note`, `recurring_rule_id`,
@@ -277,6 +293,19 @@ Gross-/Kleinschreibung), sowohl gegen den Bestand als auch innerhalb derselben D
 aber in der Kategorie. Standardmässig wird das Vorzeichen deshalb verworfen (`-89.00` auf
 einer Ausgabenkategorie wird zu einer Ausgabe von 89.00). Wer Rückerstattungen als negative
 Beträge importieren will, schaltet „Vorzeichen behalten" ein.
+
+**Zurückspielen** (`POST /api/io/restore`) ersetzt den gesamten Haushalt durch den Stand
+aus dem Backup. Die ursprünglichen IDs werden beibehalten — weil vorher vollständig
+geleert wird, bleiben alle Querverweise des Backups gültig, ohne sie umschreiben zu müssen.
+`txn.amount_minor` wird nicht aus dem Backup übernommen, sondern von den Triggern aus den
+Splits neu berechnet; ein direkter Schreibzugriff darauf würde ohnehin abgelehnt.
+Schlägt der Restore mitten in der Arbeit fehl — etwa weil eine Buchung im Backup keine
+Aufteilung hat —, rollt die Transaktion zurück und der bisherige Haushalt steht unverändert.
+
+**Zurücksetzen** (`POST /api/io/reset`) kennt zwei Umfänge: `TRANSACTIONS` löscht nur
+Buchungen und Splits, `ALL` löscht auch die Stammdaten und den Haushalt selbst — danach
+zeigt die App wieder ihre Einrichtung. Beides verlangt das Wort `LOESCHEN` im Request; ein
+Klick allein ist zu wenig für etwas, das sich nicht rückgängig machen lässt.
 
 ## Schichten
 

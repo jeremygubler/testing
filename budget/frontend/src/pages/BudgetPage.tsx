@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, RotateCcw, Settings2, Wallet } from "lucide-react";
+import { Plus, RotateCcw, Settings2, Wallet, Wand2 } from "lucide-react";
 
 import {
   useBudgets,
@@ -16,6 +16,7 @@ import { Money } from "@/components/Money";
 import { useHouseholdContext } from "@/components/HouseholdProvider";
 import { BudgetAmountInput } from "@/components/budget/BudgetAmountInput";
 import { CategoryDialog } from "@/components/budget/CategoryDialog";
+import { ProposalDialog } from "@/components/budget/ProposalDialog";
 import { SavingsGoals } from "@/components/budget/SavingsGoals";
 import { UsageBar } from "@/components/budget/UsageBar";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ export function BudgetPage() {
   const [showInactive, setShowInactive] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [proposalOpen, setProposalOpen] = useState(false);
 
   const defaultsByCategory = useMemo(() => {
     const map = new Map<number, number>();
@@ -110,6 +112,10 @@ export function BudgetPage() {
               Inaktive zeigen
             </Label>
           </div>
+          <Button size="sm" variant="outline" onClick={() => setProposalOpen(true)}>
+            <Wand2 />
+            Vorschlagen
+          </Button>
           <Button
             size="sm"
             onClick={() => {
@@ -188,6 +194,12 @@ export function BudgetPage() {
       </Card>
 
       <CategoryDialog open={dialogOpen} onOpenChange={setDialogOpen} category={editing} />
+      <ProposalDialog
+        open={proposalOpen}
+        onOpenChange={setProposalOpen}
+        year={month.year}
+        month={month.month}
+      />
     </div>
   );
 }

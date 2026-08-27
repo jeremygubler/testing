@@ -116,6 +116,11 @@ Kategorievorschlag aus früheren Buchungen — anklickbar, nie automatisch.
 
 ## Datensicherung
 
+Der JSON-Export lässt sich unter *Einstellungen → Nicht umkehrbar* wieder zurückspielen.
+Dort liegt auch das Zurücksetzen — wahlweise nur die Buchungen oder alles inklusive
+Stammdaten. Beides verlangt, das Wort `LÖSCHEN` zu tippen.
+
+
 Die gesamte Anwendung lebt in einer SQLite-Datei (`backend/data/budget.db` bzw. dem
 Docker-Volume `budget-data`). Ein Backup ist ein Kopieren dieser Datei. Zusätzlich bietet
 die App unter *Einstellungen* einen vollständigen JSON-Export und einen CSV-Export aller
