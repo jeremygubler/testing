@@ -8,6 +8,7 @@ from app.deps import CurrentHousehold, DbSession
 from app.enums import CategoryGroup, Flow
 from app.models import Category, Transaction, TransactionSplit
 from app.schemas import (
+    CategorySuggestion,
     SplitLineRead,
     SplitPreviewRequest,
     SplitPreviewResponse,
@@ -16,6 +17,7 @@ from app.schemas import (
     TransactionRead,
     TransactionUpdate,
 )
+from app.services import inference
 from app.services import transactions as service
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
@@ -159,6 +161,27 @@ def preview_split(
     return SplitPreviewResponse(
         lines=[SplitLineRead(member_id=l.member_id, amount_minor=l.amount_minor) for l in lines],
         total_minor=sum(l.amount_minor for l in lines),
+    )
+
+
+@router.get("/suggest-category", response_model=CategorySuggestion | None)
+def suggest_category(
+    household: CurrentHousehold,
+    db: DbSession,
+    description: str = Query(min_length=1, max_length=200),
+) -> CategorySuggestion | None:
+    """Raet die Kategorie aus frueheren Buchungen mit aehnlicher Beschreibung.
+
+    Nur ein Vorschlag -- angewendet wird er erst, wenn der Nutzer ihn uebernimmt.
+    """
+    suggestion = inference.suggest_category(db, household.id, description)
+    if suggestion is None:
+        return None
+    return CategorySuggestion(
+        category_id=suggestion.category_id,
+        category_name=suggestion.category_name,
+        matches=suggestion.matches,
+        basis=suggestion.basis,
     )
 
 

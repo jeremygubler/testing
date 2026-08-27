@@ -222,6 +222,14 @@ class TransactionPage(BaseModel):
     sum_expense_minor: int
 
 
+class CategorySuggestion(BaseModel):
+    category_id: int
+    category_name: str
+    matches: int
+    #: EXACT = identische Beschreibung schon gebucht, TOKEN = gemeinsames Stichwort.
+    basis: str
+
+
 class SplitPreviewRequest(BaseModel):
     amount_minor: int
     split: SplitSpec
@@ -541,6 +549,8 @@ class ImportRequest(BaseModel):
     #: Vorzeichen der CSV behalten? Standard: nein -- die Richtung steckt in der
     #: Kategorie, Bankauszuege schreiben Ausgaben nur konventionell negativ.
     keep_sign: bool = False
+    #: Zeilen ohne Kategorie aus frueheren Buchungen mit aehnlicher Beschreibung raten.
+    guess_categories: bool = True
 
 
 class ImportRowPreview(BaseModel):
@@ -551,6 +561,9 @@ class ImportRowPreview(BaseModel):
     category_id: int | None
     category_name: str | None
     member_id: int | None
+    #: CSV = aus der Datei, HISTORY = aus frueheren Buchungen erraten,
+    #: FALLBACK = die im Dialog gewaehlte Ersatzkategorie.
+    category_source: str | None
     is_duplicate: bool
     duplicate_transaction_id: int | None
     error: str | None

@@ -58,6 +58,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [fallbackCategoryId, setFallbackCategoryId] = useState<number | null>(null);
   const [fallbackTemplate, setFallbackTemplate] = useState<SplitTemplate>("KEY");
   const [keepSign, setKeepSign] = useState(false);
+  const [guessCategories, setGuessCategories] = useState(true);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [result, setResult] = useState<{ created: number; skipped: number } | null>(null);
@@ -100,8 +101,9 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       fallback_category_id: fallbackCategoryId,
       fallback_split: { template: fallbackTemplate },
       keep_sign: keepSign,
+      guess_categories: guessCategories,
     };
-  }, [parsed, mapping, fallbackCategoryId, fallbackTemplate, keepSign]);
+  }, [parsed, mapping, fallbackCategoryId, fallbackTemplate, keepSign, guessCategories]);
 
   async function runPreview() {
     if (!request) return;
@@ -247,6 +249,13 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                     <Switch checked={skipDuplicates} onCheckedChange={setSkipDuplicates} />
                     Dubletten überspringen
                   </label>
+                  <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                    <Switch checked={guessCategories} onCheckedChange={setGuessCategories} />
+                    Fehlende Kategorien aus früheren Buchungen raten
+                    <span className="text-xs text-muted-foreground">
+                      (in der Vorschau als „geraten" markiert)
+                    </span>
+                  </label>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -301,7 +310,17 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                           <TableCell className="tabular text-muted-foreground">{row.row_number}</TableCell>
                           <TableCell className="tabular">{row.date ? formatDate(row.date) : "–"}</TableCell>
                           <TableCell className="max-w-[1px] truncate">{row.description || "–"}</TableCell>
-                          <TableCell className="truncate">{row.category_name ?? "–"}</TableCell>
+                          <TableCell className="truncate">
+                            {row.category_name ?? "–"}
+                            {row.category_source === "HISTORY" && (
+                              <span
+                                className="ml-1 text-[11px] text-muted-foreground"
+                                title="Aus früheren Buchungen mit ähnlicher Beschreibung erraten"
+                              >
+                                (geraten)
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             {row.amount_minor === null ? "–" : <Money value={row.amount_minor} bare colored={false} />}
                           </TableCell>

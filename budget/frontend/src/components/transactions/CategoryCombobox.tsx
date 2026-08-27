@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
 
 import type { Category, CategoryGroup } from "@/api/types";
 import { CATEGORY_GROUPS } from "@/api/types";
@@ -28,6 +28,8 @@ interface CategoryComboboxProps {
   disabled?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Erlaubt das Anlegen direkt aus der Suche heraus, mit dem eingetippten Namen. */
+  onCreate?: (name: string) => void;
 }
 
 /** Kategorieauswahl mit Tippsuche, gruppiert nach Kategoriegruppe. */
@@ -42,8 +44,10 @@ export function CategoryCombobox({
   disabled,
   open: controlledOpen,
   onOpenChange,
+  onCreate,
 }: CategoryComboboxProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const open = controlledOpen ?? uncontrolledOpen;
   const setOpen = onOpenChange ?? setUncontrolledOpen;
   const selected = categories.find((category) => category.id === value) ?? null;
@@ -92,9 +96,21 @@ export function CategoryCombobox({
             return haystack.includes(needle) ? 0.5 : 0;
           }}
         >
-          <CommandInput placeholder={t.transactions.quickCategory} />
+          <CommandInput
+            placeholder={t.transactions.quickCategory}
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
-            <CommandEmpty>Keine Kategorie gefunden.</CommandEmpty>
+            <CommandEmpty>
+              {onCreate && search.trim() ? (
+                <span className="text-muted-foreground">
+                  Kein Treffer — mit Enter unten neu anlegen.
+                </span>
+              ) : (
+                "Keine Kategorie gefunden."
+              )}
+            </CommandEmpty>
             {grouped.map(([group, items]) => (
               <CommandGroup key={group} heading={t.group[group]}>
                 {items.map((category) => (
@@ -121,6 +137,26 @@ export function CategoryCombobox({
                 ))}
               </CommandGroup>
             ))}
+            {onCreate && search.trim() && (
+              <CommandGroup forceMount>
+                <CommandItem
+                  forceMount
+                  value={`__create__ ${search}`}
+                  onSelect={() => {
+                    const name = search.trim();
+                    setSearch("");
+                    setOpen(false);
+                    onCreate(name);
+                  }}
+                  className="text-muted-foreground"
+                >
+                  <Plus className="size-3.5 shrink-0" />
+                  <span className="truncate">
+                    „{search.trim()}" als neue Kategorie anlegen
+                  </span>
+                </CommandItem>
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

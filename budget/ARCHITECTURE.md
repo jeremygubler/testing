@@ -234,6 +234,22 @@ eine Entscheidung und kein Versäumnis.
 `monthly_estimate` ist ein Zwölftel davon, kaufmännisch gerundet. Das ist eine Schätzung
 und wird nirgends verbucht.
 
+### Kategorie aus der Beschreibung raten (`services/inference.py`)
+
+Ein Haushalt bucht dieselben Dinge immer wieder. Wer „Coop" zwölfmal derselben
+Kategorie zugeordnet hat, soll es nicht ein dreizehntes Mal tun müssen.
+
+Geraten wird **ausschliesslich aus der eigenen Historie** — es gibt keine mitgelieferte
+Händlerliste, die bei einem Quartierladen ohnehin danebenläge. Zuerst wird nach
+identischer Beschreibung gesucht (`EXACT`, ein starkes Signal), erst wenn das nichts
+ergibt nach gemeinsamen Stichwörtern (`TOKEN`, ein schwaches). Ziffern und Füllwörter wie
+„Filiale" oder „Kartenzahlung" werden vorher entfernt. Findet sich nichts, kommt `None`
+zurück — kein Vorschlag ist besser als ein falscher.
+
+Der Vorschlag wird **nie stillschweigend angewendet**: das Erfassungsformular zeigt ihn
+als anklickbaren Hinweis, der Import weist die Herkunft je Zeile als `CSV`, `HISTORY`
+oder `FALLBACK` aus, und das Raten lässt sich im Dialog abschalten.
+
 ## Import und Export
 
 **CSV-Export** (`/api/io/export/transactions.csv`): Semikolon-getrennt, mit BOM, damit

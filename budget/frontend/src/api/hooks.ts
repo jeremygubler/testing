@@ -7,6 +7,7 @@ import type {
   CalendarEntry,
   CalendarEntryInput,
   Category,
+  CategorySuggestion,
   ConfirmOccurrence,
   Household,
   HouseholdCreate,
@@ -411,5 +412,22 @@ export function useCommitImport() {
       void client.invalidateQueries({ queryKey: ["analytics"] });
       void client.invalidateQueries({ queryKey: ["savings"] });
     },
+  });
+}
+
+/**
+ * Kategorievorschlag aus früheren Buchungen mit ähnlicher Beschreibung.
+ * Leerer Text = keine Abfrage; der Vorschlag wird nie automatisch angewendet.
+ */
+export function useSuggestCategory(description: string) {
+  const trimmed = description.trim();
+  return useQuery({
+    queryKey: ["categorySuggestion", trimmed],
+    queryFn: () =>
+      api.get<CategorySuggestion | null>(
+        `/transactions/suggest-category${buildQuery({ description: trimmed })}`,
+      ),
+    enabled: trimmed.length >= 3,
+    staleTime: 60_000,
   });
 }

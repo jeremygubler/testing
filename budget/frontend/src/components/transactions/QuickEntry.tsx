@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, Plus } from "lucide-react";
+import { Check, Lightbulb, Loader2, Plus } from "lucide-react";
 
-import { useCategories, useCreateTransaction, useMembers } from "@/api/hooks";
+import { useCategories, useCreateTransaction, useMembers, useSuggestCategory } from "@/api/hooks";
 import type { SplitTemplate } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CategoryDialog } from "@/components/budget/CategoryDialog";
 import { CategoryCombobox } from "./CategoryCombobox";
 import { SplitEditor, emptySplitState, toSplitSpec, type SplitState } from "./SplitEditor";
 import { t } from "@/i18n";
@@ -46,6 +47,10 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
   const [split, setSplit] = useState<SplitState>(() => emptySplitState([], readTemplate()));
   const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState<string | null>(null);
+
+  // Vorschlag aus frueheren Buchungen -- nur anzeigen, nie automatisch anwenden.
+  const suggestion = useSuggestCategory(categoryId === null ? description : "");
 
   useEffect(() => {
     if (split.singleMemberId === null && members.length > 0) {
@@ -133,6 +138,7 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
           open={categoryOpen}
           onOpenChange={setCategoryOpen}
           onCommit={() => descriptionRef.current?.focus()}
+          onCreate={(name) => setNewCategoryName(name)}
           className="w-full"
         />
 
@@ -177,6 +183,17 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
           compact
           className={cn("flex-1", split.template === "MANUAL" ? "min-w-[16rem]" : "min-w-0")}
         />
+        {suggestion.data && (
+          <button
+            type="button"
+            onClick={() => setCategoryId(suggestion.data!.category_id)}
+            className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Lightbulb className="size-3.5" />
+            Vorschlag: <span className="font-medium text-foreground">{suggestion.data.category_name}</span>
+          </button>
+        )}
+
         {justSaved && (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <Check className="size-3.5" />
@@ -186,6 +203,19 @@ export function QuickEntry({ defaultDate, className }: { defaultDate?: string; c
       </div>
 
       {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+
+      <CategoryDialog
+        open={newCategoryName !== null}
+        onOpenChange={(next) => {
+          if (!next) setNewCategoryName(null);
+        }}
+        defaultName={newCategoryName ?? ""}
+        onCreated={(created) => {
+          setCategoryId(created.id);
+          setNewCategoryName(null);
+          descriptionRef.current?.focus();
+        }}
+      />
     </form>
   );
 }

@@ -80,6 +80,13 @@ export interface Transaction {
   splits: SplitLine[];
 }
 
+export interface CategorySuggestion {
+  category_id: number;
+  category_name: string;
+  matches: number;
+  basis: "EXACT" | "TOKEN";
+}
+
 export interface TransactionPage {
   items: Transaction[];
   total: number;
@@ -322,6 +329,7 @@ export interface ImportRequest {
   fallback_category_id?: number | null;
   fallback_split?: SplitSpec;
   keep_sign?: boolean;
+  guess_categories?: boolean;
 }
 
 export interface ImportRowPreview {
@@ -332,6 +340,7 @@ export interface ImportRowPreview {
   category_id: number | null;
   category_name: string | null;
   member_id: number | null;
+  category_source: "CSV" | "HISTORY" | "FALLBACK" | null;
   is_duplicate: boolean;
   duplicate_transaction_id: number | null;
   error: string | null;

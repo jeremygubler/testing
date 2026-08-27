@@ -13,6 +13,7 @@ from app.schemas import (
     ImportRowPreview,
     SplitSpec,
 )
+from app.services import inference
 from app.services import io as service
 from app.services import transactions as txn_service
 from app.services.splits import SplitError
@@ -58,6 +59,16 @@ def _analyze(payload: ImportRequest, household, db) -> list[ImportRowPreview]:
     seen: set[tuple[str, int, str]] = set()
     previews: list[ImportRowPreview] = []
 
+    # Zeilen ohne erkennbare Kategorie aus der eigenen Historie erraten. Das ist der
+    # Unterschied zwischen "300 Zeilen von Hand zuordnen" und "durchsehen".
+    guesses = (
+        inference.suggest_many(
+            db, household.id, [row.description for row in payload.rows if row.description]
+        )
+        if payload.guess_categories
+        else {}
+    )
+
     for row in payload.rows:
         errors: list[str] = []
 
@@ -70,14 +81,26 @@ def _analyze(payload: ImportRequest, household, db) -> list[ImportRowPreview]:
             errors.append(amount_error)
 
         category = categories.get(service.normalize(row.category)) if row.category else None
+        category_source = "CSV" if category is not None else None
+
+        if category is None:
+            guess = guesses.get(inference.normalize(row.description))
+            if guess is not None:
+                category = db.get(Category, guess.category_id)
+                category_source = "HISTORY"
+
         if category is None and payload.fallback_category_id is not None:
             category = db.get(Category, payload.fallback_category_id)
             if category is not None and category.household_id != household.id:
                 category = None
+            else:
+                category_source = "FALLBACK"
+
         if category is None:
             errors.append(
                 f"Kategorie unbekannt: {row.category!r}" if row.category else "Keine Kategorie"
             )
+            category_source = None
         elif not category.is_active:
             errors.append(f"Kategorie '{category.name}' ist deaktiviert")
 
@@ -102,6 +125,7 @@ def _analyze(payload: ImportRequest, household, db) -> list[ImportRowPreview]:
                 description=row.description.strip(),
                 category_id=category.id if category else None,
                 category_name=category.name if category else None,
+                category_source=category_source,
                 member_id=member.id if member else None,
                 is_duplicate=duplicate_id is not None,
                 duplicate_transaction_id=duplicate_id if (duplicate_id or 0) > 0 else None,

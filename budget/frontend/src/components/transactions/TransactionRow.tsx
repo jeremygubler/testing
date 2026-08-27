@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Check, Pencil, Trash2, X } from "lucide-react";
+import { Check, Copy, Pencil, Trash2, X } from "lucide-react";
 
-import { useDeleteTransaction, useUpdateTransaction } from "@/api/hooks";
+import { useCreateTransaction, useDeleteTransaction, useUpdateTransaction } from "@/api/hooks";
 import type { Category, Member, Transaction } from "@/api/types";
 import { Money } from "@/components/Money";
 import { useHouseholdContext } from "@/components/HouseholdProvider";
@@ -11,6 +11,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { CategoryCombobox } from "./CategoryCombobox";
 import { SplitEditor, toSplitSpec, type SplitState } from "./SplitEditor";
 import { t } from "@/i18n";
+import { todayIso } from "@/lib/date";
 import { parseAmountInput, toDecimalString } from "@/lib/money";
 import { detectTemplate } from "@/lib/splits";
 
@@ -25,6 +26,7 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
   const { date: formatDate, dateShort } = useHouseholdContext();
   const update = useUpdateTransaction();
   const remove = useDeleteTransaction();
+  const duplicate = useCreateTransaction();
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(() => toDraft(transaction, members));
@@ -161,6 +163,28 @@ export function TransactionRow({ transaction, categories, members, showYear = tr
         <span className="inline-flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
           <Button size="icon-sm" variant="ghost" onClick={startEditing} aria-label={t.app.edit}>
             <Pencil />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={`Duplizieren: ${transaction.description || transaction.category_name}`}
+            title="Als neue Buchung von heute kopieren"
+            disabled={duplicate.isPending}
+            onClick={() =>
+              duplicate.mutate({
+                date: todayIso(),
+                category_id: transaction.category_id,
+                description: transaction.description,
+                note: transaction.note,
+                amount_minor: transaction.amount_minor,
+                // Die Aufteilung exakt uebernehmen statt die Vorlage neu aufzuloesen --
+                // ein zwischenzeitlich geaenderter Schluessel soll die Kopie nicht
+                // anders aufteilen als das Original.
+                split: { template: "MANUAL", lines: transaction.splits },
+              })
+            }
+          >
+            <Copy />
           </Button>
           <Button
             size="icon-sm"

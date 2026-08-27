@@ -110,6 +110,10 @@ Im Erfassungsformular: `Enter` im Betragsfeld öffnet die Kategoriesuche, `Enter
 Suche übernimmt die Kategorie, `Enter` im Formular speichert und lässt das Formular für
 die nächste Buchung offen. Damit kostet eine Buchung drei Interaktionen.
 
+Findet die Kategoriesuche nichts, legt der letzte Eintrag die Kategorie mit dem
+eingetippten Namen an. Und wer die Beschreibung zuerst schreibt, bekommt einen
+Kategorievorschlag aus früheren Buchungen — anklickbar, nie automatisch.
+
 ## Datensicherung
 
 Die gesamte Anwendung lebt in einer SQLite-Datei (`backend/data/budget.db` bzw. dem

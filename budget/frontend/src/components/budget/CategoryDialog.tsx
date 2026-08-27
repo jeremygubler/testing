@@ -26,9 +26,18 @@ interface CategoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   category?: Category | null;
+  /** Vorbelegter Name, wenn der Dialog aus der Kategoriesuche heraus geoeffnet wird. */
+  defaultName?: string;
+  onCreated?: (category: Category) => void;
 }
 
-export function CategoryDialog({ open, onOpenChange, category }: CategoryDialogProps) {
+export function CategoryDialog({
+  open,
+  onOpenChange,
+  category,
+  defaultName,
+  onCreated,
+}: CategoryDialogProps) {
   const create = useCreateCategory();
   const update = useUpdateCategory();
 
@@ -40,11 +49,11 @@ export function CategoryDialog({ open, onOpenChange, category }: CategoryDialogP
 
   useEffect(() => {
     if (!open) return;
-    setName(category?.name ?? "");
+    setName(category?.name ?? defaultName ?? "");
     setGroup(category?.group ?? "VARIABEL");
     setColor(category?.color ?? PRESET_COLORS[0]);
     setError(null);
-  }, [open, category]);
+  }, [open, category, defaultName]);
 
   async function submit() {
     setError(null);
@@ -52,7 +61,8 @@ export function CategoryDialog({ open, onOpenChange, category }: CategoryDialogP
       if (category) {
         await update.mutateAsync({ id: category.id, patch: { name, group, color } });
       } else {
-        await create.mutateAsync({ name, group, color });
+        const created = await create.mutateAsync({ name, group, color });
+        onCreated?.(created);
       }
       onOpenChange(false);
     } catch (cause) {
