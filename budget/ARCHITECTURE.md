@@ -209,9 +209,15 @@ Beim Bestätigen sind Betrag, Datum und Aufteilung änderbar (die Stromrechnung 
 Das ist bewusst kein Automatismus: eine App, die ungefragt bucht, hat nie einen Kontostand,
 der mit der Realität übereinstimmt.
 
-Eine Regel gilt als **verdächtig**, wenn ihre letzten Fälligkeiten über mehrere Monate nie
-bestätigt wurden — typischerweise ein vergessenes Abo. Die Ansicht *Wiederkehrend* warnt
-davor.
+Eine Regel gilt als **verdächtig**, wenn ihre letzten Fälligkeiten nie bestätigt wurden.
+`open_streak` zählt, wie viele fällige Termine zuletzt *in Folge* weder gebucht noch
+übersprungen wurden (Rückschau 24 Monate). Ab drei warnt die Ansicht *Wiederkehrend* —
+typischerweise ein vergessenes Abo. Bewusstes Überspringen bricht die Serie, denn das ist
+eine Entscheidung und kein Versäumnis.
+
+**Hochrechnung.** `yearly_estimate = Betrag × Fälligkeiten pro Jahr` (52 / 12 / 4 / 1),
+`monthly_estimate` ist ein Zwölftel davon, kaufmännisch gerundet. Das ist eine Schätzung
+und wird nirgends verbucht.
 
 ## Schichten
 

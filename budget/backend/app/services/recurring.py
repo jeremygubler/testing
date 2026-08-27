@@ -10,8 +10,11 @@ import calendar
 import datetime as dt
 from dataclasses import dataclass
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.enums import Interval
-from app.models import RecurringRule
+from app.models import RecurringRule, RecurringSkip, Transaction
 
 _MONTH_STEP: dict[Interval, int] = {
     Interval.MONTHLY: 1,
@@ -76,9 +79,116 @@ def occurrences(rule: RecurringRule, from_date: dt.date, to_date: dt.date) -> li
     return result
 
 
+# --------------------------------------------------------------- Vorschlaege je Monat
+
+OPEN = "OPEN"
+CONFIRMED = "CONFIRMED"
+SKIPPED = "SKIPPED"
+
+#: Faktoren fuer die Hochrechnung. Ein Jahr hat 52 Wochen -- fuer eine Schaetzung genau genug.
+_PER_YEAR: dict[Interval, int] = {
+    Interval.WEEKLY: 52,
+    Interval.MONTHLY: 12,
+    Interval.QUARTERLY: 4,
+    Interval.YEARLY: 1,
+}
+
+
+def yearly_estimate(rule: RecurringRule) -> int:
+    return rule.amount_minor * _PER_YEAR[rule.interval]
+
+
+def monthly_estimate(rule: RecurringRule) -> int:
+    """Auf den Monat heruntergerechnet. Kaufmaennisch gerundet, es ist eine Schaetzung."""
+    total = yearly_estimate(rule)
+    sign = -1 if total < 0 else 1
+    return sign * ((abs(total) + 6) // 12)
+
+
 @dataclass(frozen=True, slots=True)
-class Occurrence:
+class RuleOccurrence:
     rule_id: int
     due_date: dt.date
-    status: str  # OPEN | CONFIRMED | SKIPPED
+    status: str
     transaction_id: int | None = None
+    booked_amount_minor: int | None = None
+    booked_date: dt.date | None = None
+
+
+def occurrences_for_period(
+    db: Session,
+    household_id: int,
+    start: dt.date,
+    end: dt.date,
+    rule_ids: list[int] | None = None,
+) -> list[RuleOccurrence]:
+    """Alle Faelligkeiten im Zeitraum mit ihrem Ist-Zustand.
+
+    Eine Regel bucht nie von selbst -- ``OPEN`` bedeutet: wartet auf Bestaetigung.
+    """
+    query = select(RecurringRule).where(
+        RecurringRule.household_id == household_id, RecurringRule.is_active.is_(True)
+    )
+    if rule_ids is not None:
+        query = query.where(RecurringRule.id.in_(rule_ids))
+    rules = list(db.scalars(query.order_by(RecurringRule.id)))
+    if not rules:
+        return []
+
+    ids = [rule.id for rule in rules]
+    booked = {
+        (rule_id, occurrence_date): (txn_id, amount, date)
+        for rule_id, occurrence_date, txn_id, amount, date in db.execute(
+            select(
+                Transaction.recurring_rule_id,
+                Transaction.recurring_occurrence_date,
+                Transaction.id,
+                Transaction.amount_minor,
+                Transaction.date,
+            ).where(
+                Transaction.recurring_rule_id.in_(ids),
+                Transaction.recurring_occurrence_date.is_not(None),
+            )
+        ).all()
+    }
+    skipped = {
+        (rule_id, occurrence_date)
+        for rule_id, occurrence_date in db.execute(
+            select(RecurringSkip.rule_id, RecurringSkip.occurrence_date).where(
+                RecurringSkip.rule_id.in_(ids)
+            )
+        ).all()
+    }
+
+    result: list[RuleOccurrence] = []
+    for rule in rules:
+        for due in occurrences(rule, start, end):
+            key = (rule.id, due)
+            if key in booked:
+                txn_id, amount, date = booked[key]
+                result.append(
+                    RuleOccurrence(rule.id, due, CONFIRMED, txn_id, amount, date)
+                )
+            elif key in skipped:
+                result.append(RuleOccurrence(rule.id, due, SKIPPED))
+            else:
+                result.append(RuleOccurrence(rule.id, due, OPEN))
+    result.sort(key=lambda item: (item.due_date, item.rule_id))
+    return result
+
+
+def stale_since_months(db: Session, rule: RecurringRule, today: dt.date) -> int:
+    """Wie viele faellige Termine in Folge zuletzt weder gebucht noch uebersprungen wurden.
+
+    Hoher Wert bei einem Abo heisst meistens: vergessen zu kuendigen.
+    """
+    lookback_index = today.year * 12 + (today.month - 1) - 23
+    start = dt.date(lookback_index // 12, lookback_index % 12 + 1, 1)
+    history = occurrences_for_period(db, rule.household_id, start, today, [rule.id])
+    streak = 0
+    for entry in reversed(history):
+        if entry.status == OPEN:
+            streak += 1
+        else:
+            break
+    return streak

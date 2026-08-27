@@ -7,6 +7,7 @@ import { CategoryPie } from "@/components/overview/CategoryPie";
 import { GroupBudgetChart } from "@/components/overview/GroupBudgetChart";
 import { MemberBreakdown } from "@/components/overview/MemberBreakdown";
 import { StatCard } from "@/components/overview/StatCard";
+import { PendingSuggestions } from "@/components/recurring/PendingSuggestions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMonth } from "@/hooks/useMonth";
@@ -111,9 +112,7 @@ export function OverviewPage() {
             <CardTitle>Offene Vorschläge</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              Wiederkehrende Buchungen folgen in Phase 5.
-            </p>
+            <PendingSuggestions year={month.year} month={month.month} compact />
           </CardContent>
         </Card>
       </div>

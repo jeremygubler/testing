@@ -112,6 +112,6 @@ budget/
 | 2 | API für Personen, Kategorien, Buchungen mit Splits, Tests | ✅ |
 | 3 | Frontend-Grundgerüst, Monatskontext, Buchungsliste + Erfassung | ✅ |
 | 4 | Budgets, Übersichtsseite mit Kennzahlen und Charts | ✅ |
-| 5 | Wiederkehrende Buchungen mit Vorschlagslogik | ⬜ |
+| 5 | Wiederkehrende Buchungen mit Vorschlagslogik | ✅ |
 | 6 | Kalender, Sparziele, Import, Export | ⬜ |
 | 7 | Feinschliff: Tastatur, Dark Mode, Responsivität, leere Zustände | ⬜ |

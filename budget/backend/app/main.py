@@ -6,7 +6,15 @@ from fastapi.responses import JSONResponse
 
 import app.ddl  # noqa: F401  registriert Trigger/Index-DDL an der Metadata
 from app.config import get_settings
-from app.routers import analytics, budgets, categories, households, members, transactions
+from app.routers import (
+    analytics,
+    budgets,
+    categories,
+    households,
+    members,
+    recurring,
+    transactions,
+)
 from app.services.splits import SplitError
 
 settings = get_settings()
@@ -55,3 +63,4 @@ app.include_router(categories.router)
 app.include_router(transactions.router)
 app.include_router(budgets.router)
 app.include_router(analytics.router)
+app.include_router(recurring.router)

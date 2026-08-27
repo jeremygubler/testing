@@ -196,3 +196,63 @@ export interface TrendPoint {
   balance_minor: number;
   savings_minor: number;
 }
+
+export interface RecurringRule {
+  id: number;
+  category_id: number;
+  category_name: string;
+  category_group: CategoryGroup;
+  category_color: string;
+  description: string;
+  amount_minor: number;
+  interval: IntervalKind;
+  day_of_period: number;
+  anchor_month: number | null;
+  start_date: string;
+  end_date: string | null;
+  is_active: boolean;
+  note: string | null;
+  split: SplitSpec;
+  monthly_estimate_minor: number;
+  yearly_estimate_minor: number;
+  open_streak: number;
+}
+
+export type OccurrenceStatus = "OPEN" | "CONFIRMED" | "SKIPPED";
+
+export interface Occurrence {
+  rule_id: number;
+  due_date: string;
+  status: OccurrenceStatus;
+  transaction_id: number | null;
+  booked_amount_minor: number | null;
+  booked_date: string | null;
+  description: string;
+  category_id: number;
+  category_name: string;
+  category_group: CategoryGroup;
+  amount_minor: number;
+}
+
+export interface ConfirmOccurrence {
+  rule_id: number;
+  due_date: string;
+  date?: string;
+  amount_minor?: number;
+  description?: string;
+  note?: string | null;
+  split?: SplitSpec;
+}
+
+export interface RecurringRuleInput {
+  category_id: number;
+  description: string;
+  amount_minor: number;
+  interval: IntervalKind;
+  day_of_period: number;
+  anchor_month?: number | null;
+  start_date: string;
+  end_date?: string | null;
+  note?: string | null;
+  split: SplitSpec;
+}

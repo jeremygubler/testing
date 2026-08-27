@@ -5,8 +5,12 @@ import type {
   Budget,
   BudgetUpsert,
   Category,
+  ConfirmOccurrence,
   Household,
   MonthSummary,
+  Occurrence,
+  RecurringRule,
+  RecurringRuleInput,
   Settlement,
   TrendPoint,
   Member,
@@ -221,5 +225,72 @@ export function useDeleteBudget() {
   return useMutation({
     mutationFn: (id: number) => api.delete<void>(`/budgets/${id}`),
     onSuccess: () => invalidateBudgetViews(client),
+  });
+}
+
+// -------------------------------------------------------------- Wiederkehrend
+
+export function useRecurringRules() {
+  return useQuery({
+    queryKey: ["recurring", "rules"],
+    queryFn: () => api.get<RecurringRule[]>("/recurring"),
+  });
+}
+
+export function useOccurrences(year: number, month: number, onlyOpen = false) {
+  return useQuery({
+    queryKey: ["recurring", "occurrences", year, month, onlyOpen],
+    queryFn: () =>
+      api.get<Occurrence[]>(`/recurring/occurrences${buildQuery({ year, month, only_open: onlyOpen })}`),
+    placeholderData: (previous) => previous,
+  });
+}
+
+function invalidateRecurringViews(client: ReturnType<typeof useQueryClient>) {
+  void client.invalidateQueries({ queryKey: ["recurring"] });
+  void client.invalidateQueries({ queryKey: ["transactions"] });
+  void client.invalidateQueries({ queryKey: ["analytics"] });
+}
+
+export function useCreateRule() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: RecurringRuleInput) => api.post<RecurringRule>("/recurring", input),
+    onSuccess: () => invalidateRecurringViews(client),
+  });
+}
+
+export function useUpdateRule() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: Partial<RecurringRuleInput> & { is_active?: boolean } }) =>
+      api.patch<RecurringRule>(`/recurring/${id}`, patch),
+    onSuccess: () => invalidateRecurringViews(client),
+  });
+}
+
+export function useDeactivateRule() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete<RecurringRule>(`/recurring/${id}`),
+    onSuccess: () => invalidateRecurringViews(client),
+  });
+}
+
+export function useConfirmOccurrences() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (occurrences: ConfirmOccurrence[]) =>
+      api.post<Transaction[]>("/recurring/occurrences/confirm", { occurrences }),
+    onSuccess: () => invalidateRecurringViews(client),
+  });
+}
+
+export function useSkipOccurrence() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { rule_id: number; due_date: string }) =>
+      api.post<void>("/recurring/occurrences/skip", input),
+    onSuccess: () => invalidateRecurringViews(client),
   });
 }

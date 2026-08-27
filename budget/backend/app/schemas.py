@@ -331,3 +331,110 @@ class TrendPointRead(BaseModel):
     expense_minor: int
     balance_minor: int
     savings_minor: int
+
+
+# ------------------------------------------------------------------ RecurringRule
+
+
+class RecurringRuleBase(BaseModel):
+    category_id: int
+    description: str = Field(min_length=1, max_length=200)
+    amount_minor: int
+    interval: Interval
+    day_of_period: int = Field(default=1, ge=1, le=31)
+    anchor_month: int | None = Field(default=None, ge=1, le=12)
+    start_date: dt.date
+    end_date: dt.date | None = None
+    note: str | None = None
+    split: SplitSpec = SplitSpec()
+
+    @field_validator("amount_minor")
+    @classmethod
+    def _nonzero(cls, value: int) -> int:
+        if value == 0:
+            raise ValueError("Der Betrag darf nicht 0 sein.")
+        return value
+
+    @model_validator(mode="after")
+    def _check_dates(self) -> RecurringRuleBase:
+        if self.end_date and self.end_date < self.start_date:
+            raise ValueError("Das Enddatum liegt vor dem Startdatum.")
+        if self.interval is Interval.WEEKLY and self.day_of_period > 7:
+            raise ValueError("Bei woechentlichen Regeln ist der Tag der Wochentag (1-7).")
+        return self
+
+
+class RecurringRuleCreate(RecurringRuleBase):
+    pass
+
+
+class RecurringRuleUpdate(BaseModel):
+    category_id: int | None = None
+    description: str | None = Field(default=None, min_length=1, max_length=200)
+    amount_minor: int | None = None
+    interval: Interval | None = None
+    day_of_period: int | None = Field(default=None, ge=1, le=31)
+    anchor_month: int | None = Field(default=None, ge=1, le=12)
+    start_date: dt.date | None = None
+    end_date: dt.date | None = None
+    is_active: bool | None = None
+    note: str | None = None
+    split: SplitSpec | None = None
+
+
+class RecurringRuleRead(ApiModel):
+    id: int
+    category_id: int
+    category_name: str
+    category_group: CategoryGroup
+    category_color: str
+    description: str
+    amount_minor: int
+    interval: Interval
+    day_of_period: int
+    anchor_month: int | None
+    start_date: dt.date
+    end_date: dt.date | None
+    is_active: bool
+    note: str | None
+    split: SplitSpec
+    monthly_estimate_minor: int
+    yearly_estimate_minor: int
+    #: Anzahl der zuletzt in Folge unbestaetigten Faelligkeiten -- Hinweis auf ein
+    #: vergessenes Abo.
+    open_streak: int
+
+
+class OccurrenceRead(BaseModel):
+    rule_id: int
+    due_date: dt.date
+    status: str
+    transaction_id: int | None
+    booked_amount_minor: int | None
+    booked_date: dt.date | None
+    #: Vorbelegung fuer die Bestaetigung, aus der Regel uebernommen.
+    description: str
+    category_id: int
+    category_name: str
+    category_group: CategoryGroup
+    amount_minor: int
+
+
+class ConfirmOccurrence(BaseModel):
+    rule_id: int
+    due_date: dt.date
+    #: Beim Bestaetigen anpassbar -- die Stromrechnung schwankt.
+    date: dt.date | None = None
+    amount_minor: int | None = None
+    description: str | None = Field(default=None, max_length=200)
+    note: str | None = None
+    split: SplitSpec | None = None
+
+
+class ConfirmBatch(BaseModel):
+    occurrences: list[ConfirmOccurrence] = Field(min_length=1)
+
+
+class SkipOccurrence(BaseModel):
+    rule_id: int
+    due_date: dt.date
