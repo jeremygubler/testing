@@ -4,6 +4,9 @@ services:
     environment:
       BUDGET_DATABASE_URL: sqlite:////app/data/budget.db
       BUDGET_CORS_ORIGINS: '["http://localhost:8080","http://127.0.0.1:8080"]'
+      # Auf "1" setzen, um beim ersten Start den Beispielhaushalt anzulegen
+      # (zwei Personen, drei Monate Buchungen) statt die Einrichtung zu zeigen.
+      BUDGET_SEED_DEMO: "0"
     volumes:
       - budget-data:/app/data
     ports:

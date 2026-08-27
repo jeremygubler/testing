@@ -20,8 +20,10 @@ docker compose up --build
 * Oberfläche: <http://localhost:8080>
 * API-Dokumentation: <http://localhost:8000/docs>
 
-Beim ersten Start werden Migrationen ausgeführt und ein Beispielhaushalt angelegt
-(zwei Personen, drei Monate Buchungen). Existiert bereits ein Haushalt, passiert nichts.
+Beim ersten Start werden die Migrationen ausgeführt; die App führt dann durch die
+Einrichtung (Name, Währung, Startsaldo, Personen). Wer stattdessen den Beispielhaushalt
+sehen möchte — zwei Personen, drei Monate Buchungen —, setzt in `docker-compose.yml`
+`BUDGET_SEED_DEMO: "1"`.
 
 ## Entwicklung ohne Docker
 
