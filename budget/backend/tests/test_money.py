@@ -79,3 +79,20 @@ def test_parse_amount_rejects_garbage():
 def test_format_amount_round_trips():
     for value in (-123_456, -1, 0, 1, 99, 100, 123_456):
         assert parse_amount(format_amount(value)) == value
+
+
+def test_sqlite_directory_is_created_on_demand(tmp_path):
+    """Ein leeres data/ landet nicht in Git -- der erste lokale Start muss es anlegen."""
+    from app.db import ensure_sqlite_directory
+
+    target = tmp_path / "neu" / "tiefer" / "budget.db"
+    assert not target.parent.exists()
+    ensure_sqlite_directory(f"sqlite:///{target}")
+    assert target.parent.is_dir()
+
+
+def test_in_memory_database_needs_no_directory():
+    from app.db import ensure_sqlite_directory
+
+    ensure_sqlite_directory("sqlite://")
+    ensure_sqlite_directory("sqlite:///:memory:")
