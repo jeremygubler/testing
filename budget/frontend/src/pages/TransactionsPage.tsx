@@ -164,7 +164,7 @@ export function TransactionsPage() {
                   <TableHead className="w-[9rem] text-right">
                     {t.transactions.amount} ({currency})
                   </TableHead>
-                  <TableHead className="w-[4.5rem]" />
+                  <TableHead className="w-[8rem]" />
                 </TableRow>
               </TableHeader>
               <TableBody>

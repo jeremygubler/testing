@@ -31,7 +31,10 @@ export function buildQuery(params: Record<string, QueryValue> = {}): string {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${path}`, {
-    headers: init?.body ? { "Content-Type": "application/json" } : undefined,
+    headers:
+      init?.body && !(init.body instanceof FormData)
+        ? { "Content-Type": "application/json" }
+        : undefined,
     ...init,
   });
 
@@ -70,6 +73,12 @@ function extractMessage(payload: unknown): string | undefined {
 
 export const api = {
   get: <T>(path: string) => request<T>(path),
+  /** Datei-Upload. Kein Content-Type setzen -- den Multipart-Rand kennt nur der Browser. */
+  upload: <T>(path: string, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<T>(path, { method: "POST", body });
+  },
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
   put: <T>(path: string, body: unknown) =>

@@ -271,6 +271,21 @@ class TransactionUpdate(BaseModel):
         return self
 
 
+class AttachmentRead(ApiModel):
+    """Ein Beleg -- ohne die Bytes. Die holt sich die Oberflaeche einzeln."""
+
+    id: int
+    txn_id: int
+    filename: str
+    content_type: str
+    size_bytes: int
+    width: int | None
+    height: int | None
+    created_at: dt.datetime
+    #: Ob eine Vorschau existiert. PDFs haben keine.
+    has_thumbnail: bool
+
+
 class TransactionRead(ApiModel):
     id: int
     date: dt.date
@@ -290,6 +305,8 @@ class TransactionRead(ApiModel):
     amount_minor: int
     recurring_rule_id: int | None
     splits: list[SplitLineRead]
+    #: Nur die Anzahl -- die Liste soll nicht bei jeder Buchung Belegdaten mitschleppen.
+    attachment_count: int
 
 
 class TransactionPage(BaseModel):

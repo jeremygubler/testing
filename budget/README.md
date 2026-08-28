@@ -149,6 +149,25 @@ Findet die Kategoriesuche nichts, legt der letzte Eintrag die Kategorie mit dem
 eingetippten Namen an. Und wer die Beschreibung zuerst schreibt, bekommt einen
 Kategorievorschlag aus früheren Buchungen — anklickbar, nie automatisch.
 
+## Belege
+
+Zu jeder Buchung lassen sich Belege ablegen — Kassenzettel, Rechnungen, Quittungen.
+Die Büroklammer in der Buchungszeile öffnet den Dialog; sobald ein Beleg da ist, steht
+die Anzahl daneben. Drei Wege hinein, je nachdem welcher gerade der kürzeste ist:
+
+* Datei wählen (auch mehrere auf einmal),
+* per Drag & Drop hineinziehen,
+* mit `Strg`+`V` einfügen — praktisch für einen Screenshot einer E-Rechnung.
+
+Angenommen werden Bilder (JPEG, PNG, WebP, GIF) und PDF, bis 15 MB je Datei. **Fotos
+werden beim Speichern verkleinert** (längste Kante 1600 px): ein Kassenzettel muss
+lesbar sein, nicht ausstellungsreif. Aus einem 4-MB-Handyfoto werden so ein paar
+hundert Kilobyte. PDFs bleiben unverändert.
+
+Die Belege liegen **in der SQLite-Datei**, nicht daneben im Dateisystem. Damit bleibt
+die Sicherung eine einzige Datei, und das Löschen einer Buchung nimmt ihre Belege
+zuverlässig mit. Der JSON-Export enthält sie bewusst nicht — siehe unten.
+
 ## Datensicherung
 
 Der JSON-Export lässt sich unter *Einstellungen → Nicht umkehrbar* wieder zurückspielen.
@@ -160,6 +179,11 @@ Die gesamte Anwendung lebt in einer SQLite-Datei (`backend/data/budget.db` bzw. 
 Docker-Volume `budget-data`). Ein Backup ist ein Kopieren dieser Datei. Zusätzlich bietet
 die App unter *Einstellungen* einen vollständigen JSON-Export und einen CSV-Export aller
 Buchungen.
+
+**Belege sind nur in der SQLite-Datei.** Im JSON-Backup stehen sie nicht — als Base64
+wäre es um Grössenordnungen grösser und kein lesbares Textformat mehr. Das Backup nennt
+unter `attachments_excluded`, wie viele es gab, und die App warnt vor dem Zurückspielen.
+Wer Belege sichern will, kopiert die Datenbankdatei.
 
 ## Projektstruktur
 
@@ -197,3 +221,4 @@ budget/
 | 7 | Feinschliff: Tastatur, Dark Mode, Responsivität, leere Zustände | ✅ |
 | + | Ausgleichszahlungen, Jahresansicht, Prognose, Budgetvorschlag, CI | ✅ |
 | + | Konten und Umbuchungen (Vermögen gegen Verfügbar, Sparen als Umbuchung) | ✅ |
+| + | Belege an Buchungen (Kassenzettel, Rechnungen; Bilder werden verkleinert) | ✅ |

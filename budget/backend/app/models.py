@@ -22,6 +22,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -227,6 +228,55 @@ class Transaction(Base):
         lazy="selectin",
         order_by="TransactionSplit.id",
     )
+    attachments: Mapped[list[Attachment]] = relationship(
+        back_populates="transaction",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="Attachment.id",
+    )
+
+
+class Attachment(Base):
+    """Ein Beleg zu einer Buchung -- Kassenzettel, Rechnung, Quittung.
+
+    Die Bytes liegen **in der Datenbank**, nicht daneben im Dateisystem. Das ist eine
+    bewusste Entscheidung: die Zusage "ein Backup ist ein Kopieren der SQLite-Datei"
+    bleibt damit wahr, das Loeschen einer Buchung nimmt ihre Belege transaktional mit
+    (keine verwaisten Dateien), und es gibt keine Pfade, die unter Windows anders
+    aussehen als unter Linux.
+
+    Damit das nicht ausufert, werden Bilder beim Hochladen verkleinert
+    (``services/attachments.py``): ein Kassenzettel muss lesbar sein, nicht
+    ausstellungsreif. Aus 4 MB Handyfoto werden ein paar hundert Kilobyte.
+    """
+
+    __tablename__ = "attachment"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    household_id: Mapped[int] = mapped_column(
+        ForeignKey("household.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    txn_id: Mapped[int] = mapped_column(
+        ForeignKey("txn.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    #: Der Dateiname, wie ihn der Nutzer hochgeladen hat -- nur zur Anzeige.
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    #: Groesse der gespeicherten (also ggf. verkleinerten) Datei.
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    #: Bildmasse nach dem Verkleinern; bei PDF beides None.
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # deferred: ohne das zoege jede Buchungsliste saemtliche Belegbytes mit. Die
+    # Spalten werden erst geladen, wenn sie jemand ausdruecklich anfasst.
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False, deferred=True)
+    #: Kleine Vorschau fuer die Liste, damit dafuer nie das Original geladen wird.
+    thumbnail: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.current_timestamp()
+    )
+
+    transaction: Mapped[Transaction] = relationship(back_populates="attachments")
 
 
 class TransactionSplit(Base):

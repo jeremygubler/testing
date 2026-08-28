@@ -62,7 +62,8 @@ export function DangerZone() {
         </Button>
         <p className="text-xs text-muted-foreground">
           Ersetzt den gesamten Haushalt durch den Stand aus der Datei. Alles, was seither
-          erfasst wurde, geht verloren.
+          erfasst wurde, geht verloren — <strong>auch die Belege</strong>, denn die stecken
+          nicht im JSON-Backup, sondern nur in der SQLite-Datei.
         </p>
       </div>
 
@@ -94,7 +95,8 @@ export function DangerZone() {
         description={
           <>
             <strong>{backup?.name}</strong> ersetzt den gesamten Haushalt. Alle aktuell
-            erfassten Daten werden vorher gelöscht. Das lässt sich nicht rückgängig machen.
+            erfassten Daten werden vorher gelöscht, einschliesslich aller Belege — die sind
+            im JSON-Backup nicht enthalten. Das lässt sich nicht rückgängig machen.
           </>
         }
         actionLabel="Zurückspielen"

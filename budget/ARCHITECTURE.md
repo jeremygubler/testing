@@ -26,6 +26,8 @@ Household 1──n Member
      │                        (Betrag)             │              │
      ├──n Account ────────────────────────────────┤              │
      │            (Konto und Gegenkonto)           │              │
+     ├──n Attachment ─────────────────────────────┤              │
+     │            (Beleg zur Buchung)              │              │
      ├──n Category ───────────────────────────────┘              │
      │        ├──n Budget  (Default oder Monat)                   │
      │        └──n SavingsGoal                                    │
@@ -161,6 +163,33 @@ Was die DB *nicht* prüfen kann, prüft die Service-Schicht (`services/splits.py
 ein Split je Buchung, und dass die Summe dem im Request angegebenen Gesamtbetrag entspricht.
 Nebeneffekt der abgeleiteten Spalte: Filtern und Sortieren nach Betrag braucht keinen
 Aggregat-Join.
+
+### Attachment
+`txn_id`, `filename`, `content_type`, `size_bytes`, `width`, `height`, `data`,
+`thumbnail`, `created_at`. Belege zu einer Buchung: Kassenzettel, Rechnungen, Quittungen.
+
+**Die Bytes liegen in der Datenbank**, nicht daneben im Dateisystem. Drei Gründe:
+
+* Die Zusage „ein Backup ist ein Kopieren der SQLite-Datei" bleibt wahr. Mit Dateien
+  daneben wären es zwei Dinge, die zusammenpassen müssen.
+* Das Löschen einer Buchung nimmt ihre Belege transaktional mit (`ON DELETE CASCADE`).
+  Es kann keine verwaisten Dateien geben, weil es keine Dateien gibt.
+* Keine Pfade, die unter Windows anders aussehen als unter Linux.
+
+Der Preis wäre eine wachsende Datenbank — deshalb wird beim Hochladen **einmal**
+verkleinert (`services/attachments.py`): längste Kante 1600 px, JPEG-Qualität 82, dazu
+eine Vorschau mit 320 px für die Liste. Aus 4 MB Handyfoto werden ein paar hundert
+Kilobyte, und ein Kassenzettel bleibt lesbar. PDFs bleiben unverändert — sie zu rastern
+hiesse, Text zu Pixeln zu machen.
+
+`data` und `thumbnail` sind **deferred**: ohne das zöge jede Buchungsliste sämtliche
+Belegbytes mit. `TransactionRead` trägt deshalb nur `attachment_count`; die Belege selbst
+holt die Oberfläche einzeln über `/api/attachments/{id}` bzw. `.../thumbnail`, mit
+`Cache-Control: immutable` — ein Beleg ändert sich nie, er wird hochgeladen oder gelöscht.
+
+Der angegebene Content-Type allein entscheidet nicht: ein PDF muss mit `%PDF-` beginnen,
+ein Bild muss sich von Pillow öffnen lassen. EXIF-Rotation wird beim Verkleinern
+angewandt, sonst liegt der Bon quer.
 
 ### RecurringRule / RecurringRuleSplit / RecurringSkip
 `category_id`, `description`, `amount_minor`, `interval` (`WEEKLY`, `MONTHLY`,
@@ -373,6 +402,12 @@ Umbuchung; bei einer gewöhnlichen Buchung bleibt `gegenkonto` leer.
 Splits, Regeln, Sparzielen, Terminen und Ausgleichszahlungen — aber ohne abgeleitete Werte
 (kein `txn.amount_minor`, keine Kennzahlen). Was sich berechnen lässt, gehört nicht ins
 Backup.
+
+Belege sind **nicht** enthalten. Als Base64 wäre das Backup um Grössenordnungen grösser
+und nicht mehr das lesbare, versionierbare Textformat, als das es gedacht ist. Damit sie
+beim Zurückspielen niemand unbemerkt verliert, steht ihre Anzahl unter
+`attachments_excluded` im Backup, und die Oberfläche sagt es vor dem Zurückspielen
+ausdrücklich. Wer Belege sichern will, kopiert die SQLite-Datei.
 
 Das Format trägt eine Version. Version 2 führt `settlement_payments`, Version 3 die
 Konten. Ältere Backups bleiben lesbar: fehlen die Konten, wird aus dem Startsaldo des

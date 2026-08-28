@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Copy, Pencil, Trash2, X } from "lucide-react";
+import { Check, Copy, Paperclip, Pencil, Trash2, X } from "lucide-react";
 
 import {
   useAccounts,
@@ -8,6 +8,7 @@ import {
   useUpdateTransaction,
 } from "@/api/hooks";
 import type { Category, Member, Transaction } from "@/api/types";
+import { AttachmentDialog } from "@/components/attachments/AttachmentDialog";
 import { Money } from "@/components/Money";
 import { useHouseholdContext } from "@/components/HouseholdProvider";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { t } from "@/i18n";
 import { todayIso } from "@/lib/date";
 import { parseAmountInput, toDecimalString } from "@/lib/money";
 import { detectTemplate } from "@/lib/splits";
+import { cn } from "@/lib/utils";
 
 /** Wert des Select-Eintrags "keine Umbuchung" — Radix erlaubt keinen leeren String. */
 const NO_TRANSFER = "none";
@@ -50,6 +52,7 @@ export function TransactionRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(() => toDraft(transaction, members));
   const [error, setError] = useState<string | null>(null);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
 
   const memberById = new Map(members.map((member) => [member.id, member]));
   const amountMinor = editing ? parseAmountInput(draft.amountText) : transaction.amount_minor;
@@ -260,8 +263,34 @@ export function TransactionRow({
           className={transaction.is_transfer ? "font-medium text-muted-foreground" : "font-medium"}
         />
       </TableCell>
-      <TableCell className="w-[4.5rem] text-right">
-        <span className="inline-flex gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
+      <TableCell className="w-[8rem] text-right">
+        <span className="inline-flex flex-nowrap items-center gap-0.5">
+        {/* Der Belegknopf bleibt sichtbar, sobald einer da ist -- die Zahl ist eine
+            Information über die Buchung, nicht eine Aktion, die man erst suchen soll. */}
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          onClick={() => setAttachmentsOpen(true)}
+          aria-label={
+            transaction.attachment_count > 0
+              ? `${transaction.attachment_count} Belege zu ${transaction.description || transaction.category_name}`
+              : `Beleg zu ${transaction.description || transaction.category_name} anhängen`
+          }
+          title="Belege"
+          className={cn(
+            "relative transition-opacity",
+            transaction.attachment_count === 0 &&
+              "md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100",
+          )}
+        >
+          <Paperclip />
+          {transaction.attachment_count > 0 && (
+            <span className="absolute right-0 top-0 min-w-3.5 rounded-full bg-primary px-1 text-[0.625rem] font-medium leading-3.5 text-primary-foreground tabular">
+              {transaction.attachment_count}
+            </span>
+          )}
+        </Button>
+        <span className="inline-flex flex-nowrap gap-0.5 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
           <Button size="icon-sm" variant="ghost" onClick={startEditing} aria-label={t.app.edit}>
             <Pencil />
           </Button>
@@ -300,6 +329,14 @@ export function TransactionRow({
             <Trash2 />
           </Button>
         </span>
+        </span>
+
+        <AttachmentDialog
+          txnId={transaction.id}
+          label={`${formatDate(transaction.date)} · ${transaction.description || transaction.category_name}`}
+          open={attachmentsOpen}
+          onOpenChange={setAttachmentsOpen}
+        />
       </TableCell>
     </TableRow>
   );

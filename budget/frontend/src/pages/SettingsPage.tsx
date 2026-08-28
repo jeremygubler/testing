@@ -75,8 +75,10 @@ export function SettingsPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Das JSON-Backup enthält Haushalt, Personen, Kategorien, Budgets, Buchungen samt
-                Aufteilung, Regeln, Sparziele und Termine.
+                Das JSON-Backup enthält Haushalt, Konten, Personen, Kategorien, Budgets,
+                Buchungen samt Aufteilung, Regeln, Sparziele und Termine — aber keine Belege:
+                als Base64 wäre es um Grössenordnungen grösser und kein lesbares Textformat
+                mehr. Für die Belege ist die SQLite-Datei die Sicherung.
               </p>
             </div>
 

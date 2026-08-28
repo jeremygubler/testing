@@ -6,9 +6,11 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 import app.ddl
 from app.config import get_settings
+from app.db import engine
 from app.routers import (
     accounts,
     analytics,
+    attachments,
     budgets,
     calendar,
     categories,
@@ -20,6 +22,7 @@ from app.routers import (
     settlements,
     transactions,
 )
+from app.schema_check import schema_problem
 from app.services.splits import SplitError
 
 settings = get_settings()
@@ -27,6 +30,11 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # Lieber gar nicht starten als auf jede Anfrage einen Stacktrace werfen: eine
+    # veraltete Datenbank ist kein Laufzeitfehler, sondern ein vergessener Schritt.
+    problem = schema_problem(engine)
+    if problem is not None:
+        raise RuntimeError(problem)
     yield
 
 
@@ -68,6 +76,7 @@ async def _split_error_handler(_request: Request, exc: SplitError) -> JSONRespon
 
 app.include_router(households.router)
 app.include_router(accounts.router)
+app.include_router(attachments.router)
 app.include_router(members.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)

@@ -12,13 +12,14 @@ import datetime as dt
 import io
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
 from app.enums import AccountKind
 from app.models import (
     Account,
+    Attachment,
     Budget,
     CalendarEntry,
     Category,
@@ -127,8 +128,11 @@ def household_json(db: Session, household: Household) -> dict[str, Any]:
     """Vollstaendiges Backup. Enthaelt alles, was noetig ist, um den Haushalt
     wiederherzustellen -- inklusive der Splits, aber ohne abgeleitete Werte.
 
-    Version 2 fuehrt ``settlement_payments``. Aeltere Backups (Version 1) lassen sich
-    weiterhin einspielen; sie haben schlicht keine Ausgleichszahlungen.
+    Version 2 fuehrt ``settlement_payments``, Version 3 die Konten. Aeltere Backups
+    lassen sich weiterhin einspielen.
+
+    Belege sind **nicht** enthalten -- siehe ``attachments_excluded``. Wer sie sichern
+    will, kopiert die SQLite-Datei; darin stecken sie.
     """
 
     def rows(model, order):
@@ -136,10 +140,24 @@ def household_json(db: Session, household: Household) -> dict[str, Any]:
             select(model).where(model.household_id == household.id).order_by(order)
         ).unique()
 
+    attachment_count = (
+        db.scalar(
+            select(func.count())
+            .select_from(Attachment)
+            .where(Attachment.household_id == household.id)
+        )
+        or 0
+    )
+
     return {
         "format": "haushaltsbudget-backup",
         "version": BACKUP_VERSION,
         "exported_at": dt.datetime.now().isoformat(timespec="seconds"),
+        # Belege sind hier bewusst nicht drin: als Base64 waere das Backup um
+        # Groessenordnungen groesser und nicht mehr das lesbare, versionierbare
+        # Textformat, als das es gedacht ist. Die Zahl steht trotzdem hier, damit
+        # beim Zurueckspielen niemand raten muss, ob er gerade welche verliert.
+        "attachments_excluded": attachment_count,
         "household": {
             "name": household.name,
             "currency": household.currency,
@@ -334,6 +352,7 @@ def parse_amount_cell(text: str, keep_sign: bool) -> tuple[int | None, str | Non
 #: Reihenfolge, in der geloescht werden muss. Kategorien und Personen haengen an
 #: Buchungen mit ON DELETE RESTRICT -- die muessen zuerst weg.
 _DELETE_ORDER = (
+    "attachment",
     "txn_split",
     "txn",
     "settlement_payment",
@@ -360,12 +379,20 @@ def wipe(db: Session, household_id: int, keep_master_data: bool = False) -> dict
     und Termine -- geloescht werden dann die Buchungen samt der Ausgleichszahlungen.
     Letztere gleichen konkrete Ausgaben aus; ohne diese Ausgaben stuenden sie als
     unbegruendete Guthaben da.
+
+    Belege gehen in beiden Faellen mit: sie gehoeren zu einer Buchung, und ohne die
+    Buchung sind sie ein Bild ohne Bezug.
     """
-    tables = ("txn_split", "txn", "settlement_payment") if keep_master_data else _DELETE_ORDER
+    tables = (
+        ("attachment", "txn_split", "txn", "settlement_payment")
+        if keep_master_data
+        else _DELETE_ORDER
+    )
     removed: dict[str, int] = {}
 
     # Alles, was am Haushalt haengt, ueber die jeweilige Verbindung einsammeln.
     scoped = {
+        "attachment": "DELETE FROM attachment WHERE household_id = :hid",
         "txn_split": "DELETE FROM txn_split WHERE txn_id IN"
         " (SELECT id FROM txn WHERE household_id = :hid)",
         "txn": "DELETE FROM txn WHERE household_id = :hid",

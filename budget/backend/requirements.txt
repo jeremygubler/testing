@@ -5,3 +5,5 @@ alembic>=1.13
 pydantic>=2.7
 pydantic-settings>=2.3
 python-dateutil>=2.9
+python-multipart>=0.0.9
+pillow>=10.3

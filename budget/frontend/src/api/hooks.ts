@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@ta
 import { ApiError, api, buildQuery } from "./client";
 import type {
   Account,
+  Attachment,
   AccountBalance,
   AccountInput,
   AccountPatch,
@@ -50,6 +51,7 @@ export const queryKeys = {
   accounts: ["accounts"] as const,
   accountBalances: ["accounts", "balances"] as const,
   members: ["members"] as const,
+  attachments: (txnId: number) => ["attachments", txnId] as const,
   categories: ["categories"] as const,
   transactions: (query: TransactionQuery) => ["transactions", query] as const,
   transaction: (id: number) => ["transaction", id] as const,
@@ -139,6 +141,41 @@ export function useMembers() {
     queryKey: queryKeys.members,
     queryFn: () => api.get<Member[]>("/members"),
     staleTime: 60_000,
+  });
+}
+
+export function useAttachments(txnId: number, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.attachments(txnId),
+    queryFn: () => api.get<Attachment[]>(`/transactions/${txnId}/attachments`),
+    enabled,
+  });
+}
+
+/** Nach dem Hoch- oder Herunterladen stimmt auch die Zahl an der Buchung nicht mehr. */
+function invalidateAttachmentViews(
+  client: ReturnType<typeof useQueryClient>,
+  txnId: number,
+) {
+  void client.invalidateQueries({ queryKey: queryKeys.attachments(txnId) });
+  void client.invalidateQueries({ queryKey: ["transactions"] });
+  void client.invalidateQueries({ queryKey: queryKeys.transaction(txnId) });
+}
+
+export function useUploadAttachment(txnId: number) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) =>
+      api.upload<Attachment>(`/transactions/${txnId}/attachments`, file),
+    onSuccess: () => invalidateAttachmentViews(client, txnId),
+  });
+}
+
+export function useDeleteAttachment(txnId: number) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/attachments/${id}`),
+    onSuccess: () => invalidateAttachmentViews(client, txnId),
   });
 }
 

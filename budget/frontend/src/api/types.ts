@@ -135,7 +135,26 @@ export interface Transaction {
   amount_minor: number;
   recurring_rule_id: number | null;
   splits: SplitLine[];
+  /** Nur die Anzahl — die Belege selbst holt der Dialog einzeln. */
+  attachment_count: number;
 }
+
+export interface Attachment {
+  id: number;
+  txn_id: number;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  width: number | null;
+  height: number | null;
+  created_at: string;
+  /** Ob eine Vorschau existiert. PDFs haben keine. */
+  has_thumbnail: boolean;
+}
+
+/** Die URL, unter der ein Beleg liegt — der Browser lädt ihn selbst, nicht der Client. */
+export const attachmentUrl = (id: number) => `/api/attachments/${id}`;
+export const attachmentThumbnailUrl = (id: number) => `/api/attachments/${id}/thumbnail`;
 
 export interface CategorySuggestion {
   category_id: number;

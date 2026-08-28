@@ -41,6 +41,7 @@ def to_read(txn: Transaction) -> TransactionRead:
         note=txn.note,
         amount_minor=txn.amount_minor,
         recurring_rule_id=txn.recurring_rule_id,
+        attachment_count=len(txn.attachments),
         splits=[
             SplitLineRead(member_id=s.member_id, amount_minor=s.amount_minor)
             for s in sorted(txn.splits, key=lambda s: s.id)
