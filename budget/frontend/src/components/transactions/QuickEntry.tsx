@@ -1,0 +1,319 @@
+import { useEffect, useRef, useState } from "react";
+import { Check, Lightbulb, Loader2, Plus } from "lucide-react";
+
+import {
+  useAccounts,
+  useCategories,
+  useCreateTransaction,
+  useMembers,
+  useSuggestCategory,
+} from "@/api/hooks";
+import type { SplitTemplate } from "@/api/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CategoryDialog } from "@/components/budget/CategoryDialog";
+import { CategoryCombobox } from "./CategoryCombobox";
+import { SplitEditor, emptySplitState, toSplitSpec, type SplitState } from "./SplitEditor";
+import { t } from "@/i18n";
+import { todayIso } from "@/lib/date";
+import { parseAmountInput } from "@/lib/money";
+import { cn } from "@/lib/utils";
+
+const TEMPLATE_KEY = "budget.lastSplitTemplate";
+const ACCOUNT_KEY = "budget.lastAccountId";
+/** Wert des Select-Eintrags "keine Umbuchung" — Radix erlaubt keinen leeren String. */
+const NO_TRANSFER = "none";
+
+function readAccountId(): number | null {
+  try {
+    const value = Number(localStorage.getItem(ACCOUNT_KEY));
+    return Number.isInteger(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function readTemplate(): SplitTemplate {
+  try {
+    const value = localStorage.getItem(TEMPLATE_KEY);
+    if (value === "SINGLE" || value === "EQUAL" || value === "KEY" || value === "MANUAL") return value;
+  } catch {
+    /* egal */
+  }
+  return "KEY";
+}
+
+/**
+ * Erfassen in drei Interaktionen: Betrag tippen → Enter, Kategorie tippen → Enter,
+ * Enter speichert. Datum und Aufteilungsvorlage bleiben zwischen Buchungen stehen,
+ * der Fokus springt nach dem Speichern zurück auf den Betrag.
+ */
+export function QuickEntry({ defaultDate, className }: { defaultDate?: string; className?: string }) {
+  const { data: categories = [] } = useCategories();
+  const { data: members = [] } = useMembers();
+  const { data: accounts = [] } = useAccounts();
+  const create = useCreateTransaction();
+
+  const amountRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLInputElement>(null);
+
+  const [amountText, setAmountText] = useState("");
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState(defaultDate ?? todayIso());
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [split, setSplit] = useState<SplitState>(() => emptySplitState([], readTemplate()));
+  const [justSaved, setJustSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState<string | null>(null);
+  const [accountId, setAccountId] = useState<number | null>(readAccountId);
+  const [counterAccountId, setCounterAccountId] = useState<number | null>(null);
+
+  const activeAccounts = accounts.filter((account) => account.is_active);
+  // Wie bei den Personen: die Vorauswahl wird beim Verwenden abgeleitet, statt sie
+  // nachtraeglich in einem Effekt zu setzen.
+  const effectiveAccountId =
+    activeAccounts.find((account) => account.id === accountId)?.id ?? activeAccounts[0]?.id ?? null;
+  const transferTarget =
+    counterAccountId !== null && counterAccountId !== effectiveAccountId ? counterAccountId : null;
+
+  // Vorschlag aus frueheren Buchungen -- nur anzeigen, nie automatisch anwenden.
+  const suggestion = useSuggestCategory(categoryId === null ? description : "");
+
+  // Die Personen kommen asynchron. Statt den Zustand nachtraeglich in einem Effekt
+  // zu fuellen, wird die Vorauswahl beim Verwenden abgeleitet -- dann gibt es keinen
+  // Moment, in dem beides auseinanderlaeuft.
+  const effectiveSplit: SplitState = {
+    ...split,
+    singleMemberId: split.singleMemberId ?? members.find((member) => member.is_active)?.id ?? null,
+  };
+
+  // Wechselt der Monat, folgt das Datumsfeld -- angeglichen waehrend des Renderns,
+  // nicht in einem Effekt.
+  const [lastDefaultDate, setLastDefaultDate] = useState(defaultDate);
+  if (defaultDate && lastDefaultDate !== defaultDate) {
+    setLastDefaultDate(defaultDate);
+    setDate(defaultDate);
+  }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TEMPLATE_KEY, split.template);
+    } catch {
+      /* egal */
+    }
+  }, [split.template]);
+
+  const amountMinor = parseAmountInput(amountText);
+  const canSubmit = amountMinor !== null && amountMinor !== 0 && categoryId !== null && !create.isPending;
+
+  async function submit() {
+    if (!canSubmit || amountMinor === null || categoryId === null) return;
+    setError(null);
+    try {
+      await create.mutateAsync({
+        date,
+        category_id: categoryId,
+        account_id: effectiveAccountId,
+        counter_account_id: transferTarget,
+        description: description.trim(),
+        amount_minor: amountMinor,
+        split: toSplitSpec(effectiveSplit, members, amountMinor),
+      });
+      if (effectiveAccountId !== null) {
+        try {
+          localStorage.setItem(ACCOUNT_KEY, String(effectiveAccountId));
+        } catch {
+          /* egal */
+        }
+      }
+      setAmountText("");
+      setDescription("");
+      setCategoryId(null);
+      setSplit((state) => ({ ...state, manual: {} }));
+      setJustSaved(true);
+      window.setTimeout(() => setJustSaved(false), 2000);
+      amountRef.current?.focus();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t.app.error);
+    }
+  }
+
+  return (
+    <form
+      className={cn("rounded-lg border bg-card p-2.5", className)}
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submit();
+      }}
+    >
+      <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[8rem_13rem_minmax(0,1fr)_9.5rem_auto]">
+        <div>
+          <Label htmlFor="quick-amount" className="sr-only">
+            {t.transactions.amount}
+          </Label>
+          <Input
+            id="quick-amount"
+            ref={amountRef}
+            autoFocus
+            inputMode="decimal"
+            placeholder={t.transactions.quickAmount}
+            value={amountText}
+            onChange={(event) => setAmountText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                if (amountMinor !== null && amountMinor !== 0) setCategoryOpen(true);
+              }
+            }}
+            className={cn(
+              "text-right tabular",
+              amountText && amountMinor === null && "border-destructive focus-visible:ring-destructive",
+            )}
+            aria-invalid={Boolean(amountText) && amountMinor === null}
+          />
+        </div>
+
+        <CategoryCombobox
+          categories={categories}
+          value={categoryId}
+          onChange={setCategoryId}
+          open={categoryOpen}
+          onOpenChange={setCategoryOpen}
+          onCommit={() => descriptionRef.current?.focus()}
+          onCreate={(name) => setNewCategoryName(name)}
+          className="w-full"
+        />
+
+        <div>
+          <Label htmlFor="quick-description" className="sr-only">
+            {t.transactions.description}
+          </Label>
+          <Input
+            id="quick-description"
+            ref={descriptionRef}
+            placeholder={t.transactions.quickDescription}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="quick-date" className="sr-only">
+            {t.transactions.date}
+          </Label>
+          <Input
+            id="quick-date"
+            type="date"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+            className="tabular"
+          />
+        </div>
+
+        <Button type="submit" disabled={!canSubmit} className="lg:w-28">
+          {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
+          {t.transactions.save}
+        </Button>
+      </div>
+
+      {activeAccounts.length > 1 && (
+        // Bei genau einem Konto waere die Auswahl nur Ballast -- dann bleibt das
+        // Formular so schmal wie bisher.
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <Label htmlFor="quick-account" className="text-muted-foreground">
+            Konto
+          </Label>
+          <Select
+            value={effectiveAccountId === null ? undefined : String(effectiveAccountId)}
+            onValueChange={(value) => setAccountId(Number(value))}
+          >
+            <SelectTrigger id="quick-account" className="h-8 w-[11rem]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {activeAccounts.map((account) => (
+                <SelectItem key={account.id} value={String(account.id)}>
+                  {account.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Label htmlFor="quick-counter-account" className="text-muted-foreground">
+            Umbuchung auf
+          </Label>
+          <Select
+            value={transferTarget === null ? NO_TRANSFER : String(transferTarget)}
+            onValueChange={(value) => setCounterAccountId(value === NO_TRANSFER ? null : Number(value))}
+          >
+            <SelectTrigger id="quick-counter-account" className="h-8 w-[11rem]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_TRANSFER}>— keine —</SelectItem>
+              {activeAccounts
+                .filter((account) => account.id !== effectiveAccountId)
+                .map((account) => (
+                  <SelectItem key={account.id} value={String(account.id)}>
+                    {account.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+
+          {transferTarget !== null && (
+            <span className="text-muted-foreground">
+              Umbuchung — weder Einnahme noch Ausgabe, nur ein Wechsel des Topfes.
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <SplitEditor
+          members={members}
+          totalMinor={amountMinor ?? 0}
+          value={effectiveSplit}
+          onChange={setSplit}
+          compact
+          className={cn("flex-1", split.template === "MANUAL" ? "min-w-[16rem]" : "min-w-0")}
+        />
+        {suggestion.data && (
+          <button
+            type="button"
+            onClick={() => setCategoryId(suggestion.data!.category_id)}
+            className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Lightbulb className="size-3.5" />
+            Vorschlag: <span className="font-medium text-foreground">{suggestion.data.category_name}</span>
+          </button>
+        )}
+
+        {justSaved && (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Check className="size-3.5" />
+            {t.transactions.savedHint}
+          </span>
+        )}
+      </div>
+
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+
+      <CategoryDialog
+        open={newCategoryName !== null}
+        onOpenChange={(next) => {
+          if (!next) setNewCategoryName(null);
+        }}
+        defaultName={newCategoryName ?? ""}
+        onCreated={(created) => {
+          setCategoryId(created.id);
+          setNewCategoryName(null);
+          descriptionRef.current?.focus();
+        }}
+      />
+    </form>
+  );
+}

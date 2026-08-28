@@ -1,0 +1,90 @@
+name: Haushaltsbudget CI
+
+# Prueft die Budget-Anwendung: Backend (Ruff, pytest, Migrationen) und Frontend
+# (Typecheck, ESLint, Vitest, Build). Laeuft nur bei Aenderungen unter budget/.
+
+on:
+  push:
+    paths:
+      - "budget/**"
+      - ".github/workflows/budget-ci.yml"
+  pull_request:
+    paths:
+      - "budget/**"
+      - ".github/workflows/budget-ci.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: budget/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: budget/backend/requirements-dev.txt
+
+      - name: Abhaengigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt ruff
+
+      - name: Ruff (Lint)
+        run: ruff check .
+
+      - name: Ruff (Format)
+        run: ruff format --check .
+
+      - name: Tests
+        run: pytest -q
+
+      - name: Migrationen laufen vorwaerts und rueckwaerts
+        env:
+          BUDGET_DATABASE_URL: sqlite:///./data/ci.db
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+
+      - name: Seed-Daten lassen sich anlegen
+        env:
+          BUDGET_DATABASE_URL: sqlite:///./data/ci.db
+        run: python seed.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: budget/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: budget/frontend/package-lock.json
+
+      - name: Abhaengigkeiten installieren
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: ESLint
+        run: npm run lint:eslint
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build

@@ -1,0 +1,30 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      BUDGET_DATABASE_URL: sqlite:////app/data/budget.db
+      BUDGET_CORS_ORIGINS: '["http://localhost:8080","http://127.0.0.1:8080"]'
+      # BUDGET_SEED_DEMO=1 docker compose up --build
+      # legt beim ersten Start den Beispielhaushalt an (zwei Personen, drei Monate
+      # Buchungen) statt die Erstinbetriebnahme zu zeigen.
+      BUDGET_SEED_DEMO: "${BUDGET_SEED_DEMO:-0}"
+    volumes:
+      - budget-data:/app/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  budget-data:
