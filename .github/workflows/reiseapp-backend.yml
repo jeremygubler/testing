@@ -35,7 +35,7 @@ jobs:
 
     env:
       REISEAPP_ENV: test
-      REISEAPP_JWT_SECRET: ci-secret
+      REISEAPP_JWT_SECRET: ci-secret-0000000000000000000000000000
       REISEAPP_DATABASE_URL: postgresql+asyncpg://reiseapp:reiseapp@localhost:5432/reiseapp_test
 
     steps:

@@ -14,6 +14,7 @@ from app import __version__
 from app.api.v1 import health
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.errors import AppError
 from app.db.session import dispose_engine
 
 logger = logging.getLogger("reiseapp")
@@ -55,6 +56,15 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix=settings.api_prefix)
     # Unprefixed probes for Docker/Kubernetes healthchecks.
     app.include_router(health.router, prefix="/health", include_in_schema=False)
+
+    @app.exception_handler(AppError)
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": {"code": exc.status_code, "type": exc.type, "message": exc.message}
+            },
+        )
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(

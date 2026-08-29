@@ -3,8 +3,10 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEV_JWT_SECRET = "dev-only-insecure-secret"
 
 
 class Settings(BaseSettings):
@@ -26,7 +28,7 @@ class Settings(BaseSettings):
     db_max_overflow: int = 20
     db_echo: bool = False
 
-    jwt_secret: SecretStr = SecretStr("dev-only-insecure-secret")
+    jwt_secret: SecretStr = SecretStr(_DEV_JWT_SECRET)
     jwt_algorithm: str = "HS256"
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 30
@@ -40,6 +42,11 @@ class Settings(BaseSettings):
     s3_bucket: str = "reiseapp-media"
     s3_region: str = "us-east-1"
 
+    # Invite-only by default: a self-hosted instance on the open internet must not
+    # hand out accounts to anyone who finds the URL.
+    allow_registration: bool = False
+    invite_ttl_days: int = 14
+
     cors_origins: list[str] = Field(default_factory=list)
     run_migrations_on_startup: bool = True
 
@@ -50,6 +57,19 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _reject_weak_production_secrets(self) -> Settings:
+        # PyJWT only warns about a short HMAC key. On an instance that is reachable
+        # from the internet, a guessable secret means forgeable access tokens.
+        if self.env == "production":
+            secret = self.jwt_secret.get_secret_value()
+            if secret == _DEV_JWT_SECRET or len(secret) < 32:
+                raise ValueError(
+                    "REISEAPP_JWT_SECRET must be at least 32 characters in production "
+                    "(generate one with: openssl rand -hex 32)"
+                )
+        return self
 
     @property
     def sync_database_url(self) -> str:

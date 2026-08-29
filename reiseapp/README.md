@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 0 (Setup) abgeschlossen.**
+**Status: Phase 1 (Auth & Trips) – Backend.**
 
 ## Warum
 
@@ -23,13 +23,16 @@ Bewegungsdaten im eigenen Homelab bleiben.
 reiseapp/
 ├── backend/                 FastAPI + SQLAlchemy 2 (async) + PostGIS
 │   ├── app/
-│   │   ├── api/v1/          Router (aktuell: health)
+│   │   ├── api/v1/          Router: health, auth, trips
 │   │   ├── core/            Settings (pydantic-settings, REISEAPP_*)
 │   │   ├── db/              Declarative Base, Async-Session
-│   │   ├── models/          User, Trip, TripMember, Waypoint, Stop, Photo, JournalEntry
+│   │   ├── models/          User, Trip, TripMember, Waypoint, Stop, Photo, JournalEntry,
+│   │   │                     RefreshToken, Invite
+│   │   ├── services/        Domänenlogik (auth, trips) – ohne FastAPI-Abhängigkeit
 │   │   ├── schemas/         Pydantic-I/O-Modelle
-│   │   └── storage/         S3/MinIO-Client
-│   ├── alembic/             Migrationen (0001 = PostGIS + Kernschema)
+│   │   ├── storage/         S3/MinIO-Client
+│   │   └── cli.py           Admin-CLI (ersten Account anlegen, Invites ausstellen)
+│   ├── alembic/             Migrationen (0001 Kernschema, 0002 Auth)
 │   ├── tests/               pytest (unit + `-m integration` gegen echtes PostGIS)
 │   └── Dockerfile           Multi-Stage: `runtime` (schlank) / `dev` (Reload + Dev-Deps)
 ├── mobile/                  Expo + TypeScript (ab Phase 1)
@@ -68,6 +71,10 @@ openssl rand -hex 24   # -> S3_SECRET_KEY
 
 docker compose up -d
 curl -s localhost:8000/health/ready | jq
+
+# Invite-only: ersten Account anlegen (fragt nach dem Passwort)
+docker compose exec backend python -m app.cli create-user \
+    --email du@example.com --display-name "Du" --admin
 ```
 
 Erwartet:
@@ -89,6 +96,57 @@ MinIO erreicht (z. B. `https://media.reise.example`). Intern spricht das Backend
 Hinter einem Reverse Proxy (Traefik/Caddy/NPM) zusätzlich `CORS_ORIGINS` setzen, sobald der
 Web-Viewer dazukommt.
 
+## Accounts & Invites
+
+Registrierung ist per Default **geschlossen** (`ALLOW_REGISTRATION=false`) – eine
+self-hosted Instanz am offenen Netz soll nicht jedem einen Account geben, der die URL
+kennt. Der Weg rein:
+
+```bash
+# 1. Erster Account (umgeht Invites, wird Admin)
+docker compose exec backend python -m app.cli create-user \
+    --email du@example.com --display-name "Du" --admin
+
+# 2. Weitere Personen einladen – Code erscheint genau einmal
+docker compose exec backend python -m app.cli create-invite --email freund@example.com
+# oder über die API: POST /api/v1/auth/invites  (nur Admins)
+
+# 3. Registrieren
+curl -X POST localhost:8000/api/v1/auth/register -H 'content-type: application/json' \
+  -d '{"email":"freund@example.com","display_name":"Freund","password":"...","invite_code":"..."}'
+```
+
+`ALLOW_REGISTRATION=true` öffnet die Registrierung ohne Code – nur sinnvoll, solange die
+Instanz nicht öffentlich erreichbar ist.
+
+### Tokens
+
+- **Access-Token**: JWT, kurzlebig (Default 15 min), `Authorization: Bearer <token>`.
+- **Refresh-Token**: undurchsichtiger Zufallsstring, in der DB liegt nur der SHA-256.
+  Ein JWT lässt sich vor Ablauf nicht zurückziehen – ohne diese Trennung gäbe es kein
+  funktionierendes Logout.
+- **Rotation mit Wiederverwendungserkennung**: jeder `/auth/refresh` gibt ein neues
+  Refresh-Token aus und entwertet das alte. Taucht ein bereits entwertetes Token
+  nochmal auf, ist es abgeflossen — dann werden **alle** Sessions dieses Users entwertet.
+
+## API (Stand Phase 1)
+
+| Methode | Pfad | Rolle |
+|---|---|---|
+| POST | `/api/v1/auth/register` | – (Invite-Code nötig) |
+| POST | `/api/v1/auth/login` | – |
+| POST | `/api/v1/auth/refresh` | – (Refresh-Token) |
+| POST | `/api/v1/auth/logout` | – (Refresh-Token) |
+| GET | `/api/v1/auth/me` | eingeloggt |
+| POST/GET | `/api/v1/auth/invites` | Admin |
+| POST/GET | `/api/v1/trips` | eingeloggt |
+| GET/PATCH/DELETE | `/api/v1/trips/{id}` | viewer / editor / owner |
+| GET/POST | `/api/v1/trips/{id}/members` | viewer / owner |
+| PATCH/DELETE | `/api/v1/trips/{id}/members/{user_id}` | owner |
+
+Rollen: `owner` > `editor` > `viewer`. Wer keine Rolle auf einer Reise hat, bekommt
+**404 statt 403** – sonst verrät die API die Existenz fremder privater Reisen.
+
 ## Konfiguration
 
 Alle Backend-Variablen tragen den Prefix `REISEAPP_`; `docker-compose.yml` mappt die
@@ -104,6 +162,8 @@ kürzeren Namen aus `.env` darauf.
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `REISEAPP_S3_*` | – (Pflicht) | MinIO-Root-Credentials |
 | `S3_BUCKET` | `REISEAPP_S3_BUCKET` | `reiseapp-media` | Bucket für Originalfotos |
 | `S3_PUBLIC_ENDPOINT_URL` | `REISEAPP_S3_PUBLIC_ENDPOINT_URL` | `http://localhost:9000` | Basis für presigned URLs |
+| `ALLOW_REGISTRATION` | `REISEAPP_ALLOW_REGISTRATION` | `false` | offene Registrierung statt Invite-only |
+| `INVITE_TTL_DAYS` | `REISEAPP_INVITE_TTL_DAYS` | `14` | Gültigkeit neuer Invite-Codes |
 | `CORS_ORIGINS` | `REISEAPP_CORS_ORIGINS` | leer | kommagetrennte Browser-Origins |
 | `REISEAPP_ENV` | `REISEAPP_ENV` | `production` | `production` blendet `/docs` aus |
 | `BACKEND_TARGET` | – | `runtime` | auf `dev` stellen für Hot-Reload |
@@ -140,7 +200,11 @@ alembic upgrade head
 alembic downgrade -1
 ```
 
-Fallstrick, der hier schon zugeschlagen hat: GeoAlchemy2 schreibt die Nullability der
+Zwei Fallstricke, die hier schon zugeschlagen haben. Erstens: **niemals SQL auf der
+Migrations-Connection absetzen, bevor `context.configure()` gelaufen ist.** Das erste
+Statement öffnet implizit eine Transaktion, Alembic macht daraufhin `begin_transaction()`
+zum No-Op, und die Migration wird beim Schliessen zurückgerollt – erfolgreich aussehend
+und wirkungslos. Zweitens: GeoAlchemy2 schreibt die Nullability der
 Spalte auf das *Typ-Objekt* zurück. Ein geteiltes `Geography(...)`-Objekt schleppt damit
 `NOT NULL` von einer Tabelle in die nächste. Deshalb erzeugt `point_geography()` pro Spalte
 eine frische Instanz – nicht wegräumen.
@@ -148,7 +212,9 @@ eine frische Instanz – nicht wegräumen.
 ## Phasen
 
 - [x] **0 – Setup:** Monorepo, Compose-Stack, Alembic, Kernschema, Health-Endpoints, CI
-- [ ] **1 – Auth & Trips:** JWT (Argon2), Trip-CRUD, Rollen; Mobile: Auth + Trip-Liste
+- [x] **1a – Auth & Trips (Backend):** Argon2 + JWT, rotierende Refresh-Tokens,
+      Invite-System, Trip-CRUD, TripMember-Rollen, Admin-CLI
+- [ ] **1b – Auth & Trips (Mobile):** Expo-App, Auth-Screens, Trip-Liste, Trip-Detail
 - [ ] **2 – Karte & manuelle Wegpunkte:** MapLibre, Route rendern, Stops setzen
 - [ ] **3 – Background-GPS-Tracking:** `expo-task-manager`, Batch-Upload, adaptive Intervalle
 - [ ] **4 – Fotos:** Upload zu MinIO, EXIF (Zeit + GPS), automatische Stop-Zuordnung
