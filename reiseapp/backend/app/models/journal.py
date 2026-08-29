@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,7 +46,6 @@ class JournalEntryPhoto(Base):
     """Ordered photo list of an entry. Explicit table because order matters."""
 
     __tablename__ = "journal_entry_photos"
-    __table_args__ = (UniqueConstraint("entry_id", "photo_id"),)
 
     entry_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),

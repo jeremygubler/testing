@@ -22,12 +22,35 @@ config.set_main_option("sqlalchemy.url", settings.database_url)
 target_metadata = Base.metadata
 
 
+# The postgis image installs postgis_tiger_geocoder and postgis_topology and puts
+# their schemas on the search_path. Postgres reports every table on the search_path
+# as "visible", so autogenerate reflects a few hundred tiger tables and proposes to
+# drop them. Pinning the search_path is the fix; the name list covers the PostGIS
+# objects that live in public itself.
+POSTGIS_SCHEMAS = {"tiger", "tiger_data", "topology"}
+POSTGIS_TABLES = {
+    "spatial_ref_sys",
+    "geography_columns",
+    "geometry_columns",
+    "raster_columns",
+    "raster_overviews",
+}
+
+
 def include_object(obj, name, type_, reflected, compare_to) -> bool:  # type: ignore[no-untyped-def]
-    # PostGIS ships its own bookkeeping tables/indexes; never autogenerate against them.
-    if type_ == "table" and name in {"spatial_ref_sys", "geography_columns", "geometry_columns"}:
+    if getattr(obj, "schema", None) in POSTGIS_SCHEMAS:
         return False
-    if type_ == "index" and name is not None and name.startswith("idx_") and reflected:
+    if type_ == "table" and name in POSTGIS_TABLES:
         return False
+    # GeoAlchemy2/PostGIS create spatial indexes named idx_*; ours are all ix_*.
+    if type_ == "index" and reflected and compare_to is None and (name or "").startswith("idx_"):
+        return False
+    return True
+
+
+def include_name(name, type_, parent_names) -> bool:  # type: ignore[no-untyped-def]
+    if type_ == "schema":
+        return name in (None, "public")
     return True
 
 
@@ -39,17 +62,21 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         include_object=include_object,
+        include_name=include_name,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
+    connection.exec_driver_sql("SET search_path TO public")
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
         compare_type=True,
         include_object=include_object,
+        include_name=include_name,
+        include_schemas=False,
     )
     with context.begin_transaction():
         context.run_migrations()

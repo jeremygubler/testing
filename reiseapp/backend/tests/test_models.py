@@ -47,3 +47,11 @@ def test_photo_geometry_is_nullable_but_track_geometry_is_not() -> None:
 
     assert Photo.__table__.c.geom.nullable is True
     assert Waypoint.__table__.c.geom.nullable is False
+
+
+def test_journal_photo_link_has_no_redundant_unique_constraint() -> None:
+    from sqlalchemy import UniqueConstraint
+
+    table = Base.metadata.tables["journal_entry_photos"]
+    assert [c.name for c in table.primary_key.columns] == ["entry_id", "photo_id"]
+    assert not [c for c in table.constraints if isinstance(c, UniqueConstraint)]

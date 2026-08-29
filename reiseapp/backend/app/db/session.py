@@ -25,6 +25,11 @@ def get_engine() -> AsyncEngine:
             pool_size=settings.db_pool_size,
             max_overflow=settings.db_max_overflow,
             pool_pre_ping=True,
+            # PostGIS puts tiger/topology on the search_path; pin it so a table
+            # there can never shadow one of ours.
+            connect_args={
+                "server_settings": {"search_path": "public", "application_name": "reiseapp"}
+            },
         )
     return _engine
 

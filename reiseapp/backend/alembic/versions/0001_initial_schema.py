@@ -201,8 +201,9 @@ def upgrade() -> None:
         sa.Column("position", sa.Integer(), nullable=False, server_default="0"),
         sa.ForeignKeyConstraint(["entry_id"], ["journal_entries.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["photo_id"], ["photos.id"], ondelete="CASCADE"),
+        # The composite PK already enforces uniqueness – a separate UNIQUE would
+        # be a second index for nothing (and shows up as drift in `alembic check`).
         sa.PrimaryKeyConstraint("entry_id", "photo_id"),
-        sa.UniqueConstraint("entry_id", "photo_id"),
     )
 
     op.create_foreign_key(
