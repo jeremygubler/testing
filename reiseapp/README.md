@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 1 (Auth & Trips) – Backend.**
+**Status: Phase 1 (Auth & Trips) abgeschlossen.**
 
 ## Warum
 
@@ -35,7 +35,7 @@ reiseapp/
 │   ├── alembic/             Migrationen (0001 Kernschema, 0002 Auth)
 │   ├── tests/               pytest (unit + `-m integration` gegen echtes PostGIS)
 │   └── Dockerfile           Multi-Stage: `runtime` (schlank) / `dev` (Reload + Dev-Deps)
-├── mobile/                  Expo + TypeScript (ab Phase 1)
+├── mobile/                  Expo SDK 57 + TypeScript strict (expo-router)
 ├── web/                     Read-only Web-Viewer (ab Phase 9)
 ├── docker-compose.yml       Postgres/PostGIS + MinIO + Backend
 └── .env.example
@@ -169,6 +169,16 @@ kürzeren Namen aus `.env` darauf.
 | `BACKEND_TARGET` | – | `runtime` | auf `dev` stellen für Hot-Reload |
 | `RUN_MIGRATIONS_ON_STARTUP` | `REISEAPP_RUN_MIGRATIONS_ON_STARTUP` | `true` | Alembic im Entrypoint |
 
+## Mobile-App
+
+```bash
+cd mobile && npm install
+export EXPO_PUBLIC_API_URL=http://192.168.1.50:8000   # LAN-Adresse des Homelabs
+npm start
+```
+
+Details, Aufbau und die Dev-Client-Frage: [`mobile/README.md`](mobile/README.md).
+
 ## Entwicklung
 
 ```bash
@@ -212,9 +222,9 @@ eine frische Instanz – nicht wegräumen.
 ## Phasen
 
 - [x] **0 – Setup:** Monorepo, Compose-Stack, Alembic, Kernschema, Health-Endpoints, CI
-- [x] **1a – Auth & Trips (Backend):** Argon2 + JWT, rotierende Refresh-Tokens,
-      Invite-System, Trip-CRUD, TripMember-Rollen, Admin-CLI
-- [ ] **1b – Auth & Trips (Mobile):** Expo-App, Auth-Screens, Trip-Liste, Trip-Detail
+- [x] **1 – Auth & Trips:** Argon2 + JWT, rotierende Refresh-Tokens, Invite-System,
+      Trip-CRUD, TripMember-Rollen, Admin-CLI; Expo-App mit Auth-Screens, Trip-Liste,
+      Trip-Anlage und Trip-Detail
 - [ ] **2 – Karte & manuelle Wegpunkte:** MapLibre, Route rendern, Stops setzen
 - [ ] **3 – Background-GPS-Tracking:** `expo-task-manager`, Batch-Upload, adaptive Intervalle
 - [ ] **4 – Fotos:** Upload zu MinIO, EXIF (Zeit + GPS), automatische Stop-Zuordnung
