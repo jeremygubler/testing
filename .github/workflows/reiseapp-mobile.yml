@@ -36,6 +36,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit tests
+        run: npm test
+
       # Bundling with Metro is the cheapest way to prove that every import
       # resolves and the expo-router graph is valid, without a native build.
       - name: Bundle (Metro smoke test)

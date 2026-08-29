@@ -14,6 +14,7 @@ import { createStop, deleteStop, getRoute, listStops } from '@/api/geo';
 import { getTrip, listMembers } from '@/api/trips';
 import type { Route, Stop, Trip, TripMember } from '@/api/types';
 import { TripMap } from '@/map/TripMap';
+import { TrackingPanel } from '@/tracking/TrackingPanel';
 import { Button, ErrorBanner, Field, Loading } from '@/ui/components';
 import { describeError } from '@/ui/errors';
 import { formatDate, formatDistance } from '@/ui/format';
@@ -137,6 +138,8 @@ export default function TripDetailScreen() {
           <Stat label="Punkte" value={String(route.point_count)} />
           <Stat label="Stops" value={String(stops.length)} />
         </View>
+
+        {canEdit ? <TrackingPanel tripId={id} onSynced={() => void load()} /> : null}
 
         {canEdit ? (
           <Text style={styles.hint}>Lange auf die Karte tippen, um einen Stop zu setzen.</Text>

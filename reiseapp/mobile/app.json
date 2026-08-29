@@ -11,7 +11,17 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "reiseapp zeichnet damit deine Reiseroute auf der Karte auf.",
+          "locationAlwaysAndWhenInUsePermission": "reiseapp zeichnet deine Route auch dann weiter auf, wenn der Bildschirm aus ist oder du andere Apps nutzt. Ohne \"Immer\" bricht die Spur ab, sobald du die App verlässt.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,

@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 2 (Karte & manuelle Wegpunkte) abgeschlossen.**
+**Status: Phase 3 (Background-GPS-Tracking) abgeschlossen.**
 
 ## Warum
 
@@ -250,7 +250,9 @@ eine frische Instanz – nicht wegräumen.
 - [x] **2 – Karte & manuelle Wegpunkte:** Waypoint-Batch-Upload (idempotent),
       Route als GeoJSON mit PostGIS-Distanz, Stop-CRUD; MapLibre in der App,
       Route und Stops auf der Karte, Stop per Long-Press
-- [ ] **3 – Background-GPS-Tracking:** `expo-task-manager`, Batch-Upload, adaptive Intervalle
+- [x] **3 – Background-GPS-Tracking:** `expo-task-manager` mit SQLite-Puffer,
+      idempotenter Batch-Upload, adaptive Intervalle mit Hysterese, Start/Stop pro
+      Reise, Permission-Flow für iOS und Android
 - [ ] **4 – Fotos:** Upload zu MinIO, EXIF (Zeit + GPS), automatische Stop-Zuordnung
 - [ ] **5 – Journal & Timeline**
 - [ ] **6 – Offline-Sync:** WatermelonDB-Sync-Protokoll, Konfliktauflösung

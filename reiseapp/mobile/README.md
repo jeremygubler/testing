@@ -1,7 +1,7 @@
 # mobile
 
-Expo (SDK 57) + React Native + TypeScript strict. Deckt **Phase 1 und 2** ab: Auth-Screens,
-Trip-Liste, Trip-Anlage, Trip-Detail mit MapLibre-Karte, Route und Stops.
+Expo (SDK 57) + React Native + TypeScript strict. Deckt **Phase 1 bis 3** ab: Auth-Screens, Trip-Liste, Trip-Anlage, Trip-Detail mit
+MapLibre-Karte, Route und Stops, sowie Background-GPS-Tracking.
 
 Warum Expo und kein PWA: das Kernfeature ist Background-Location-Tracking
 (`expo-location` + `expo-task-manager`, Phase 3). Ein Browser kann Positionen nicht
@@ -42,6 +42,7 @@ Checks (identisch zu CI):
 ```bash
 npm run typecheck   # tsc --noEmit, strict + noUncheckedIndexedAccess
 npm run lint
+npm test            # Jest: reine Logik (Profil, Sync, IDs, Distanz)
 npx expo export --platform android   # Bundle-Smoke-Test
 ```
 
@@ -73,3 +74,39 @@ dasselbe Refresh-Promise.
 räumt der Client die Tokens weg und meldet das über `onSessionChange`; der
 `AuthProvider` hört mit und schaltet auf „ausgeloggt". Sonst hinge die App auf einem
 Screen, dessen Requests alle 401 liefern.
+
+
+## Background-Tracking (Phase 3)
+
+Drei Dinge, die den Unterschied zwischen „funktioniert im Test" und „funktioniert auf
+einer dreiwöchigen Reise" ausmachen:
+
+**Jeder Fix landet zuerst in SQLite, nicht im Netz.** Punkte werden erst gelöscht,
+nachdem der Server sie bestätigt hat. Ein Tal ohne Empfang kostet damit keinen Meter
+Route – der Puffer läuft einfach voll und leert sich später.
+
+**Wegpunkt-IDs werden abgeleitet, nicht gewürfelt.** Die ID ist ein SHA-256 aus
+`(Geräte-ID, Zeitstempel)`. Liefert das Betriebssystem denselben Fix ein zweites Mal an
+einen neu gestarteten Task – das passiert –, kollidiert er lokal (`INSERT OR IGNORE`)
+und serverseitig (`ON CONFLICT DO NOTHING`), statt ein zweiter Punkt zu werden. Mit
+Zufalls-IDs wäre jeder Replay eine Dublette in der Route.
+
+**Die Aufzeichnungsdichte folgt der Bewegung.** Im Stehen alle 2 Minuten, zu Fuss alle
+20 Sekunden, im Fahrzeug alle 10. Die Schwellen sind asymmetrisch: Hochschalten braucht
+eine deutlich höhere Geschwindigkeit als Runterschalten eine niedrigere. Ohne diese
+Hysterese würde jemand an einer Ampel im Sekundentakt zwischen Profilen springen – und
+jeder Wechsel startet die Location-Updates neu.
+
+Dazu: `pausesUpdatesAutomatically: false`. iOS entscheidet sonst selbst, dass man
+stehengeblieben ist, und nimmt die Aufzeichnung stillschweigend nicht wieder auf.
+
+### Berechtigungen
+
+Erst Vordergrund, dann Hintergrund – in dieser Reihenfolge, weil beide Plattformen den
+Hintergrund-Dialog verweigern, solange der Vordergrund nicht erteilt ist. Wird nur
+„Während der Nutzung" gewährt, sagt die App das offen: die Spur bricht dann ab, sobald
+sie in den Hintergrund geht.
+
+Auf Android läuft die Aufzeichnung als Foreground-Service mit dauerhafter Notification –
+das ist keine Design-Entscheidung, sondern Bedingung dafür, dass Android den Prozess am
+Leben lässt.
