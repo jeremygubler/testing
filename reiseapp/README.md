@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 1 (Auth & Trips) abgeschlossen.**
+**Status: Phase 2 (Karte & manuelle Wegpunkte) abgeschlossen.**
 
 ## Warum
 
@@ -143,9 +143,31 @@ Instanz nicht öffentlich erreichbar ist.
 | GET/PATCH/DELETE | `/api/v1/trips/{id}` | viewer / editor / owner |
 | GET/POST | `/api/v1/trips/{id}/members` | viewer / owner |
 | PATCH/DELETE | `/api/v1/trips/{id}/members/{user_id}` | owner |
+| POST/GET | `/api/v1/trips/{id}/waypoints` | editor / viewer |
+| GET | `/api/v1/trips/{id}/route` | viewer |
+| POST/GET | `/api/v1/trips/{id}/stops` | editor / viewer |
+| GET/PATCH/DELETE | `/api/v1/trips/{id}/stops/{stop_id}` | viewer / editor |
 
 Rollen: `owner` > `editor` > `viewer`. Wer keine Rolle auf einer Reise hat, bekommt
 **404 statt 403** – sonst verrät die API die Existenz fremder privater Reisen.
+
+### Route & Wegpunkte
+
+`POST /waypoints` nimmt bis zu 5000 Punkte pro Request und ist **idempotent**: die
+Wegpunkt-`id` kommt vom Client, der Insert läuft mit `ON CONFLICT DO NOTHING`. Ein
+Retry nach einer abgebrochenen Verbindung – der Normalfall beim Hintergrund-Tracking
+in Phase 3 – speichert also nichts doppelt. Die Antwort sagt, wie viele Punkte neu
+waren:
+
+```json
+{ "received": 240, "stored": 0, "duplicates": 240 }
+```
+
+`GET /route` liefert die Spur als GeoJSON-LineString plus `distance_m` (via
+`ST_Length` auf `geography`, also echte Meter) und `bounds` in der Reihenfolge
+`[west, south, east, north]` – genau das Format, das MapLibres `fitBounds` erwartet.
+`?simplify_m=` reduziert die Punktzahl fürs Rendering per Douglas-Peucker;
+`point_count` und `distance_m` beschreiben weiterhin die **echte** Spur.
 
 ## Konfiguration
 
@@ -225,7 +247,9 @@ eine frische Instanz – nicht wegräumen.
 - [x] **1 – Auth & Trips:** Argon2 + JWT, rotierende Refresh-Tokens, Invite-System,
       Trip-CRUD, TripMember-Rollen, Admin-CLI; Expo-App mit Auth-Screens, Trip-Liste,
       Trip-Anlage und Trip-Detail
-- [ ] **2 – Karte & manuelle Wegpunkte:** MapLibre, Route rendern, Stops setzen
+- [x] **2 – Karte & manuelle Wegpunkte:** Waypoint-Batch-Upload (idempotent),
+      Route als GeoJSON mit PostGIS-Distanz, Stop-CRUD; MapLibre in der App,
+      Route und Stops auf der Karte, Stop per Long-Press
 - [ ] **3 – Background-GPS-Tracking:** `expo-task-manager`, Batch-Upload, adaptive Intervalle
 - [ ] **4 – Fotos:** Upload zu MinIO, EXIF (Zeit + GPS), automatische Stop-Zuordnung
 - [ ] **5 – Journal & Timeline**

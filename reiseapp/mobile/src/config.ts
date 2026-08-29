@@ -16,3 +16,15 @@ export const API_BASE_URL = (
 ).replace(/\/+$/, '');
 
 export const API_PREFIX = '/api/v1';
+
+/**
+ * MapLibre style URL.
+ *
+ * Default is the free MapLibre demo tile server – fine to get going, explicitly
+ * not meant for production use. Point this at a tileserver-gl in the homelab (or
+ * any style JSON) to keep the map self-hosted too.
+ */
+export const MAP_STYLE_URL =
+  process.env.EXPO_PUBLIC_MAP_STYLE_URL ??
+  (Constants.expoConfig?.extra as { mapStyleUrl?: string } | undefined)?.mapStyleUrl ??
+  'https://demotiles.maplibre.org/style.json';

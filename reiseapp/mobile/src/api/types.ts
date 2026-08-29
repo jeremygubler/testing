@@ -45,3 +45,50 @@ export interface ApiErrorBody {
     details?: unknown;
   };
 }
+
+export interface Stop {
+  id: string;
+  trip_id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  altitude_m: number | null;
+  arrived_at: string | null;
+  left_at: string | null;
+  country: string | null;
+  locality: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** [west, south, east, north] – the order MapLibre's fitBounds expects. */
+export type Bounds = [number, number, number, number];
+
+export interface Route {
+  type: 'LineString';
+  /** GeoJSON order: [longitude, latitude]. */
+  coordinates: [number, number][];
+  point_count: number;
+  distance_m: number;
+  bounds: Bounds | null;
+}
+
+export interface WaypointInput {
+  id?: string;
+  lat: number;
+  lon: number;
+  altitude_m?: number | null;
+  accuracy_m?: number | null;
+  speed_mps?: number | null;
+  heading_deg?: number | null;
+  recorded_at: string;
+  source?: 'gps' | 'import' | 'manual';
+  device_id?: string | null;
+}
+
+export interface WaypointBatchResult {
+  received: number;
+  stored: number;
+  duplicates: number;
+}
