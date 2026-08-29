@@ -22,7 +22,7 @@ async def make_user(
     is_admin: bool = False,
 ) -> User:
     user = User(
-        email=email or f"{uuid.uuid4()}@example.test",
+        email=email or f"{uuid.uuid4()}@example.com",
         display_name=display_name,
         password_hash=security.hash_password(password),
         is_admin=is_admin,

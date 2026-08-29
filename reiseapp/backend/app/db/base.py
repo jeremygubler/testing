@@ -21,6 +21,12 @@ NAMING_CONVENTION = {
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
+    # Fetch server-side defaults with RETURNING on UPDATE too, not only on INSERT.
+    # Without this, `updated_at` (onupdate=now()) is expired after a flush and any
+    # later read of it triggers a lazy refresh — which in async code raises
+    # MissingGreenlet instead of loading the value.
+    __mapper_args__ = {"eager_defaults": True}
+
 
 class UUIDPrimaryKeyMixin:
     """Client-generated UUIDs.

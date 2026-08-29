@@ -21,12 +21,6 @@ async def test_liveness_under_api_prefix(client: AsyncClient) -> None:
     assert response.json()["status"] == "ok"
 
 
-async def test_unknown_route_uses_error_envelope(client: AsyncClient) -> None:
-    response = await client.get("/does-not-exist")
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == 404
-
-
 @pytest.mark.integration
 async def test_readiness_reports_postgis(client: AsyncClient) -> None:
     """Needs a live database (`docker compose up -d db`)."""

@@ -38,7 +38,7 @@ async def _make_invite(session: AsyncSession, email: str | None = None, days: in
 
 def _registration_payload(**overrides: object) -> dict[str, object]:
     payload: dict[str, object] = {
-        "email": f"{uuid.uuid4()}@example.test",
+        "email": f"{uuid.uuid4()}@example.com",
         "display_name": "Neue Person",
         "password": DEFAULT_PASSWORD,
     }
@@ -76,16 +76,16 @@ async def test_expired_invite_is_rejected(api: AsyncClient, db_session: AsyncSes
 async def test_invite_bound_to_an_email_rejects_other_addresses(
     api: AsyncClient, db_session: AsyncSession
 ) -> None:
-    code = await _make_invite(db_session, email="wanted@example.test")
+    code = await _make_invite(db_session, email="wanted@example.com")
     wrong = await api.post(REGISTER, json=_registration_payload(invite_code=code))
     assert wrong.status_code == 403
 
     right = await api.post(
-        REGISTER, json=_registration_payload(invite_code=code, email="Wanted@Example.test")
+        REGISTER, json=_registration_payload(invite_code=code, email="Wanted@example.com")
     )
     assert right.status_code == 201
     # Emails are normalised on the way in.
-    assert right.json()["email"] == "wanted@example.test"
+    assert right.json()["email"] == "wanted@example.com"
 
 
 async def test_duplicate_email_conflicts(api: AsyncClient, db_session: AsyncSession) -> None:
@@ -116,12 +116,12 @@ async def test_login_and_me(api: AsyncClient, db_session: AsyncSession) -> None:
 async def test_login_is_case_insensitive_on_the_email(
     api: AsyncClient, db_session: AsyncSession
 ) -> None:
-    user = await make_user(db_session, email="Mixed@Example.test")
+    user = await make_user(db_session, email="Mixed@example.com")
     response = await api.post(
-        LOGIN, json={"email": "MIXED@example.TEST", "password": DEFAULT_PASSWORD}
+        LOGIN, json={"email": "MIXED@EXAMPLE.COM", "password": DEFAULT_PASSWORD}
     )
     assert response.status_code == 200
-    assert user.email == "mixed@example.test"
+    assert user.email == "mixed@example.com"
 
 
 async def test_login_rejects_wrong_password(api: AsyncClient, db_session: AsyncSession) -> None:
@@ -132,7 +132,7 @@ async def test_login_rejects_wrong_password(api: AsyncClient, db_session: AsyncS
 
 async def test_login_rejects_unknown_email(api: AsyncClient) -> None:
     response = await api.post(
-        LOGIN, json={"email": "nobody@example.test", "password": DEFAULT_PASSWORD}
+        LOGIN, json={"email": "nobody@example.com", "password": DEFAULT_PASSWORD}
     )
     assert response.status_code == 401
 
@@ -211,7 +211,7 @@ async def test_only_admins_can_mint_invites(api: AsyncClient, db_session: AsyncS
     assert (await api.post(INVITES, json={}, headers=headers)).status_code == 403
 
     _, admin_headers = await as_user(api, db_session, is_admin=True)
-    created = await api.post(INVITES, json={"email": "friend@example.test"}, headers=admin_headers)
+    created = await api.post(INVITES, json={"email": "friend@example.com"}, headers=admin_headers)
     assert created.status_code == 201
     code = created.json()["code"]
 
@@ -221,6 +221,6 @@ async def test_only_admins_can_mint_invites(api: AsyncClient, db_session: AsyncS
     assert all("code" not in item for item in listed.json())
 
     registered = await api.post(
-        REGISTER, json=_registration_payload(invite_code=code, email="friend@example.test")
+        REGISTER, json=_registration_payload(invite_code=code, email="friend@example.com")
     )
     assert registered.status_code == 201

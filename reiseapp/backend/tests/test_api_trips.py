@@ -187,7 +187,7 @@ async def test_member_edge_cases(api: AsyncClient, db_session: AsyncSession) -> 
     members_url = f"{TRIPS}/{trip['id']}/members"
 
     unknown = await api.post(
-        members_url, json={"email": "nobody@example.test"}, headers=owner_headers
+        members_url, json={"email": "nobody@example.com"}, headers=owner_headers
     )
     assert unknown.status_code == 404
 

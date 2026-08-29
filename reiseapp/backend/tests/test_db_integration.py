@@ -71,7 +71,7 @@ async def test_geography_distance_is_in_metres(session: AsyncSession) -> None:
 
 async def test_waypoint_roundtrip_and_route_length(session: AsyncSession) -> None:
     user = User(
-        email=f"{uuid.uuid4()}@example.test",
+        email=f"{uuid.uuid4()}@example.com",
         display_name="Integration",
         password_hash="not-a-real-hash",
     )
@@ -119,7 +119,7 @@ async def test_waypoint_roundtrip_and_route_length(session: AsyncSession) -> Non
 
 async def test_soft_deleted_rows_stay_queryable(session: AsyncSession) -> None:
     user = User(
-        email=f"{uuid.uuid4()}@example.test",
+        email=f"{uuid.uuid4()}@example.com",
         display_name="Soft delete",
         password_hash="not-a-real-hash",
     )

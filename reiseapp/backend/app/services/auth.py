@@ -122,6 +122,9 @@ async def rotate_refresh_token(
         # A revoked token being replayed means it leaked (or the client is badly
         # out of sync). Drop the whole family and force a fresh login.
         await _revoke_all_for_user(session, token.user_id, now)
+        # Committed before raising on purpose: the request fails, and the session
+        # dependency would otherwise roll the revocation back with it.
+        await session.commit()
         raise AuthenticationError("Refresh token was already used; please sign in again")
     if token.expires_at <= now:
         raise AuthenticationError("Refresh token expired")

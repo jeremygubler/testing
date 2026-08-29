@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,6 +19,54 @@ from app.core.errors import AppError
 from app.db.session import dispose_engine
 
 logger = logging.getLogger("reiseapp")
+
+
+async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, AppError)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": exc.status_code, "type": exc.type, "message": exc.message}},
+    )
+
+
+async def http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, StarletteHTTPException)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": exc.status_code, "type": "http_error", "message": exc.detail}},
+    )
+
+
+async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, RequestValidationError)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "code": 422,
+                "type": "validation_error",
+                "message": "Validation failed",
+                # jsonable_encoder is required, not cosmetic: a ValueError raised
+                # inside a pydantic validator lands in ctx and JSONResponse cannot
+                # serialise it – the handler itself would then fail with a 500.
+                "details": jsonable_encoder(exc.errors()),
+            }
+        },
+    )
+
+
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": 500,
+                "type": "internal_error",
+                "message": "Internal server error",
+            }
+        },
+    )
 
 
 @asynccontextmanager
@@ -57,46 +106,10 @@ def create_app() -> FastAPI:
     # Unprefixed probes for Docker/Kubernetes healthchecks.
     app.include_router(health.router, prefix="/health", include_in_schema=False)
 
-    @app.exception_handler(AppError)
-    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error": {"code": exc.status_code, "type": exc.type, "message": exc.message}
-            },
-        )
-
-    @app.exception_handler(StarletteHTTPException)
-    async def http_exception_handler(
-        request: Request, exc: StarletteHTTPException
-    ) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"error": {"code": exc.status_code, "message": exc.detail}},
-        )
-
-    @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(
-        request: Request, exc: RequestValidationError
-    ) -> JSONResponse:
-        return JSONResponse(
-            status_code=422,
-            content={
-                "error": {
-                    "code": 422,
-                    "message": "Validation failed",
-                    "details": exc.errors(),
-                }
-            },
-        )
-
-    @app.exception_handler(Exception)
-    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        logger.exception("unhandled error on %s %s", request.method, request.url.path)
-        return JSONResponse(
-            status_code=500,
-            content={"error": {"code": 500, "message": "Internal server error"}},
-        )
+    app.add_exception_handler(AppError, app_error_handler)
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(Exception, unhandled_exception_handler)
 
     return app
 
