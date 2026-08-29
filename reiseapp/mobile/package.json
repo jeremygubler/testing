@@ -29,5 +29,8 @@
     "eslint": "^9.0.0",
     "eslint-config-expo": "^10.0.0",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "react-dom": "19.2.3"
   }
 }
