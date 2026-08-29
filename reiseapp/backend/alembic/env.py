@@ -69,7 +69,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    connection.exec_driver_sql("SET search_path TO public")
+    # Do NOT emit any SQL on this connection before configure(): the first
+    # statement implicitly opens a transaction, alembic then sees an active
+    # transaction and makes begin_transaction() a no-op, and the migration is
+    # rolled back when the connection closes. It looks like a successful run and
+    # leaves the database untouched. The search_path is set at connect time instead.
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
@@ -87,6 +91,8 @@ async def run_async_migrations() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        # asyncpg server_settings: applied during connect, before any transaction.
+        connect_args={"server_settings": {"search_path": "public"}},
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

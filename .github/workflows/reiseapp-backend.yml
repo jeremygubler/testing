@@ -60,7 +60,9 @@ jobs:
         run: pytest -q -m "not integration"
 
       - name: Apply migrations
-        run: alembic upgrade head
+        run: |
+          alembic upgrade head
+          alembic current
 
       - name: Migration matches models (no drift)
         run: alembic check
