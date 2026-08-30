@@ -2,7 +2,7 @@
 name = "reiseapp-backend"
 version = "0.1.0"
 description = "Self-hosted travel tracking backend (FastAPI + PostGIS)"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
@@ -41,7 +41,7 @@ markers = ["integration: needs a live Postgres/PostGIS (docker compose up db)"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC"]
@@ -59,7 +59,9 @@ extend-immutable-calls = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+# Must match the runtime (python:3.12-slim) and CI: typechecking against an
+# older version makes mypy reject 3.12 syntax in third-party stubs.
+python_version = "3.12"
 strict = true
 plugins = []
 ignore_missing_imports = true

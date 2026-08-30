@@ -244,9 +244,13 @@ Details, Aufbau und die Dev-Client-Frage: [`mobile/README.md`](mobile/README.md)
 
 ## Entwicklung
 
+Python **3.12** – dieselbe Version wie im Container und in CI. Auf einer älteren
+Version schlägt der Typecheck an Stubs von Drittbibliotheken fehl, die 3.12-Syntax
+verwenden.
+
 ```bash
 cd backend
-python3 -m venv .venv && . .venv/bin/activate
+python3.12 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 
 docker compose up -d db minio          # nur Infrastruktur
