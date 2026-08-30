@@ -2,11 +2,10 @@ import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { listTrips } from '@/api/trips';
+import { cachedTrips, refreshTrips } from '@/store/facade';
 import type { Trip } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { Button, ErrorBanner, Loading } from '@/ui/components';
-import { describeError } from '@/ui/errors';
 import { theme } from '@/ui/theme';
 
 function formatRange(trip: Trip): string {
@@ -23,13 +22,15 @@ export default function TripListScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [offline, setOffline] = useState(false);
+
   const load = useCallback(async () => {
-    try {
-      setError(null);
-      setTrips(await listTrips());
-    } catch (caught) {
-      setError(describeError(caught));
-    }
+    // Cache first so the list is on screen before the network is consulted.
+    setTrips(await cachedTrips());
+    const result = await refreshTrips();
+    setTrips(result.trips);
+    setOffline(result.offline);
+    setError(null);
   }, []);
 
   // Reload on focus so a trip created on the next screen shows up on return.
@@ -60,6 +61,11 @@ export default function TripListScreen() {
       </View>
 
       <ErrorBanner message={error} />
+      {offline ? (
+        <Text style={styles.offline}>
+          Offline – angezeigt wird der zuletzt synchronisierte Stand.
+        </Text>
+      ) : null}
 
       <FlatList
         data={trips ?? []}
@@ -108,6 +114,12 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 24, fontWeight: '700', color: theme.colors.text },
   subtitle: { fontSize: 14, color: theme.colors.muted },
   signOut: { color: theme.colors.accent, fontSize: 15 },
+  offline: {
+    fontSize: 13,
+    color: theme.colors.danger,
+    paddingHorizontal: theme.spacing(3),
+    paddingBottom: theme.spacing(1),
+  },
   list: { paddingHorizontal: theme.spacing(3), gap: theme.spacing(1.5), paddingBottom: theme.spacing(3) },
   card: {
     backgroundColor: theme.colors.surface,

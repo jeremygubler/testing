@@ -3,8 +3,10 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { createEntry, deleteEntry, getEntry, updateEntry } from '@/api/journal';
+import { getEntry, updateEntry } from '@/api/journal';
 import { listPhotos, photoSource } from '@/api/photos';
+import { deleteEntryLocally, saveEntryLocally } from '@/store/facade';
+import { syncTrip } from '@/sync/engine';
 import type { Photo } from '@/api/types';
 import { Button, ErrorBanner, Field, Loading } from '@/ui/components';
 import { describeError } from '@/ui/errors';
@@ -67,9 +69,26 @@ export default function JournalEditorScreen() {
     setBusy(true);
     setError(null);
     try {
-      const input = { title, text, timestamp, photoIds: selected };
-      if (entryId) await updateEntry(id, entryId, input);
-      else await createEntry(id, input);
+      // Saved locally and queued first, so writing an entry works offline.
+      const entry = await saveEntryLocally(id, {
+        id: entryId,
+        title: title.trim() || null,
+        text,
+        timestamp,
+      });
+
+      if (selected.length > 0) {
+        // The ordered photo list is not part of the sync payload: it references
+        // rows the server has to know about, so it needs the entry to exist
+        // there first. Offline it simply waits for the next visit.
+        try {
+          await syncTrip(id);
+          await updateEntry(id, entry.id, { title, text, timestamp, photoIds: selected });
+        } catch {
+          setError('Eintrag gespeichert. Die Fotozuordnung wird nachgeholt, sobald du online bist.');
+          return;
+        }
+      }
       router.back();
     } catch (caught) {
       setError(describeError(caught));
@@ -82,7 +101,7 @@ export default function JournalEditorScreen() {
     if (!entryId) return;
     setBusy(true);
     try {
-      await deleteEntry(id, entryId);
+      await deleteEntryLocally(id, entryId);
       router.back();
     } catch (caught) {
       setError(describeError(caught));

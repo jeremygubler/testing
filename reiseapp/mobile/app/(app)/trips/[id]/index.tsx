@@ -10,12 +10,19 @@ import {
   View,
 } from 'react-native';
 
-import { createStop, deleteStop, getRoute, listStops } from '@/api/geo';
-import { listPhotos } from '@/api/photos';
-import { getTrip, listMembers } from '@/api/trips';
+import { getRoute } from '@/api/geo';
+import { listMembers } from '@/api/trips';
 import type { Photo, Route, Stop, Trip, TripMember } from '@/api/types';
 import { TripMap } from '@/map/TripMap';
 import { PhotoGallery } from '@/photos/PhotoGallery';
+import {
+  cachedTrip,
+  createStopLocally,
+  deleteStopLocally,
+  lastSyncedAt as readLastSyncedAt,
+  refreshTrip,
+} from '@/store/facade';
+import { SyncStatus } from '@/sync/SyncStatus';
 import { TrackingPanel } from '@/tracking/TrackingPanel';
 import { Button, ErrorBanner, Field, Loading } from '@/ui/components';
 import { describeError } from '@/ui/errors';
@@ -44,6 +51,8 @@ export default function TripDetailScreen() {
   const [members, setMembers] = useState<TripMember[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
+  const [syncedAt, setSyncedAt] = useState<string | null>(null);
 
   const [pending, setPending] = useState<PendingStop | null>(null);
   const [stopName, setStopName] = useState('');
@@ -51,26 +60,31 @@ export default function TripDetailScreen() {
 
   const canEdit = trip?.role === 'owner' || trip?.role === 'editor';
 
+  const apply = useCallback((data: Awaited<ReturnType<typeof cachedTrip>>) => {
+    if (data.trip) setTrip(data.trip);
+    setStops(data.stops);
+    setPhotos(data.photos);
+  }, []);
+
   const load = useCallback(async () => {
+    setError(null);
+    // What is already on the device, before anything touches the network.
+    apply(await cachedTrip(id));
+
+    const result = await refreshTrip(id);
+    apply(result.data);
+    setOffline(result.offline);
+    setSyncedAt(await readLastSyncedAt(id));
+
+    // Route and members are derived server-side and stay online-only for now.
     try {
-      setError(null);
-      const [loadedTrip, loadedRoute, loadedStops, loadedMembers, loadedPhotos] =
-        await Promise.all([
-          getTrip(id),
-          getRoute(id),
-          listStops(id),
-          listMembers(id),
-          listPhotos(id),
-        ]);
-      setTrip(loadedTrip);
+      const [loadedRoute, loadedMembers] = await Promise.all([getRoute(id), listMembers(id)]);
       setRoute(loadedRoute);
-      setStops(loadedStops);
       setMembers(loadedMembers);
-      setPhotos(loadedPhotos);
     } catch (caught) {
-      setError(describeError(caught));
+      if (!result.offline) setError(describeError(caught));
     }
-  }, [id]);
+  }, [id, apply]);
 
   useEffect(() => {
     void load();
@@ -80,7 +94,8 @@ export default function TripDetailScreen() {
     if (!pending || !stopName.trim()) return;
     setSaving(true);
     try {
-      const stop = await createStop(id, {
+      // Written locally and queued; it appears immediately, with or without network.
+      const stop = await createStopLocally(id, {
         name: stopName.trim(),
         lat: pending.lat,
         lon: pending.lon,
@@ -104,7 +119,7 @@ export default function TripDetailScreen() {
         onPress: () => {
           void (async () => {
             try {
-              await deleteStop(id, stop.id);
+              await deleteStopLocally(id, stop.id);
               setStops((current) => current.filter((item) => item.id !== stop.id));
             } catch (caught) {
               setError(describeError(caught));
@@ -129,6 +144,13 @@ export default function TripDetailScreen() {
       <Stack.Screen options={{ title: trip.title }} />
       <ScrollView contentContainerStyle={styles.container}>
         <ErrorBanner message={error} />
+
+        <SyncStatus
+          tripId={id}
+          offline={offline}
+          lastSyncedAt={syncedAt}
+          onSync={() => void load()}
+        />
 
         <View style={styles.mapFrame}>
           <TripMap

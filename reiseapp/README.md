@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 6a (Sync-Protokoll, serverseitig) abgeschlossen.**
+**Status: Phase 6 (Offline-Sync) abgeschlossen.**
 
 ## Warum
 
@@ -364,7 +364,8 @@ eine frische Instanz – nicht wegräumen.
       zusammengeführte Timeline mit Foto-Bündelung, Editor und Timeline-Ansicht in der App
 - [x] **6a – Sync-Protokoll (Backend):** Pull mit nachhinkendem Cursor, Push mit
       feldweisem Last-Write-Wins, Konfliktmeldung, Append-Merge für Wegpunkte
-- [ ] **6b – Lokaler Store (App):** Store-Entscheid steht aus, siehe Zwischenstand
+- [x] **6b – Lokaler Store (App):** SQLite-Cache, Outbox mit feldweisen Zeitstempeln,
+      Push-vor-Pull-Engine, Sync-Status-UI; Details in [`mobile/README.md`](mobile/README.md)
 - [ ] **7 – Import:** GPX, Polarsteps-Export, Google Timeline
 - [ ] **8 – Export:** GPX, JSON, PDF-Reisebuch
 - [ ] **9 – Sharing & Web-Viewer**

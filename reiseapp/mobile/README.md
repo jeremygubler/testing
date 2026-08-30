@@ -1,8 +1,8 @@
 # mobile
 
-Expo (SDK 57) + React Native + TypeScript strict. Deckt **Phase 1 bis 5** ab: Auth-Screens, Trip-Liste, Trip-Anlage, Trip-Detail mit
-MapLibre-Karte, Route und Stops, Background-GPS-Tracking, Foto-Galerie sowie
-Timeline und Tagebuch-Editor.
+Expo (SDK 57) + React Native + TypeScript strict. Deckt **Phase 1 bis 6** ab: Auth, Trips, MapLibre-Karte mit Route und Stops,
+Background-GPS-Tracking, Foto-Galerie, Timeline und Tagebuch — alles auf einem
+lokalen SQLite-Cache mit Offline-Sync.
 
 Warum Expo und kein PWA: das Kernfeature ist Background-Location-Tracking
 (`expo-location` + `expo-task-manager`, Phase 3). Ein Browser kann Positionen nicht
@@ -111,3 +111,37 @@ sie in den Hintergrund geht.
 Auf Android läuft die Aufzeichnung als Foreground-Service mit dauerhafter Notification –
 das ist keine Design-Entscheidung, sondern Bedingung dafür, dass Android den Prozess am
 Leben lässt.
+
+
+## Offline-Sync (Phase 6)
+
+Screens lesen **zuerst aus dem lokalen SQLite-Cache** und rendern sofort; danach läuft
+ein Sync und sie lesen erneut. Ohne Netz funktioniert die erste Hälfte weiterhin — das
+ist der ganze Punkt.
+
+**Lokale Änderungen sammeln sich pro Datensatz in einer Outbox**, nicht als Log
+einzelner Änderungen. Wer einen Titel fünfmal offline bearbeitet, schickt einen Titel,
+nicht fünf. Pro Feld wird der Zeitpunkt der konkreten Bearbeitung mitgeführt — genau
+das, was die feldweise Auflösung des Servers verarbeitet.
+
+**Push vor Pull, immer.** Andersherum würde der Pull die Serverversion eines gerade
+lokal bearbeiteten Datensatzes holen — und da der Pull Datensätze mit offenen
+Änderungen überspringt, läge die lokale Bearbeitung hinter einer veralteten Ansicht
+fest, bis zur nächsten Runde.
+
+**Datensätze mit offenen lokalen Änderungen überschreibt der Pull nicht.** Löschungen
+setzen sich trotzdem durch: der Datensatz ist serverseitig weg, eine offene Bearbeitung
+würde beim Push ohnehin abgelehnt.
+
+Die Outbox wird erst geleert, **nachdem** der Server die Änderungen angenommen hat. Ein
+fehlgeschlagener Push lässt sie unangetastet — offline Geschriebenes kann nicht verloren
+gehen.
+
+### Was noch online braucht
+
+- **Fotos**: Bytes brauchen eine Leitung, Upload und Thumbnails sind online-only. Die
+  Metadaten liegen im Cache.
+- **Route und Mitgliederliste**: serverseitig abgeleitet, werden noch direkt geholt.
+- **Foto-Reihenfolge in Journal-Einträgen**: verweist auf Zeilen, die der Server kennen
+  muss, und wird deshalb nachgeholt, sobald wieder Netz da ist. Der Eintrag selbst wird
+  sofort lokal gespeichert.
