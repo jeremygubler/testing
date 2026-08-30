@@ -21,6 +21,12 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "reiseapp fügt damit deine Fotos zur Reise hinzu – im Original, mit Zeit und Ort aus den Bilddaten."
+        }
       ]
     ],
     "ios": {

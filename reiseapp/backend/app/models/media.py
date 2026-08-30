@@ -4,11 +4,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.enums import PositionSource
 from app.models.geo import point_geography
 
 if TYPE_CHECKING:
@@ -42,6 +43,13 @@ class Photo(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     width: Mapped[int | None] = mapped_column(Integer, default=None)
     height: Mapped[int | None] = mapped_column(Integer, default=None)
     caption: Mapped[str | None] = mapped_column(String(500), default=None)
+    thumbnail_key: Mapped[str | None] = mapped_column(String(512), default=None)
+    original_filename: Mapped[str | None] = mapped_column(String(255), default=None)
+    position_source: Mapped[PositionSource] = mapped_column(
+        Enum(PositionSource, native_enum=False, length=16, validate_strings=True),
+        nullable=False,
+        default=PositionSource.NONE,
+    )
 
     trip: Mapped[Trip] = relationship(back_populates="photos", foreign_keys=[trip_id])
     stop: Mapped[Stop] = relationship(back_populates="photos")

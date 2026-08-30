@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import anyio
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +8,7 @@ from app import __version__
 from app.core.config import Settings, get_settings
 from app.db.session import get_session
 from app.schemas.health import LivenessResponse, ReadinessResponse
-from app.storage.s3 import bucket_reachable
+from app.storage import get_store
 
 router = APIRouter(tags=["health"])
 
@@ -33,8 +32,7 @@ async def readiness(
     except Exception:
         database_ok = False
 
-    # boto3 is blocking – keep it off the event loop.
-    storage_ok = await anyio.to_thread.run_sync(bucket_reachable)
+    storage_ok = await get_store().healthy()
 
     ready = database_ok and storage_ok
     if not ready:

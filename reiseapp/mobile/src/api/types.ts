@@ -92,3 +92,29 @@ export interface WaypointBatchResult {
   stored: number;
   duplicates: number;
 }
+
+export type PositionSource = 'exif' | 'interpolated' | 'manual' | 'none';
+
+export interface Photo {
+  id: string;
+  trip_id: string;
+  stop_id: string | null;
+  taken_at: string | null;
+  lat: number | null;
+  lon: number | null;
+  altitude_m: number | null;
+  position_source: PositionSource;
+  width: number | null;
+  height: number | null;
+  byte_size: number | null;
+  content_type: string;
+  original_filename: string | null;
+  caption: string | null;
+  has_thumbnail: boolean;
+  created_at: string;
+}
+
+export interface PhotoUploadResult {
+  photo: Photo;
+  duplicate: boolean;
+}

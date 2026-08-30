@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 
 import { createStop, deleteStop, getRoute, listStops } from '@/api/geo';
+import { listPhotos } from '@/api/photos';
 import { getTrip, listMembers } from '@/api/trips';
-import type { Route, Stop, Trip, TripMember } from '@/api/types';
+import type { Photo, Route, Stop, Trip, TripMember } from '@/api/types';
 import { TripMap } from '@/map/TripMap';
+import { PhotoGallery } from '@/photos/PhotoGallery';
 import { TrackingPanel } from '@/tracking/TrackingPanel';
 import { Button, ErrorBanner, Field, Loading } from '@/ui/components';
 import { describeError } from '@/ui/errors';
@@ -39,6 +41,7 @@ export default function TripDetailScreen() {
   const [route, setRoute] = useState<Route>(EMPTY_ROUTE);
   const [stops, setStops] = useState<Stop[]>([]);
   const [members, setMembers] = useState<TripMember[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [pending, setPending] = useState<PendingStop | null>(null);
@@ -50,16 +53,19 @@ export default function TripDetailScreen() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [loadedTrip, loadedRoute, loadedStops, loadedMembers] = await Promise.all([
-        getTrip(id),
-        getRoute(id),
-        listStops(id),
-        listMembers(id),
-      ]);
+      const [loadedTrip, loadedRoute, loadedStops, loadedMembers, loadedPhotos] =
+        await Promise.all([
+          getTrip(id),
+          getRoute(id),
+          listStops(id),
+          listMembers(id),
+          listPhotos(id),
+        ]);
       setTrip(loadedTrip);
       setRoute(loadedRoute);
       setStops(loadedStops);
       setMembers(loadedMembers);
+      setPhotos(loadedPhotos);
     } catch (caught) {
       setError(describeError(caught));
     }
@@ -136,7 +142,7 @@ export default function TripDetailScreen() {
         <View style={styles.stats}>
           <Stat label="Distanz" value={formatDistance(route.distance_m)} />
           <Stat label="Punkte" value={String(route.point_count)} />
-          <Stat label="Stops" value={String(stops.length)} />
+          <Stat label="Fotos" value={String(photos.length)} />
         </View>
 
         {canEdit ? <TrackingPanel tripId={id} onSynced={() => void load()} /> : null}
@@ -167,6 +173,15 @@ export default function TripDetailScreen() {
               </Pressable>
             ))
           )}
+        </Section>
+
+        <Section title={`Fotos (${photos.length})`}>
+          <PhotoGallery
+            tripId={id}
+            photos={photos}
+            canEdit={canEdit}
+            onChanged={() => void load()}
+          />
         </Section>
 
         <Section title="Reisende">

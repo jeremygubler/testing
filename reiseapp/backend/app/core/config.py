@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 30
 
+    # "s3" talks to MinIO; "filesystem" writes to a plain directory for setups
+    # that would rather not run an object store at all.
+    storage_backend: Literal["s3", "filesystem"] = "s3"
+    storage_path: str = "/srv/media"
+    max_upload_bytes: int = 64 * 1024 * 1024
+    thumbnail_max_px: int = 512
+
     s3_endpoint_url: str = "http://localhost:9000"
     # URL handed to clients in presigned links – differs from the internal one
     # as soon as the backend talks to MinIO over the compose network.

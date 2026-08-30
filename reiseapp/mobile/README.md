@@ -1,7 +1,7 @@
 # mobile
 
-Expo (SDK 57) + React Native + TypeScript strict. Deckt **Phase 1 bis 3** ab: Auth-Screens, Trip-Liste, Trip-Anlage, Trip-Detail mit
-MapLibre-Karte, Route und Stops, sowie Background-GPS-Tracking.
+Expo (SDK 57) + React Native + TypeScript strict. Deckt **Phase 1 bis 4** ab: Auth-Screens, Trip-Liste, Trip-Anlage, Trip-Detail mit
+MapLibre-Karte, Route und Stops, Background-GPS-Tracking und Foto-Galerie.
 
 Warum Expo und kein PWA: das Kernfeature ist Background-Location-Tracking
 (`expo-location` + `expo-task-manager`, Phase 3). Ein Browser kann Positionen nicht

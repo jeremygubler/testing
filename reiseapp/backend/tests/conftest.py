@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from typing import TYPE_CHECKING
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession
 
 os.environ.setdefault("REISEAPP_ENV", "test")
@@ -73,7 +75,25 @@ async def db_session(db_connection: AsyncConnection) -> AsyncIterator[AsyncSessi
 
 
 @pytest.fixture
-async def api(db_connection: AsyncConnection) -> AsyncIterator[AsyncClient]:
+def object_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Photo tests run against the filesystem backend.
+
+    Object storage sits behind an interface with two implementations precisely so
+    the photo pipeline can be exercised end to end without a MinIO in the loop.
+    """
+    from app.core.config import get_settings
+    from app.storage import get_store
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "storage_backend", "filesystem")
+    monkeypatch.setattr(settings, "storage_path", str(tmp_path / "media"))
+    get_store.cache_clear()
+    yield
+    get_store.cache_clear()
+
+
+@pytest.fixture
+async def api(db_connection: AsyncConnection, object_store: None) -> AsyncIterator[AsyncClient]:
     """HTTP client whose requests run inside the test transaction."""
     from sqlalchemy.ext.asyncio import AsyncSession
 

@@ -25,6 +25,7 @@ export class NetworkError extends Error {
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  /** Objects are sent as JSON; a FormData body is passed through untouched. */
   body?: unknown;
   /** Set for the auth endpoints, which must not carry (or refresh) a token. */
   anonymous?: boolean;
@@ -67,6 +68,16 @@ export function currentTokens(): StoredTokens | null {
   return tokens;
 }
 
+/** Headers for resources fetched outside of `request`, e.g. <Image> sources. */
+export function authHeaders(): Record<string, string> {
+  const accessToken = tokens?.accessToken;
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
+
+export function absoluteUrl(path: string): string {
+  return `${API_BASE_URL}${API_PREFIX}${path}`;
+}
+
 async function parseError(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as ApiErrorBody;
@@ -76,16 +87,25 @@ async function parseError(response: Response): Promise<ApiError> {
   }
 }
 
+function encodeBody(body: unknown): { body: BodyInit | undefined; contentType?: string } {
+  if (body === undefined) return { body: undefined };
+  // Never set Content-Type for FormData: the runtime has to add the multipart
+  // boundary, and an explicit header silently breaks the upload.
+  if (body instanceof FormData) return { body };
+  return { body: JSON.stringify(body), contentType: 'application/json' };
+}
+
 async function send(path: string, options: RequestOptions, accessToken?: string) {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+  const encoded = encodeBody(options.body);
+  if (encoded.contentType) headers['Content-Type'] = encoded.contentType;
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   try {
     return await fetch(`${API_BASE_URL}${API_PREFIX}${path}`, {
       method: options.method ?? 'GET',
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: encoded.body,
     });
   } catch (cause) {
     throw new NetworkError(cause);

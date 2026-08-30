@@ -17,6 +17,8 @@ dependencies = [
     "pyjwt>=2.9",
     "python-multipart>=0.0.12",
     "boto3>=1.35",
+    "pillow>=11.0",
+    "pillow-heif>=0.18",
     "email-validator>=2.2",
 ]
 

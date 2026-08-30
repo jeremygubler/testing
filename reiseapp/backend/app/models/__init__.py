@@ -2,7 +2,7 @@
 (alembic autogenerate depends on that)."""
 
 from app.models.auth import Invite, RefreshToken
-from app.models.enums import MemberRole, TripVisibility, WaypointSource
+from app.models.enums import MemberRole, PositionSource, TripVisibility, WaypointSource
 from app.models.geo import Stop, Waypoint
 from app.models.journal import JournalEntry, JournalEntryPhoto
 from app.models.media import Photo
@@ -15,6 +15,7 @@ __all__ = [
     "JournalEntryPhoto",
     "MemberRole",
     "Photo",
+    "PositionSource",
     "RefreshToken",
     "Stop",
     "Trip",

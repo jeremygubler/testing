@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 3 (Background-GPS-Tracking) abgeschlossen.**
+**Status: Phase 4 (Fotos) abgeschlossen.**
 
 ## Warum
 
@@ -28,11 +28,11 @@ reiseapp/
 │   │   ├── db/              Declarative Base, Async-Session
 │   │   ├── models/          User, Trip, TripMember, Waypoint, Stop, Photo, JournalEntry,
 │   │   │                     RefreshToken, Invite
-│   │   ├── services/        Domänenlogik (auth, trips) – ohne FastAPI-Abhängigkeit
+│   │   ├── services/        Domänenlogik (auth, trips, geo, photos, exif)
 │   │   ├── schemas/         Pydantic-I/O-Modelle
-│   │   ├── storage/         S3/MinIO-Client
+│   │   ├── storage/         ObjectStore-Interface: MinIO oder lokales Volume
 │   │   └── cli.py           Admin-CLI (ersten Account anlegen, Invites ausstellen)
-│   ├── alembic/             Migrationen (0001 Kernschema, 0002 Auth)
+│   ├── alembic/             Migrationen (0001 Kernschema, 0002 Auth, 0003 Fotos)
 │   ├── tests/               pytest (unit + `-m integration` gegen echtes PostGIS)
 │   └── Dockerfile           Multi-Stage: `runtime` (schlank) / `dev` (Reload + Dev-Deps)
 ├── mobile/                  Expo SDK 57 + TypeScript strict (expo-router)
@@ -146,6 +146,9 @@ Instanz nicht öffentlich erreichbar ist.
 | POST/GET | `/api/v1/trips/{id}/waypoints` | editor / viewer |
 | GET | `/api/v1/trips/{id}/route` | viewer |
 | POST/GET | `/api/v1/trips/{id}/stops` | editor / viewer |
+| POST/GET | `/api/v1/trips/{id}/photos` | editor / viewer |
+| GET/PATCH/DELETE | `/api/v1/trips/{id}/photos/{photo_id}` | viewer / editor |
+| GET | `/api/v1/trips/{id}/photos/{photo_id}/file?variant=` | viewer |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}/stops/{stop_id}` | viewer / editor |
 
 Rollen: `owner` > `editor` > `viewer`. Wer keine Rolle auf einer Reise hat, bekommt
@@ -169,6 +172,42 @@ waren:
 `?simplify_m=` reduziert die Punktzahl fürs Rendering per Douglas-Peucker;
 `point_count` und `distance_m` beschreiben weiterhin die **echte** Spur.
 
+## Fotos
+
+Originale werden **byte-für-byte** gespeichert: keine Rekompression, EXIF bleibt drin.
+Daneben legt der Server ein JPEG-Thumbnail für die Galerie an.
+
+Die Bytes laufen durch das Backend, nicht über presigned URLs direkt zum Objektspeicher.
+Ein Hostname, ein Zertifikat, ein Reverse-Proxy – auf einem Homelab ist das deutlich
+weniger, was schiefgehen kann; die doppelte Bandbreite im LAN stört dort niemanden.
+
+**Zuordnung**, in dieser Reihenfolge:
+
+1. **GPS aus dem Bild.** Der Server liest EXIF aus dem Original – er ist die Quelle der
+   Wahrheit, nicht die App. Auch HEIC von iPhones (via `pillow-heif`).
+2. **Position aus der Route berechnet.** Hat das Foto keine Koordinaten, aber einen
+   Zeitstempel, wird zwischen den beiden umgebenden Wegpunkten interpoliert. Das ist der
+   Punkt, an dem Tracking und Fotos zusammenspielen: wenn das Handy aufgezeichnet hat,
+   wissen wir, wo die Kamera war – auch wenn die Kamera es nicht wusste. Über
+   unplausible Lücken (mehr als vier Stunden zwischen zwei Punkten) wird bewusst *nicht*
+   interpoliert.
+3. **Stop.** Zuerst der nächste Stop innerhalb von 500 m, sonst der Stop, in dessen
+   Zeitfenster das Foto fällt.
+
+`position_source` (`exif` / `interpolated` / `manual` / `none`) wird mitgeliefert, damit
+in der App eine geschätzte Position nie wie eine gemessene aussieht.
+
+Ein erneuter Upload derselben Bytes ist ein No-op: der SHA-256 wird pro Reise geprüft
+und das bestehende Foto zurückgegeben – Retrys nach Verbindungsabbruch erzeugen keine
+Dubletten.
+
+### Objektspeicher
+
+`STORAGE_BACKEND=s3` (Default) schreibt nach MinIO, `filesystem` in ein Docker-Volume
+unter `/srv/media`. Der zweite Weg ist für Setups gedacht, die kein MinIO betreiben
+wollen – und er ist der Grund, warum die Foto-Pipeline in CI komplett getestet werden
+kann, ohne einen Objektspeicher hochzufahren.
+
 ## Konfiguration
 
 Alle Backend-Variablen tragen den Prefix `REISEAPP_`; `docker-compose.yml` mappt die
@@ -181,6 +220,8 @@ kürzeren Namen aus `.env` darauf.
 | `JWT_SECRET` | `REISEAPP_JWT_SECRET` | – (Pflicht) | Signatur Access/Refresh-Token |
 | `ACCESS_TOKEN_TTL_MINUTES` | `REISEAPP_ACCESS_TOKEN_TTL_MINUTES` | `15` | Lebensdauer Access-Token |
 | `REFRESH_TOKEN_TTL_DAYS` | `REISEAPP_REFRESH_TOKEN_TTL_DAYS` | `30` | Lebensdauer Refresh-Token |
+| `STORAGE_BACKEND` | `REISEAPP_STORAGE_BACKEND` | `s3` | `s3` oder `filesystem` |
+| `MAX_UPLOAD_BYTES` | `REISEAPP_MAX_UPLOAD_BYTES` | `67108864` | maximale Foto-Grösse |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `REISEAPP_S3_*` | – (Pflicht) | MinIO-Root-Credentials |
 | `S3_BUCKET` | `REISEAPP_S3_BUCKET` | `reiseapp-media` | Bucket für Originalfotos |
 | `S3_PUBLIC_ENDPOINT_URL` | `REISEAPP_S3_PUBLIC_ENDPOINT_URL` | `http://localhost:9000` | Basis für presigned URLs |
@@ -253,7 +294,8 @@ eine frische Instanz – nicht wegräumen.
 - [x] **3 – Background-GPS-Tracking:** `expo-task-manager` mit SQLite-Puffer,
       idempotenter Batch-Upload, adaptive Intervalle mit Hysterese, Start/Stop pro
       Reise, Permission-Flow für iOS und Android
-- [ ] **4 – Fotos:** Upload zu MinIO, EXIF (Zeit + GPS), automatische Stop-Zuordnung
+- [x] **4 – Fotos:** Upload durchs Backend nach MinIO oder Volume, EXIF serverseitig
+      (inkl. HEIC), Positions-Interpolation aus der Route, Stop-Zuordnung, Galerie
 - [ ] **5 – Journal & Timeline**
 - [ ] **6 – Offline-Sync:** WatermelonDB-Sync-Protokoll, Konfliktauflösung
 - [ ] **7 – Import:** GPX, Polarsteps-Export, Google Timeline
