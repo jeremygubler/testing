@@ -3,7 +3,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import DateTime, MetaData, func, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -55,3 +56,16 @@ class TimestampMixin:
     )
     # Soft delete: a hard DELETE cannot be replicated to a client that is offline.
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+
+class FieldStampMixin:
+    """Per-field timestamps for sync conflict resolution.
+
+    Empty by default: a field without its own stamp falls back to the row's
+    updated_at, which is what a plain REST write bumps. That keeps REST writes
+    and sync pushes comparable without touching every write path.
+    """
+
+    field_updated_at: Mapped[dict[str, str]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )

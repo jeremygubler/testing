@@ -8,7 +8,7 @@ from sqlalchemy import Date, Enum, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.db.base import Base, FieldStampMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import MemberRole, TripVisibility
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class Trip(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+class Trip(UUIDPrimaryKeyMixin, TimestampMixin, FieldStampMixin, Base):
     __tablename__ = "trips"
 
     owner_id: Mapped[UUID] = mapped_column(

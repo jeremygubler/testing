@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 5 (Journal & Timeline) abgeschlossen.**
+**Status: Phase 6a (Sync-Protokoll, serverseitig) abgeschlossen.**
 
 ## Warum
 
@@ -32,7 +32,7 @@ reiseapp/
 │   │   ├── schemas/         Pydantic-I/O-Modelle
 │   │   ├── storage/         ObjectStore-Interface: MinIO oder lokales Volume
 │   │   └── cli.py           Admin-CLI (ersten Account anlegen, Invites ausstellen)
-│   ├── alembic/             Migrationen (0001 Kernschema, 0002 Auth, 0003 Fotos)
+│   ├── alembic/             Migrationen (0001 Kern, 0002 Auth, 0003 Fotos, 0004 Sync)
 │   ├── tests/               pytest (unit + `-m integration` gegen echtes PostGIS)
 │   └── Dockerfile           Multi-Stage: `runtime` (schlank) / `dev` (Reload + Dev-Deps)
 ├── mobile/                  Expo SDK 57 + TypeScript strict (expo-router)
@@ -152,6 +152,8 @@ Instanz nicht öffentlich erreichbar ist.
 | POST/GET | `/api/v1/trips/{id}/journal` | editor / viewer |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}/journal/{entry_id}` | viewer / editor |
 | GET | `/api/v1/trips/{id}/timeline` | viewer |
+| GET | `/api/v1/trips/{id}/sync/pull` | viewer |
+| POST | `/api/v1/trips/{id}/sync/push` | editor |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}/stops/{stop_id}` | viewer / editor |
 
 Rollen: `owner` > `editor` > `viewer`. Wer keine Rolle auf einer Reise hat, bekommt
@@ -203,6 +205,43 @@ in der App eine geschätzte Position nie wie eine gemessene aussieht.
 Ein erneuter Upload derselben Bytes ist ein No-op: der SHA-256 wird pro Reise geprüft
 und das bestehende Foto zurückgegeben – Retrys nach Verbindungsabbruch erzeugen keine
 Dubletten.
+
+## Sync-Protokoll
+
+`GET /sync/pull?since=<cursor>` liefert alles, was sich seit dem Cursor geändert hat;
+`POST /sync/push` schickt lokale Änderungen zurück.
+
+**Konfliktauflösung ist feldweise.** Zwei Personen, die dieselbe Reise offline
+bearbeiten, ist bei einer geteilten Reise der Normalfall, nicht der Sonderfall. Würde
+pro Datensatz aufgelöst, überschriebe der spätere Push stillschweigend einen Titel, den
+jemand anders Stunden früher geändert hat. Jeder Datensatz darf `field_updated_at`
+mitschicken; fehlt ein Feld darin, gilt das `updated_at` des Datensatzes — dadurch sind
+gewöhnliche REST-Schreibvorgänge und Sync-Pushes vergleichbar, ohne dass jeder
+Schreibpfad Feld-Zeitstempel pflegen muss.
+
+Felder, die der Server behalten hat, kommen als `conflicts` zurück — der Client kann sie
+anzeigen, statt eine Änderung spurlos zu verlieren. Gleichstand geht an den gespeicherten
+Wert, sonst würden zwei Geräte mit synchronen Uhren denselben Wert endlos hin- und
+herschieben.
+
+**Löschen ist nur ein weiteres Feld.** `deleted_at` unterliegt derselben Regel: eine
+Löschung schlägt eine ältere Bearbeitung, und eine neuere Bearbeitung holt den Datensatz
+zurück.
+
+**Wegpunkte werden nur angehängt**, nie zusammengeführt — Dubletten fallen über die
+bekannte ID weg.
+
+### Der Cursor hinkt absichtlich nach
+
+Der zurückgegebene Cursor liegt `SYNC_SAFETY_LAG` (5 s) hinter der Serveruhr. Eine
+Transaktion, die vor dem Cursor beginnt aber danach committet, wäre sonst für immer
+unsichtbar: ihr `updated_at` ist älter als der Cursor, den der Client schon überschritten
+hat. Der Lag muss länger sein als die längste Schreibtransaktion.
+
+Die Kehrseite ist harmlos: Ein Datensatz kann mehrfach geliefert werden. Da jeder
+Datensatz eine client-erzeugte UUID hat und jeder Schreibvorgang idempotent ist, ändert
+eine doppelte Zustellung nichts. Zu viel liefern ist sicher, zu wenig nicht — deshalb
+diese Richtung.
 
 ## Timeline
 
@@ -322,7 +361,9 @@ eine frische Instanz – nicht wegräumen.
       (inkl. HEIC), Positions-Interpolation aus der Route, Stop-Zuordnung, Galerie
 - [x] **5 – Journal & Timeline:** Journal-CRUD mit geordneten Fotos, serverseitig
       zusammengeführte Timeline mit Foto-Bündelung, Editor und Timeline-Ansicht in der App
-- [ ] **6 – Offline-Sync:** WatermelonDB-Sync-Protokoll, Konfliktauflösung
+- [x] **6a – Sync-Protokoll (Backend):** Pull mit nachhinkendem Cursor, Push mit
+      feldweisem Last-Write-Wins, Konfliktmeldung, Append-Merge für Wegpunkte
+- [ ] **6b – Lokaler Store (App):** Store-Entscheid steht aus, siehe Zwischenstand
 - [ ] **7 – Import:** GPX, Polarsteps-Export, Google Timeline
 - [ ] **8 – Export:** GPX, JSON, PDF-Reisebuch
 - [ ] **9 – Sharing & Web-Viewer**

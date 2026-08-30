@@ -8,7 +8,7 @@ from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.db.base import Base, FieldStampMixin, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.geo import Stop
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from app.models.trip import Trip
 
 
-class JournalEntry(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+class JournalEntry(UUIDPrimaryKeyMixin, TimestampMixin, FieldStampMixin, Base):
     __tablename__ = "journal_entries"
     __table_args__ = (Index("ix_journal_entries_trip_id_timestamp", "trip_id", "timestamp"),)
 

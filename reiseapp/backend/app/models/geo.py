@@ -9,7 +9,7 @@ from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.db.base import Base, FieldStampMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import WaypointSource
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ class Waypoint(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     trip: Mapped[Trip] = relationship(back_populates="waypoints")
 
 
-class Stop(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+class Stop(UUIDPrimaryKeyMixin, TimestampMixin, FieldStampMixin, Base):
     """A named place/leg on the trip – the timeline is built from these."""
 
     __tablename__ = "stops"
