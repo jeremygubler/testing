@@ -1,4 +1,4 @@
-import * as SQLite from 'expo-sqlite';
+import { trackingDb as db } from './db';
 
 /**
  * Which trip the background task should attribute points to.
@@ -7,23 +7,6 @@ import * as SQLite from 'expo-sqlite';
  * task runs in its own JS context after the app has been killed, and has to be
  * able to answer this question on its own.
  */
-
-const DB_NAME = 'reiseapp-tracking.db';
-
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-
-async function db(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = (async () => {
-      const database = await SQLite.openDatabaseAsync(DB_NAME);
-      await database.execAsync(
-        `CREATE TABLE IF NOT EXISTS tracking_state (key TEXT PRIMARY KEY NOT NULL, value TEXT);`,
-      );
-      return database;
-    })();
-  }
-  return dbPromise;
-}
 
 async function get(key: string): Promise<string | null> {
   const database = await db();

@@ -1,5 +1,4 @@
-import * as SQLite from 'expo-sqlite';
-
+import { trackingDb as db } from './db';
 import type { BufferedWaypoint, QueueStats } from './types';
 
 /**
@@ -8,38 +7,10 @@ import type { BufferedWaypoint, QueueStats } from './types';
  * Every fix lands here first and is only deleted once the server has confirmed
  * it. That is the whole offline story for tracking: the phone can spend three
  * weeks in a valley without signal and still lose nothing.
+ *
+ * The connection and the schema live in ./db – shared with the tracking state,
+ * because both are stored in the same file.
  */
-
-const DB_NAME = 'reiseapp-tracking.db';
-
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-
-async function db(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = (async () => {
-      const database = await SQLite.openDatabaseAsync(DB_NAME);
-      await database.execAsync(`
-        PRAGMA journal_mode = WAL;
-        CREATE TABLE IF NOT EXISTS waypoint_queue (
-          id TEXT PRIMARY KEY NOT NULL,
-          trip_id TEXT NOT NULL,
-          lat REAL NOT NULL,
-          lon REAL NOT NULL,
-          altitude_m REAL,
-          accuracy_m REAL,
-          speed_mps REAL,
-          heading_deg REAL,
-          recorded_at TEXT NOT NULL,
-          device_id TEXT
-        );
-        CREATE INDEX IF NOT EXISTS waypoint_queue_trip_recorded
-          ON waypoint_queue (trip_id, recorded_at);
-      `);
-      return database;
-    })();
-  }
-  return dbPromise;
-}
 
 interface Row {
   id: string;
