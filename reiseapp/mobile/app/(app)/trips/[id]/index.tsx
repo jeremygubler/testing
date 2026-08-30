@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -37,6 +37,7 @@ interface PendingStop {
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [route, setRoute] = useState<Route>(EMPTY_ROUTE);
   const [stops, setStops] = useState<Stop[]>([]);
@@ -174,6 +175,12 @@ export default function TripDetailScreen() {
             ))
           )}
         </Section>
+
+        <Button
+          title="Timeline ansehen"
+          variant="ghost"
+          onPress={() => router.push(`/trips/${id}/timeline`)}
+        />
 
         <Section title={`Fotos (${photos.length})`}>
           <PhotoGallery

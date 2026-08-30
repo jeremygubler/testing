@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 4 (Fotos) abgeschlossen.**
+**Status: Phase 5 (Journal & Timeline) abgeschlossen.**
 
 ## Warum
 
@@ -149,6 +149,9 @@ Instanz nicht öffentlich erreichbar ist.
 | POST/GET | `/api/v1/trips/{id}/photos` | editor / viewer |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}/photos/{photo_id}` | viewer / editor |
 | GET | `/api/v1/trips/{id}/photos/{photo_id}/file?variant=` | viewer |
+| POST/GET | `/api/v1/trips/{id}/journal` | editor / viewer |
+| GET/PATCH/DELETE | `/api/v1/trips/{id}/journal/{entry_id}` | viewer / editor |
+| GET | `/api/v1/trips/{id}/timeline` | viewer |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}/stops/{stop_id}` | viewer / editor |
 
 Rollen: `owner` > `editor` > `viewer`. Wer keine Rolle auf einer Reise hat, bekommt
@@ -200,6 +203,23 @@ in der App eine geschätzte Position nie wie eine gemessene aussieht.
 Ein erneuter Upload derselben Bytes ist ein No-op: der SHA-256 wird pro Reise geprüft
 und das bestehende Foto zurückgegeben – Retrys nach Verbindungsabbruch erzeugen keine
 Dubletten.
+
+## Timeline
+
+`GET /timeline` führt Stops, Journal-Einträge und Fotos **serverseitig** zu einer
+chronologischen Liste zusammen. Bewusst nicht im Client: App, Web-Viewer (Phase 9) und
+PDF-Reisebuch (Phase 8) sollen dieselbe Reihenfolge und Gruppierung zeigen, ohne die
+Regeln dreimal zu implementieren.
+
+Zwei Regeln, die den Unterschied machen:
+
+- **Fotos werden zu Momenten gebündelt.** Aufnahmen innerhalb einer Stunde am selben
+  Stop werden ein Timeline-Eintrag statt fünfzig. Ein Ortswechsel trennt immer, auch
+  innerhalb der Stunde.
+- **Fotos eines Journal-Eintrags erscheinen nur dort**, nicht zusätzlich als loses
+  Bündel.
+
+Bei gleichem Zeitstempel gilt: ankommen → darüber schreiben → Fotos davon.
 
 ### Objektspeicher
 
@@ -300,7 +320,8 @@ eine frische Instanz – nicht wegräumen.
       Reise, Permission-Flow für iOS und Android
 - [x] **4 – Fotos:** Upload durchs Backend nach MinIO oder Volume, EXIF serverseitig
       (inkl. HEIC), Positions-Interpolation aus der Route, Stop-Zuordnung, Galerie
-- [ ] **5 – Journal & Timeline**
+- [x] **5 – Journal & Timeline:** Journal-CRUD mit geordneten Fotos, serverseitig
+      zusammengeführte Timeline mit Foto-Bündelung, Editor und Timeline-Ansicht in der App
 - [ ] **6 – Offline-Sync:** WatermelonDB-Sync-Protokoll, Konfliktauflösung
 - [ ] **7 – Import:** GPX, Polarsteps-Export, Google Timeline
 - [ ] **8 – Export:** GPX, JSON, PDF-Reisebuch

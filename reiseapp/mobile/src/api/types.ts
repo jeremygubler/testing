@@ -118,3 +118,30 @@ export interface PhotoUploadResult {
   photo: Photo;
   duplicate: boolean;
 }
+
+export interface JournalEntry {
+  id: string;
+  trip_id: string;
+  stop_id: string | null;
+  author_id: string | null;
+  title: string | null;
+  text: string;
+  timestamp: string;
+  photos: Photo[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type TimelineKind = 'stop' | 'journal' | 'photos';
+
+export interface TimelineItem {
+  kind: TimelineKind;
+  at: string;
+  stop: Stop | null;
+  entry: JournalEntry | null;
+  photos: Photo[];
+}
+
+export interface Timeline {
+  items: TimelineItem[];
+}
