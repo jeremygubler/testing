@@ -10,9 +10,9 @@ import {
   View,
 } from 'react-native';
 
-import { getRoute } from '@/api/geo';
+import { getRoute, getStats } from '@/api/geo';
 import { listMembers } from '@/api/trips';
-import type { Photo, Route, Stop, Trip, TripMember } from '@/api/types';
+import type { Photo, Route, Stop, Trip, TripMember, TripStats } from '@/api/types';
 import { TripMap } from '@/map/TripMap';
 import { PhotoGallery } from '@/photos/PhotoGallery';
 import {
@@ -26,7 +26,7 @@ import { SyncStatus } from '@/sync/SyncStatus';
 import { TrackingPanel } from '@/tracking/TrackingPanel';
 import { Button, ErrorBanner, Field, Loading } from '@/ui/components';
 import { describeError } from '@/ui/errors';
-import { formatDate, formatDistance } from '@/ui/format';
+import { dominantMode, formatDate, formatDistance, formatDuration } from '@/ui/format';
 import { theme } from '@/ui/theme';
 
 const EMPTY_ROUTE: Route = {
@@ -50,6 +50,7 @@ export default function TripDetailScreen() {
   const [stops, setStops] = useState<Stop[]>([]);
   const [members, setMembers] = useState<TripMember[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [stats, setStats] = useState<TripStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
@@ -78,9 +79,14 @@ export default function TripDetailScreen() {
 
     // Route and members are derived server-side and stay online-only for now.
     try {
-      const [loadedRoute, loadedMembers] = await Promise.all([getRoute(id), listMembers(id)]);
+      const [loadedRoute, loadedMembers, loadedStats] = await Promise.all([
+        getRoute(id),
+        listMembers(id),
+        getStats(id),
+      ]);
       setRoute(loadedRoute);
       setMembers(loadedMembers);
+      setStats(loadedStats);
     } catch (caught) {
       if (!result.offline) setError(describeError(caught));
     }
@@ -163,10 +169,21 @@ export default function TripDetailScreen() {
         </View>
 
         <View style={styles.stats}>
-          <Stat label="Distanz" value={formatDistance(route.distance_m)} />
-          <Stat label="Punkte" value={String(route.point_count)} />
+          <Stat label="Distanz" value={formatDistance(stats?.distance_m ?? route.distance_m)} />
+          <Stat
+            label="Aufstieg"
+            value={stats ? `${Math.round(stats.elevation_gain_m)} m` : '–'}
+          />
           <Stat label="Fotos" value={String(photos.length)} />
         </View>
+
+        {stats && stats.moving_seconds > 0 ? (
+          <Text style={styles.hint}>
+            {formatDuration(stats.moving_seconds)} in Bewegung
+            {dominantMode(stats) ? ` · überwiegend ${dominantMode(stats)}` : ''}
+            {stats.countries.length > 1 ? ` · ${stats.countries.length} Länder` : ''}
+          </Text>
+        ) : null}
 
         {canEdit ? <TrackingPanel tripId={id} onSynced={() => void load()} /> : null}
 

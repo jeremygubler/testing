@@ -7,8 +7,8 @@ VENV := $(BACKEND)/.venv/bin
 MOBILE := mobile
 
 .PHONY: up down logs migrate shell \
-        lint typecheck test test-integration drift check \
-        mobile-check check-all
+        lint typecheck test test-integration drift downgrade check \
+        mobile-check mobile-bundle check-all
 
 up:
 	docker compose up -d
@@ -42,11 +42,21 @@ test-integration:
 drift:
 	cd $(BACKEND) && .venv/bin/alembic upgrade head && .venv/bin/alembic check
 
-check: lint typecheck test drift test-integration
+# CI tears the schema down at the end of the job and throws the database away.
+# Locally the same database is reused, so upgrade again afterwards.
+downgrade:
+	cd $(BACKEND) && .venv/bin/alembic downgrade base && .venv/bin/alembic upgrade head
+
+check: lint typecheck test drift test-integration downgrade
 
 # --- mobile ---
 
 mobile-check:
 	cd $(MOBILE) && npm run typecheck && npm run lint && npm test
 
-check-all: check mobile-check
+# Catches what tsc cannot: a module that resolves for the type checker but blows
+# up in the Metro bundler.
+mobile-bundle:
+	cd $(MOBILE) && npx expo export --platform android --output-dir /tmp/expo-export
+
+check-all: check mobile-check mobile-bundle

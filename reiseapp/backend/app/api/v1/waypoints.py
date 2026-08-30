@@ -5,7 +5,13 @@ from datetime import datetime
 from fastapi import APIRouter, Query
 
 from app.api.deps import SessionDep, TripForEditor, TripForViewer
-from app.schemas.geo import RouteRead, WaypointBatch, WaypointBatchResult, WaypointRead
+from app.schemas.geo import (
+    RouteRead,
+    TripStats,
+    WaypointBatch,
+    WaypointBatchResult,
+    WaypointRead,
+)
 from app.services import waypoints as waypoint_service
 
 router = APIRouter(tags=["waypoints"])
@@ -41,3 +47,9 @@ async def get_route(
     ),
 ) -> RouteRead:
     return await waypoint_service.route(session, trip, simplify_m)
+
+
+@router.get("/{trip_id}/stats", response_model=TripStats)
+async def get_stats(session: SessionDep, trip: TripForViewer) -> TripStats:
+    """Distance, pace split, climb, moving time and counts – all derived."""
+    return await waypoint_service.stats(session, trip)

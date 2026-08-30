@@ -113,3 +113,26 @@ class StopRead(ORMModel):
     notes: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class TripStats(BaseModel):
+    """Everything derived from the recorded data – nothing of this is stored."""
+
+    distance_m: float
+    #: Distance split by how fast it was covered.
+    walking_m: float
+    cycling_m: float
+    vehicle_m: float
+    #: Distance across recording gaps, where the pace is unknown.
+    unknown_m: float
+    elevation_gain_m: float
+    elevation_loss_m: float
+    moving_seconds: int
+    tracked_seconds: int
+    first_point_at: datetime | None
+    last_point_at: datetime | None
+    waypoint_count: int
+    stop_count: int
+    photo_count: int
+    journal_entry_count: int
+    countries: list[str]

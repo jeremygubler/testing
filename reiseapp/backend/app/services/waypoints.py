@@ -9,7 +9,13 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Trip, Waypoint
-from app.schemas.geo import RouteRead, WaypointBatchResult, WaypointCreate, WaypointRead
+from app.schemas.geo import (
+    RouteRead,
+    TripStats,
+    WaypointBatchResult,
+    WaypointCreate,
+    WaypointRead,
+)
 from app.services.geo import METRES_PER_DEGREE, as_geometry, point_ewkt
 
 MAX_PAGE = 5000
@@ -136,4 +142,87 @@ async def route(session: AsyncSession, trip: Trip, simplify_m: float = 0.0) -> R
         point_count=row.point_count,
         distance_m=row.distance_m or 0.0,
         bounds=[row.west, row.south, row.east, row.north],
+    )
+
+
+STATS_POINT_LIMIT = 50_000
+
+
+async def stats(session: AsyncSession, trip: Trip) -> TripStats:
+    """Distance, climb and pace, all derived on the fly.
+
+    Nothing here is stored: a cached total drifts the moment a late batch of
+    points arrives, and recomputing is cheap next to that class of bug.
+    """
+    from app.models import JournalEntry, Photo, Stop
+    from app.services.stats import (
+        TrackPoint,
+        classify_segments,
+        elevation_change,
+        moving_time,
+        tracked_span,
+    )
+
+    rows = (
+        await session.execute(
+            select(
+                func.ST_Y(as_geometry(Waypoint.geom)).label("lat"),
+                func.ST_X(as_geometry(Waypoint.geom)).label("lon"),
+                Waypoint.recorded_at,
+                Waypoint.altitude_m,
+            )
+            .where(Waypoint.trip_id == trip.id, Waypoint.deleted_at.is_(None))
+            .order_by(Waypoint.recorded_at, Waypoint.id)
+            .limit(STATS_POINT_LIMIT)
+        )
+    ).all()
+    points = [
+        TrackPoint(lat=row.lat, lon=row.lon, recorded_at=row.recorded_at,
+                   altitude_m=row.altitude_m)
+        for row in rows
+    ]
+
+    segments = classify_segments(points)
+    gain, loss = elevation_change([point.altitude_m for point in points])
+    # The line length from PostGIS is authoritative for the total; the segment
+    # split only says how that distance was covered.
+    route_length = (await route(session, trip)).distance_m
+
+    async def count(model: type[Stop] | type[Photo] | type[JournalEntry]) -> int:
+        result = await session.execute(
+            select(func.count())
+            .select_from(model)
+            .where(model.trip_id == trip.id, model.deleted_at.is_(None))
+        )
+        return int(result.scalar_one())
+
+    countries = (
+        await session.execute(
+            select(Stop.country)
+            .where(
+                Stop.trip_id == trip.id,
+                Stop.deleted_at.is_(None),
+                Stop.country.is_not(None),
+            )
+            .distinct()
+        )
+    ).scalars().all()
+
+    return TripStats(
+        distance_m=route_length,
+        walking_m=segments.walking_m,
+        cycling_m=segments.cycling_m,
+        vehicle_m=segments.vehicle_m,
+        unknown_m=segments.unknown_m,
+        elevation_gain_m=gain,
+        elevation_loss_m=loss,
+        moving_seconds=int(moving_time(points).total_seconds()),
+        tracked_seconds=int(tracked_span(points).total_seconds()),
+        first_point_at=points[0].recorded_at if points else None,
+        last_point_at=points[-1].recorded_at if points else None,
+        waypoint_count=len(points),
+        stop_count=await count(Stop),
+        photo_count=await count(Photo),
+        journal_entry_count=await count(JournalEntry),
+        countries=sorted(country for country in countries if country),
     )

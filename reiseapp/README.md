@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 9 (Sharing & Web-Viewer) abgeschlossen.**
+**Status: Phase 10 (Stats & Polish) abgeschlossen – alle geplanten Phasen stehen.**
 
 ## Warum
 
@@ -129,7 +129,7 @@ Instanz nicht öffentlich erreichbar ist.
   Refresh-Token aus und entwertet das alte. Taucht ein bereits entwertetes Token
   nochmal auf, ist es abgeflossen — dann werden **alle** Sessions dieses Users entwertet.
 
-## API (Stand Phase 1)
+## API
 
 | Methode | Pfad | Rolle |
 |---|---|---|
@@ -145,6 +145,7 @@ Instanz nicht öffentlich erreichbar ist.
 | PATCH/DELETE | `/api/v1/trips/{id}/members/{user_id}` | owner |
 | POST/GET | `/api/v1/trips/{id}/waypoints` | editor / viewer |
 | GET | `/api/v1/trips/{id}/route` | viewer |
+| GET | `/api/v1/trips/{id}/stats` | viewer |
 | POST/GET | `/api/v1/trips/{id}/stops` | editor / viewer |
 | POST/GET | `/api/v1/trips/{id}/photos` | editor / viewer |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}/photos/{photo_id}` | viewer / editor |
@@ -331,6 +332,33 @@ Datensatz eine client-erzeugte UUID hat und jeder Schreibvorgang idempotent ist,
 eine doppelte Zustellung nichts. Zu viel liefern ist sicher, zu wenig nicht — deshalb
 diese Richtung.
 
+## Statistik
+
+`GET /trips/{id}/stats` rechnet **bei jedem Aufruf neu** aus den Wegpunkten. Nichts
+davon liegt redundant in einer Spalte: ein nachträglich importierter Track oder ein
+gelöschter Ausreisser ändern die Zahlen sofort, ohne Neuberechnungs-Job.
+
+Die Summen sind einfach, die Störgeräusche sind das Problem:
+
+- **Höhenmeter.** Roher GPS-Höhenwert schwankt im Stand um ±5–10 m. Wer jede positive
+  Differenz addiert, macht aus einer Stunde auf der Parkbank 300 m Aufstieg. Deshalb
+  zählt ein Anstieg erst ab `ELEVATION_THRESHOLD_M` (10 m) gegenüber dem letzten
+  bestätigten Umkehrpunkt – Rauschen fällt raus, echte Serpentinen bleiben drin.
+- **Fortbewegungsart.** Pro Segment aus Geschwindigkeit abgeleitet: zu Fuss bis
+  2.8 m/s, Velo bis 8.5 m/s, darüber Fahrzeug. Kein Machine Learning, aber es trennt
+  die Zugfahrt nach Interlaken sauber vom Aufstieg danach.
+- **Bewegungszeit.** Segmente unter 0.4 m/s zählen als Stillstand, Lücken über
+  30 Minuten als Aufzeichnungsunterbruch statt als sehr langsame Etappe. Sonst wird
+  jede Nacht im Zelt zur Wanderzeit.
+
+Länder kommen als ISO-3166-alpha-2 vom Stop – gesetzt beim Anlegen oder aus dem
+Import übernommen –, nicht aus einer Polygon-Abfrage pro Wegpunkt. Ein Reverse-Geocoder
+ist bewusst nicht eingebaut: er wäre der einzige Teil, der beim Self-Hosting einen
+externen Dienst bräuchte.
+
+Der Share-Payload für den Web-Viewer trägt die Statistik mit, damit die Seite mit
+**einem** Request auskommt.
+
 ## Timeline
 
 `GET /timeline` führt Stops, Journal-Einträge und Fotos **serverseitig** zu einer
@@ -412,10 +440,17 @@ dabei eine vergessen) werden:
 
 ```bash
 export REISEAPP_DATABASE_URL=postgresql+asyncpg://reiseapp:<pw>@localhost:5432/reiseapp
-make check        # ruff, mypy strict, Unit-Tests, Migrations-Drift, Integrationstests
+make check        # ruff, mypy strict, Unit-Tests, Migrations-Drift, Integrations-
+                  # tests, Reversibilität der Migrationen
 make mobile-check # tsc, eslint, jest
-make check-all    # beides
+make check-all    # beides plus Metro-Bundle
 ```
+
+`make check` rollt am Schluss auf `base` zurück und wieder hoch: eine Migration, die
+sich nicht zurücknehmen lässt, fällt so hier auf und nicht erst beim Rollback im
+Homelab. Lokal wird dieselbe Datenbank weiterverwendet, deshalb das Wieder-Hochziehen –
+in CI ist der Container danach ohnehin weg. `make mobile-bundle` fängt, was `tsc` nicht
+sieht: ein Modul, das für den Typechecker auflöst, den Metro-Bundler aber sprengt.
 
 ### Migrationen
 
@@ -460,4 +495,5 @@ eine frische Instanz – nicht wegräumen.
       Vektor-Routenskizze und Timeline
 - [x] **9 – Sharing & Web-Viewer:** widerrufbare Link-Tokens mit Ablauf und
       Foto-Schalter, read-only Viewer mit Karte, Route und Timeline
-- [ ] **10 – Stats & Polish**
+- [x] **10 – Stats & Polish:** serverseitige Statistik (Distanz, Höhenmeter,
+      Fortbewegungsart, Bewegungszeit, Länder), Anzeige in App und Web-Viewer

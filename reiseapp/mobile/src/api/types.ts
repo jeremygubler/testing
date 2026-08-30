@@ -145,3 +145,22 @@ export interface TimelineItem {
 export interface Timeline {
   items: TimelineItem[];
 }
+
+export interface TripStats {
+  distance_m: number;
+  walking_m: number;
+  cycling_m: number;
+  vehicle_m: number;
+  unknown_m: number;
+  elevation_gain_m: number;
+  elevation_loss_m: number;
+  moving_seconds: number;
+  tracked_seconds: number;
+  first_point_at: string | null;
+  last_point_at: string | null;
+  waypoint_count: number;
+  stop_count: number;
+  photo_count: number;
+  journal_entry_count: number;
+  countries: string[];
+}

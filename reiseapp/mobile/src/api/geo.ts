@@ -1,9 +1,13 @@
 import { request } from './client';
-import type { Route, Stop, WaypointBatchResult, WaypointInput } from './types';
+import type { Route, Stop, TripStats, WaypointBatchResult, WaypointInput } from './types';
 
 export async function getRoute(tripId: string, simplifyM = 0): Promise<Route> {
   const query = simplifyM > 0 ? `?simplify_m=${simplifyM}` : '';
   return request<Route>(`/trips/${tripId}/route${query}`);
+}
+
+export async function getStats(tripId: string): Promise<TripStats> {
+  return request<TripStats>(`/trips/${tripId}/stats`);
 }
 
 export async function listStops(tripId: string): Promise<Stop[]> {

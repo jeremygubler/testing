@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.schemas.common import ORMModel
-from app.schemas.geo import RouteRead, StopRead
+from app.schemas.geo import RouteRead, StopRead, TripStats
 from app.schemas.journal import TimelineItem
 
 
@@ -44,5 +44,6 @@ class SharedTrip(BaseModel):
     include_photos: bool
     map_style_url: str
     route: RouteRead
+    stats: TripStats
     stops: list[StopRead]
     timeline: list[TimelineItem]

@@ -25,6 +25,14 @@ function formatDistance(metres) {
   return metres < 1000 ? `${Math.round(metres)} m` : `${Math.round(metres / 1000)} km`;
 }
 
+function formatDuration(seconds) {
+  if (!seconds) return '–';
+  const hours = Math.floor(seconds / 3600);
+  if (hours >= 24) return `${Math.round(hours / 24)} d`;
+  const minutes = Math.round((seconds % 3600) / 60);
+  return hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
+}
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -34,13 +42,24 @@ function el(tag, className, text) {
 
 function renderStats(trip) {
   const list = document.querySelector('.stats');
-  const entries = [
-    [formatDistance(trip.route.distance_m), 'Distanz'],
-    [String(trip.stops.length), 'Stops'],
-    [String(trip.timeline.filter((i) => i.kind === 'journal').length), 'Einträge'],
-  ];
-  const countries = new Set(trip.stops.map((s) => s.country).filter(Boolean));
-  if (countries.size) entries.push([String(countries.size), 'Länder']);
+  const stats = trip.stats;
+  // German plurals: "1 Länder" reads like a bug, because it is one.
+  const plural = (count, one, many) => (count === 1 ? one : many);
+  const entries = [[formatDistance(stats.distance_m), 'Distanz']];
+  if (stats.elevation_gain_m > 0) {
+    entries.push([`${Math.round(stats.elevation_gain_m)} m`, 'Aufstieg']);
+  }
+  if (stats.moving_seconds > 0) {
+    entries.push([formatDuration(stats.moving_seconds), 'in Bewegung']);
+  }
+  entries.push([String(stats.stop_count), plural(stats.stop_count, 'Stop', 'Stops')]);
+  if (stats.photo_count > 0) {
+    entries.push([String(stats.photo_count), plural(stats.photo_count, 'Foto', 'Fotos')]);
+  }
+  if (stats.countries.length > 0) {
+    const n = stats.countries.length;
+    entries.push([String(n), plural(n, 'Land', 'Länder')]);
+  }
 
   for (const [value, label] of entries) {
     const item = el('li');
@@ -99,19 +118,28 @@ function renderTimeline(token, trip) {
 
 /** A style that needs no network, so the route stays visible when the tile
  * server is unreachable — which on a self-hosted setup is a Tuesday. */
-const BLANK_STYLE = {
-  version: 8,
-  sources: {},
-  layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#e8e8e3' } }],
-};
+function blankStyle() {
+  const dark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  return {
+    version: 8,
+    sources: {},
+    layers: [
+      {
+        id: 'background',
+        type: 'background',
+        paint: { 'background-color': dark ? '#22242a' : '#e8e8e3' },
+      },
+    ],
+  };
+}
 
 async function resolveStyle(url) {
   try {
     const response = await fetch(url, { mode: 'cors' });
-    if (!response.ok) return BLANK_STYLE;
+    if (!response.ok) return blankStyle();
     return await response.json();
   } catch {
-    return BLANK_STYLE;
+    return blankStyle();
   }
 }
 

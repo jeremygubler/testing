@@ -45,6 +45,7 @@ async def read_shared_trip(session: SessionDep, token: str) -> SharedTrip:
         include_photos=share.include_photos,
         map_style_url=get_settings().viewer_map_style_url,
         route=await waypoint_service.route(session, trip, simplify_m=15),
+        stats=await waypoint_service.stats(session, trip),
         stops=[stop_service.to_read(stop) for stop in await stop_service.list_stops(session, trip)],
         timeline=items,
     )
