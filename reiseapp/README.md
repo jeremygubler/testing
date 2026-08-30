@@ -318,14 +318,15 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Checks (identisch zu CI, `.github/workflows/reiseapp-backend.yml`):
+Checks laufen über das Makefile im Projektwurzelverzeichnis – die Targets spiegeln
+`.github/workflows/*.yml`, damit die Pfadlisten nicht jedes Mal von Hand getippt (und
+dabei eine vergessen) werden:
 
 ```bash
-ruff check app tests alembic
-mypy app                 # strict
-pytest -q -m "not integration"   # ohne DB
-pytest -q -m integration         # braucht laufendes PostGIS
-alembic check                    # Migration vs. Modelle: kein Drift
+export REISEAPP_DATABASE_URL=postgresql+asyncpg://reiseapp:<pw>@localhost:5432/reiseapp
+make check        # ruff, mypy strict, Unit-Tests, Migrations-Drift, Integrationstests
+make mobile-check # tsc, eslint, jest
+make check-all    # beides
 ```
 
 ### Migrationen
