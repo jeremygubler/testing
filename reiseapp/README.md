@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 6 (Offline-Sync) abgeschlossen.**
+**Status: Phase 8 (Export) abgeschlossen.**
 
 ## Warum
 
@@ -28,7 +28,7 @@ reiseapp/
 │   │   ├── db/              Declarative Base, Async-Session
 │   │   ├── models/          User, Trip, TripMember, Waypoint, Stop, Photo, JournalEntry,
 │   │   │                     RefreshToken, Invite
-│   │   ├── services/        Domänenlogik (auth, trips, geo, photos, exif)
+│   │   ├── services/        Domänenlogik (auth, trips, geo, photos, sync, export)
 │   │   ├── schemas/         Pydantic-I/O-Modelle
 │   │   ├── storage/         ObjectStore-Interface: MinIO oder lokales Volume
 │   │   └── cli.py           Admin-CLI (ersten Account anlegen, Invites ausstellen)
@@ -154,6 +154,9 @@ Instanz nicht öffentlich erreichbar ist.
 | GET | `/api/v1/trips/{id}/timeline` | viewer |
 | GET | `/api/v1/trips/{id}/sync/pull` | viewer |
 | POST | `/api/v1/trips/{id}/sync/push` | editor |
+| GET | `/api/v1/trips/{id}/export.gpx` | viewer |
+| GET | `/api/v1/trips/{id}/export.json` | viewer |
+| GET | `/api/v1/trips/{id}/export.pdf` | viewer |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}/stops/{stop_id}` | viewer / editor |
 
 Rollen: `owner` > `editor` > `viewer`. Wer keine Rolle auf einer Reise hat, bekommt
@@ -205,6 +208,31 @@ in der App eine geschätzte Position nie wie eine gemessene aussieht.
 Ein erneuter Upload derselben Bytes ist ein No-op: der SHA-256 wird pro Reise geprüft
 und das bestehende Foto zurückgegeben – Retrys nach Verbindungsabbruch erzeugen keine
 Dubletten.
+
+## Export
+
+```bash
+TOKEN=$(curl -s localhost:8000/api/v1/auth/login -H 'content-type: application/json' \
+  -d '{"email":"du@example.com","password":"..."}' | jq -r .access_token)
+
+curl -sJO -H "authorization: Bearer $TOKEN" localhost:8000/api/v1/trips/$TRIP/export.gpx
+curl -sJO -H "authorization: Bearer $TOKEN" localhost:8000/api/v1/trips/$TRIP/export.json
+curl -sJO -H "authorization: Bearer $TOKEN" localhost:8000/api/v1/trips/$TRIP/export.pdf
+```
+
+- **GPX 1.1** – Wegpunkte als `wpt`, die aufgezeichnete Spur als `trk`. Zeiten werden
+  nach UTC normalisiert: ein lokaler Offset ist zwar erlaubt, wird aber von vielen Tools
+  uneinheitlich zurückgelesen.
+- **JSON** – vollständiger Dump inklusive Mitgliedern, Stops, Wegpunkten, Foto-Metadaten
+  und Journal. Versioniert (`format`, `version`), damit Phase 7 ihn wieder einlesen kann.
+- **PDF-Reisebuch** – Deckblatt mit Route und Kennzahlen, danach die Timeline mit Text
+  und Fotos.
+
+Die Route im PDF ist eine **Vektor-Skizze aus den aufgezeichneten Punkten**, keine
+Kartenkacheln. Ein Export, der zum Rendern eine Internetverbindung braucht, widerspricht
+dem Zweck der Sache — und die Lizenzfrage für weitergegebene Kacheln ist ein eigenes
+Dickicht. Ins Buch kommen Thumbnails statt Originale: hundert Megabyte PDF bringen auf
+Papier nichts.
 
 ## Sync-Protokoll
 
@@ -367,6 +395,7 @@ eine frische Instanz – nicht wegräumen.
 - [x] **6b – Lokaler Store (App):** SQLite-Cache, Outbox mit feldweisen Zeitstempeln,
       Push-vor-Pull-Engine, Sync-Status-UI; Details in [`mobile/README.md`](mobile/README.md)
 - [ ] **7 – Import:** GPX, Polarsteps-Export, Google Timeline
-- [ ] **8 – Export:** GPX, JSON, PDF-Reisebuch
+- [x] **8 – Export:** GPX 1.1, versionierter JSON-Dump, PDF-Reisebuch mit
+      Vektor-Routenskizze und Timeline
 - [ ] **9 – Sharing & Web-Viewer**
 - [ ] **10 – Stats & Polish**
