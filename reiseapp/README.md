@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 8 (Export) abgeschlossen.**
+**Status: Phase 7 (Import) abgeschlossen.**
 
 ## Warum
 
@@ -157,6 +157,7 @@ Instanz nicht öffentlich erreichbar ist.
 | GET | `/api/v1/trips/{id}/export.gpx` | viewer |
 | GET | `/api/v1/trips/{id}/export.json` | viewer |
 | GET | `/api/v1/trips/{id}/export.pdf` | viewer |
+| POST | `/api/v1/import` | eingeloggt (editor bei `trip_id`) |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}/stops/{stop_id}` | viewer / editor |
 
 Rollen: `owner` > `editor` > `viewer`. Wer keine Rolle auf einer Reise hat, bekommt
@@ -208,6 +209,34 @@ in der App eine geschätzte Position nie wie eine gemessene aussieht.
 Ein erneuter Upload derselben Bytes ist ein No-op: der SHA-256 wird pro Reise geprüft
 und das bestehende Foto zurückgegeben – Retrys nach Verbindungsabbruch erzeugen keine
 Dubletten.
+
+## Import
+
+```bash
+# Neue Reise aus einer GPX-Datei
+curl -X POST localhost:8000/api/v1/import -H "authorization: Bearer $TOKEN" \
+  -F file=@spur.gpx
+
+# In eine bestehende Reise importieren
+curl -X POST localhost:8000/api/v1/import -H "authorization: Bearer $TOKEN" \
+  -F file=@polarsteps-export.zip -F trip_id=$TRIP
+```
+
+Vier Formate, das Format wird am Inhalt erkannt (`format=` überschreibt):
+
+| Format | Stand |
+|---|---|
+| **GPX 1.0/1.1** | vollständig getestet, auch ohne Namespace und mit `rte` statt `trk` |
+| **reiseapp-JSON** | Round-Trip mit dem eigenen Export, gegen echte Exportdaten getestet |
+| **Polarsteps** | nach beobachteter Struktur gebaut — **braucht einen echten Export zur Bestätigung** |
+| **Google Timeline** | alle drei bekannten Shapes (`timelineObjects`, `semanticSegments`, `Records`) — ebenfalls unbestätigt |
+
+**Zweimal importieren ändert nichts.** Wegpunkt- und Stop-IDs werden per UUIDv5 aus
+`(Reise, Zeit, Position)` abgeleitet — der zweite Lauf kollidiert mit dem ersten, statt
+die Route zu verdoppeln. Dasselbe Prinzip wie beim Tracking.
+
+Was nicht verwertbar war, kommt als `warnings` zurück statt still verworfen zu werden.
+Fotos sind im JSON-Dump nur Metadaten; die Dateien werden separat hochgeladen.
 
 ## Export
 
@@ -394,7 +423,8 @@ eine frische Instanz – nicht wegräumen.
       feldweisem Last-Write-Wins, Konfliktmeldung, Append-Merge für Wegpunkte
 - [x] **6b – Lokaler Store (App):** SQLite-Cache, Outbox mit feldweisen Zeitstempeln,
       Push-vor-Pull-Engine, Sync-Status-UI; Details in [`mobile/README.md`](mobile/README.md)
-- [ ] **7 – Import:** GPX, Polarsteps-Export, Google Timeline
+- [x] **7 – Import:** GPX, eigener JSON-Dump, Polarsteps, Google Timeline; Format-
+      Erkennung am Inhalt, idempotent über inhaltsabgeleitete IDs
 - [x] **8 – Export:** GPX 1.1, versionierter JSON-Dump, PDF-Reisebuch mit
       Vektor-Routenskizze und Timeline
 - [ ] **9 – Sharing & Web-Viewer**

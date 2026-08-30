@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     storage_backend: Literal["s3", "filesystem"] = "s3"
     storage_path: str = "/srv/media"
     max_upload_bytes: int = 64 * 1024 * 1024
+    # Google Timeline takeouts are routinely hundreds of megabytes.
+    max_import_bytes: int = 256 * 1024 * 1024
     thumbnail_max_px: int = 512
 
     s3_endpoint_url: str = "http://localhost:9000"

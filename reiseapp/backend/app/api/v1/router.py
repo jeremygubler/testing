@@ -6,6 +6,7 @@ from app.api.v1 import (
     auth,
     export,
     health,
+    import_api,
     journal,
     photos,
     stops,
@@ -24,3 +25,4 @@ api_router.include_router(photos.router, prefix="/trips")
 api_router.include_router(journal.router, prefix="/trips")
 api_router.include_router(sync.router, prefix="/trips")
 api_router.include_router(export.router, prefix="/trips")
+api_router.include_router(import_api.router)
