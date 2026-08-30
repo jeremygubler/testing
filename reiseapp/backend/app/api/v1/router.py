@@ -9,6 +9,8 @@ from app.api.v1 import (
     import_api,
     journal,
     photos,
+    shared,
+    shares,
     stops,
     sync,
     trips,
@@ -25,4 +27,6 @@ api_router.include_router(photos.router, prefix="/trips")
 api_router.include_router(journal.router, prefix="/trips")
 api_router.include_router(sync.router, prefix="/trips")
 api_router.include_router(export.router, prefix="/trips")
+api_router.include_router(shares.router, prefix="/trips")
+api_router.include_router(shared.router, prefix="/shared")
 api_router.include_router(import_api.router)

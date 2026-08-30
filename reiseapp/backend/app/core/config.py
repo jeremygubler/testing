@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     allow_registration: bool = False
     invite_ttl_days: int = 14
 
+    # Tile source for the web viewer. The MapLibre demo tiles are fine to start
+    # with and explicitly not meant for production; point this at a tileserver in
+    # the homelab to keep the map self-hosted too.
+    viewer_map_style_url: str = "https://demotiles.maplibre.org/style.json"
+    viewer_path: str = "../web"
+
     cors_origins: list[str] = Field(default_factory=list)
     run_migrations_on_startup: bool = True
 

@@ -3,7 +3,7 @@
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
 
-**Status: Phase 7 (Import) abgeschlossen.**
+**Status: Phase 9 (Sharing & Web-Viewer) abgeschlossen.**
 
 ## Warum
 
@@ -158,6 +158,10 @@ Instanz nicht öffentlich erreichbar ist.
 | GET | `/api/v1/trips/{id}/export.json` | viewer |
 | GET | `/api/v1/trips/{id}/export.pdf` | viewer |
 | POST | `/api/v1/import` | eingeloggt (editor bei `trip_id`) |
+| POST/GET | `/api/v1/trips/{id}/shares` | owner |
+| DELETE | `/api/v1/trips/{id}/shares/{share_id}` | owner |
+| GET | `/api/v1/shared/{token}` | – (Link genügt) |
+| GET | `/api/v1/shared/{token}/photos/{photo_id}/file` | – (Link genügt) |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}/stops/{stop_id}` | viewer / editor |
 
 Rollen: `owner` > `editor` > `viewer`. Wer keine Rolle auf einer Reise hat, bekommt
@@ -209,6 +213,33 @@ in der App eine geschätzte Position nie wie eine gemessene aussieht.
 Ein erneuter Upload derselben Bytes ist ein No-op: der SHA-256 wird pro Reise geprüft
 und das bestehende Foto zurückgegeben – Retrys nach Verbindungsabbruch erzeugen keine
 Dubletten.
+
+## Sharing & Web-Viewer
+
+```bash
+curl -X POST localhost:8000/api/v1/trips/$TRIP/shares \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"label":"Für die Familie","expires_in_days":90}'
+# -> {"token":"…","url_path":"/s/…"}
+```
+
+Der Link öffnet den Viewer unter `http://<host>:8000/s/<token>` – ohne Konto, ohne App.
+
+- **Nur der SHA-256 des Tokens wird gespeichert.** Der Link lebt in URLs, Chatverläufen
+  und Server-Logs; ein Datenbank-Dump soll nicht den Zugang zu jeder je geteilten Reise
+  mitliefern.
+- **Widerrufen, abgelaufen und nie existiert antworten identisch** (404, gleiche
+  Meldung). Sonst wird der Endpoint zum Orakel für das Erraten gültiger Tokens.
+- **Ohne Fotos heisst ohne Fotos.** Wird der Link ohne Fotos erstellt, werden sie
+  serverseitig aus der Timeline entfernt und die Bytes sind über den Link gar nicht
+  erreichbar – nicht bloss im Viewer ausgeblendet.
+- Links teilen darf nur der Eigentümer. Eine fremde Reise zu veröffentlichen ist keine
+  Editor-Entscheidung.
+- Aufrufe werden gezählt (`view_count`, `last_viewed_at`), damit sichtbar ist, ob ein
+  Link noch benutzt wird.
+
+Der Viewer selbst hat **keinen Build-Schritt und kein CDN**: HTML, CSS, ein ES-Modul und
+ein mitgeliefertes MapLibre. Details in [`web/README.md`](web/README.md).
 
 ## Import
 
@@ -427,5 +458,6 @@ eine frische Instanz – nicht wegräumen.
       Erkennung am Inhalt, idempotent über inhaltsabgeleitete IDs
 - [x] **8 – Export:** GPX 1.1, versionierter JSON-Dump, PDF-Reisebuch mit
       Vektor-Routenskizze und Timeline
-- [ ] **9 – Sharing & Web-Viewer**
+- [x] **9 – Sharing & Web-Viewer:** widerrufbare Link-Tokens mit Ablauf und
+      Foto-Schalter, read-only Viewer mit Karte, Route und Timeline
 - [ ] **10 – Stats & Polish**

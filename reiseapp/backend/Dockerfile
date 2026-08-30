@@ -13,14 +13,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgeos-c1v5 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml ./
-COPY app ./app
+COPY backend/pyproject.toml ./
+COPY backend/app ./app
 
 FROM base AS runtime
 RUN pip install --no-cache-dir .
-COPY alembic.ini ./
-COPY alembic ./alembic
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY backend/alembic.ini ./
+COPY backend/alembic ./alembic
+# The read-only web viewer is served from the same origin as the API.
+COPY web /srv/web
+COPY backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
     && useradd --system --uid 10001 reiseapp \
     && chown -R reiseapp:reiseapp /srv/app
@@ -31,10 +33,11 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM base AS dev
 RUN pip install --no-cache-dir -e ".[dev]"
-COPY alembic.ini ./
-COPY alembic ./alembic
-COPY tests ./tests
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY backend/alembic.ini ./
+COPY backend/alembic ./alembic
+COPY backend/tests ./tests
+COPY web /srv/web
+COPY backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 EXPOSE 8000
 ENTRYPOINT ["docker-entrypoint.sh"]

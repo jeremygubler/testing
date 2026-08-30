@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- A shared link must not leak into the referrer of every tile request. -->
+    <meta name="referrer" content="no-referrer" />
+    <title>Reise – reiseapp</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f6f4f'/%3E%3Cpath d='M8 23c4-2 5-8 8-8s4 6 8 4' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/viewer/vendor/maplibre-gl.css" />
+    <link rel="stylesheet" href="/viewer/style.css" />
+  </head>
+  <body>
+    <div id="app" class="loading">
+      <p class="status" id="status">Reise wird geladen …</p>
+    </div>
+
+    <template id="tpl-page">
+      <header class="header">
+        <div class="header-inner">
+          <h1 class="title"></h1>
+          <p class="meta"></p>
+          <p class="description"></p>
+        </div>
+      </header>
+
+      <div class="map" id="map"></div>
+
+      <main class="content">
+        <ul class="stats"></ul>
+        <ol class="timeline"></ol>
+        <footer class="footer">
+          Geteilt mit <a href="https://github.com/" rel="noreferrer">reiseapp</a> –
+          selbst gehostet, ohne Konto.
+        </footer>
+      </main>
+    </template>
+
+    <div class="lightbox" id="lightbox" hidden>
+      <img alt="" id="lightbox-image" />
+    </div>
+
+    <script type="module" src="/viewer/app.js"></script>
+  </body>
+</html>

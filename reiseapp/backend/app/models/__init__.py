@@ -6,6 +6,7 @@ from app.models.enums import MemberRole, PositionSource, TripVisibility, Waypoin
 from app.models.geo import Stop, Waypoint
 from app.models.journal import JournalEntry, JournalEntryPhoto
 from app.models.media import Photo
+from app.models.share import ShareLink
 from app.models.trip import Trip, TripMember
 from app.models.user import User
 
@@ -17,6 +18,7 @@ __all__ = [
     "Photo",
     "PositionSource",
     "RefreshToken",
+    "ShareLink",
     "Stop",
     "Trip",
     "TripMember",

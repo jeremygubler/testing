@@ -3,12 +3,14 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import __version__
@@ -69,6 +71,30 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     )
 
 
+def _mount_viewer(app: FastAPI, viewer_path: str) -> None:
+    """Serves the read-only web viewer from the same origin as the API.
+
+    Same origin on purpose: a shared link then needs no CORS, no second
+    hostname and no second certificate — on a homelab that is three fewer
+    things to get wrong.
+    """
+    root = Path(viewer_path)
+    if not root.is_absolute():
+        root = (Path(__file__).resolve().parent.parent / viewer_path).resolve()
+    index = root / "index.html"
+    if not index.is_file():
+        logger.info("web viewer not found at %s – serving API only", root)
+        return
+
+    app.mount("/viewer", StaticFiles(directory=root), name="viewer")
+
+    @app.get("/s/{token}", include_in_schema=False)
+    async def shared_page(token: str) -> FileResponse:
+        # The token is never read here; the page fetches it from the API itself,
+        # which keeps it out of server-side rendering and logs.
+        return FileResponse(index)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
@@ -105,6 +131,8 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix=settings.api_prefix)
     # Unprefixed probes for Docker/Kubernetes healthchecks.
     app.include_router(health.router, prefix="/health", include_in_schema=False)
+
+    _mount_viewer(app, settings.viewer_path)
 
     app.add_exception_handler(AppError, app_error_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
