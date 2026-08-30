@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _DEV_JWT_SECRET = "dev-only-insecure-secret"
 
@@ -62,16 +63,31 @@ class Settings(BaseSettings):
     viewer_map_style_url: str = "https://demotiles.maplibre.org/style.json"
     viewer_path: str = "../web"
 
-    cors_origins: list[str] = Field(default_factory=list)
+    # NoDecode is load-bearing: without it the env source JSON-decodes the raw
+    # value before any validator runs, so a comma-separated list is a parse error
+    # and an empty REISEAPP_CORS_ORIGINS="" crashes the process at startup —
+    # which is exactly what compose passes when CORS_ORIGINS is unset.
+    cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     run_migrations_on_startup: bool = True
 
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
-        # Compose passes a comma-separated string; pydantic would try JSON otherwise.
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        return value
+        if not isinstance(value, str):
+            return value
+        text = value.strip()
+        # NoDecode turned off the automatic JSON parsing, but a JSON array is
+        # what pydantic-settings documents and what earlier versions of this file
+        # accepted, so keep honouring it alongside the comma-separated form.
+        if text.startswith("["):
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "REISEAPP_CORS_ORIGINS looks like JSON but does not parse; "
+                    "use a comma-separated list instead"
+                ) from exc
+        return [item.strip() for item in text.split(",") if item.strip()]
 
     @model_validator(mode="after")
     def _reject_weak_production_secrets(self) -> Settings:
