@@ -497,3 +497,8 @@ eine frische Instanz – nicht wegräumen.
       Foto-Schalter, read-only Viewer mit Karte, Route und Timeline
 - [x] **10 – Stats & Polish:** serverseitige Statistik (Distanz, Höhenmeter,
       Fortbewegungsart, Bewegungszeit, Länder), Anzeige in App und Web-Viewer
+
+Was danach kommen soll — kommerzieller Betrieb, die Anwendung im Browser,
+druckfertiger Export fürs Fotobuch, Umzug auf einen gemieteten Server — steht in
+[`docs/richtung.md`](docs/richtung.md), zusammen mit dem, was daraus schon heute
+für den Code folgt.
