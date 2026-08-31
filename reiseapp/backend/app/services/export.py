@@ -146,6 +146,8 @@ async def to_pdf(
                 BookItem(
                     kind="stop",
                     at=entry.at,
+                    day=entry.day,
+                    date=entry.date,
                     title=entry.stop.name,
                     subtitle=entry.stop.locality or entry.stop.country,
                     text=entry.stop.notes,
@@ -156,6 +158,8 @@ async def to_pdf(
                 BookItem(
                     kind="journal",
                     at=entry.at,
+                    day=entry.day,
+                    date=entry.date,
                     title=entry.entry.title or "Tagebucheintrag",
                     text=entry.entry.text,
                     photos=photos,
@@ -166,6 +170,8 @@ async def to_pdf(
                 BookItem(
                     kind="photos",
                     at=entry.at,
+                    day=entry.day,
+                    date=entry.date,
                     title=f"{len(entry.photos)} Fotos" if len(entry.photos) != 1 else "Ein Foto",
                     photos=photos,
                 )

@@ -10,13 +10,22 @@ import { Button, ErrorBanner, Loading } from '@/ui/components';
 import { describeError } from '@/ui/errors';
 import { theme } from '@/ui/theme';
 
-function formatMoment(value: string): string {
-  return new Date(value).toLocaleString('de-CH', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+/** Inside a day, only the time is news – the date is in the heading above. */
+function formatTime(value: string): string {
+  return new Date(value).toLocaleTimeString('de-CH', {
     hour: '2-digit',
     minute: '2-digit',
+  });
+}
+
+function formatDay(isoDate: string): string {
+  // Noon, not midnight: a bare date parses as UTC, and in a negative offset the
+  // heading would name the day before.
+  return new Date(`${isoDate}T12:00:00`).toLocaleDateString('de-CH', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
   });
 }
 
@@ -74,14 +83,22 @@ export default function TimelineScreen() {
         ) : null}
 
         {items?.map((item, index) => (
-          <View key={`${item.kind}-${item.at}-${index}`} style={styles.row}>
+          <View key={`${item.kind}-${item.at}-${index}`}>
+            {item.date !== items[index - 1]?.date ? (
+              <View style={styles.dayHeader}>
+                <Text style={styles.dayNumber}>Tag {item.day}</Text>
+                <Text style={styles.dayDate}>{formatDay(item.date)}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.row}>
             <View style={styles.rail}>
               <View style={[styles.dot, styles[item.kind]]} />
               {index < items.length - 1 ? <View style={styles.line} /> : null}
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.moment}>{formatMoment(item.at)}</Text>
+              <Text style={styles.moment}>{formatTime(item.at)}</Text>
 
               {item.kind === 'stop' && item.stop ? (
                 <>
@@ -112,6 +129,7 @@ export default function TimelineScreen() {
                   <PhotoStrip tripId={id} photos={item.photos} />
                 </>
               ) : null}
+              </View>
             </View>
           </View>
         ))}
@@ -124,6 +142,15 @@ export default function TimelineScreen() {
 
 const styles = StyleSheet.create({
   container: { padding: theme.spacing(2), gap: theme.spacing(1) },
+  dayHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: theme.spacing(1),
+    marginTop: theme.spacing(2),
+    marginBottom: theme.spacing(0.5),
+  },
+  dayNumber: { fontSize: 16, fontWeight: '700', color: theme.colors.text },
+  dayDate: { fontSize: 13, color: theme.colors.muted, flexShrink: 1 },
   empty: { fontSize: 14, color: theme.colors.muted, lineHeight: 20 },
   row: { flexDirection: 'row', gap: theme.spacing(1.5) },
   rail: { width: 14, alignItems: 'center' },

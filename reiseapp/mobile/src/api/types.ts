@@ -137,6 +137,9 @@ export type TimelineKind = 'stop' | 'journal' | 'photos';
 export interface TimelineItem {
   kind: TimelineKind;
   at: string;
+  /** Calendar day (YYYY-MM-DD) and 1-based day of the journey, both from the server. */
+  date: string;
+  day: number;
   stop: Stop | null;
   entry: JournalEntry | null;
   photos: Photo[];

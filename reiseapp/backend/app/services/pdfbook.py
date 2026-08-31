@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import date as date_type
 from datetime import datetime
 from io import BytesIO
 
@@ -46,6 +47,10 @@ class BookPhoto:
 class BookItem:
     kind: str
     at: datetime | None
+    #: Which day of the journey this belongs to, so the book can set chapters
+    #: where the timeline sets headings — the same cut in both.
+    day: int | None
+    date: date_type | None
     title: str
     text: str | None = None
     subtitle: str | None = None
@@ -126,6 +131,12 @@ class RouteSketch(Flowable):
         canvas.circle(*project(*self.points[-1]), 2.5, stroke=0, fill=1)
 
 
+# ReportLab carries no locale, and the server's is not the reader's language.
+_WEEKDAYS = (
+    "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag",
+)
+
+
 def _styles() -> dict[str, ParagraphStyle]:
     base = getSampleStyleSheet()
     return {
@@ -135,6 +146,10 @@ def _styles() -> dict[str, ParagraphStyle]:
         "cover_sub": ParagraphStyle(
             "cover_sub", parent=base["Normal"], fontSize=13, textColor=MUTED,
             alignment=TA_CENTER, spaceAfter=18,
+        ),
+        "day": ParagraphStyle(
+            "day", parent=base["Heading1"], fontSize=19, leading=23, spaceBefore=0,
+            spaceAfter=4, borderPadding=0,
         ),
         "heading": ParagraphStyle(
             "heading", parent=base["Heading2"], fontSize=15, textColor=ACCENT, spaceBefore=14,
@@ -231,12 +246,23 @@ def build_pdf(data: BookData) -> bytes:
 
     story.append(PageBreak())
 
+    current_day: int | None = None
     for item in data.items:
+        # A travel book is read by days, not by timestamps. The heading carries
+        # the date once; every row below it then only needs its time.
+        if item.day is not None and item.day != current_day:
+            current_day = item.day
+            heading = f"Tag {item.day}"
+            if item.date is not None:
+                heading += f" · {_WEEKDAYS[item.date.weekday()]}, {item.date.strftime('%d.%m.%Y')}"
+            story.append(Spacer(1, 6 * mm))
+            story.append(Paragraph(_escape(heading), style["day"]))
+
         story.append(Paragraph(_escape(item.title), style["heading"]))
         meta = " · ".join(
             part
             for part in (
-                item.at.strftime("%d.%m.%Y, %H:%M") if item.at else None,
+                item.at.strftime("%H:%M") if item.at else None,
                 item.subtitle,
             )
             if part

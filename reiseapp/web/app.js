@@ -16,9 +16,16 @@ function tokenFromLocation() {
 }
 
 const dateFormat = new Intl.DateTimeFormat('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
-const momentFormat = new Intl.DateTimeFormat('de-CH', {
-  day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+// Inside a day only the time is news; the date stands in the heading above it.
+const timeFormat = new Intl.DateTimeFormat('de-CH', { hour: '2-digit', minute: '2-digit' });
+const dayFormat = new Intl.DateTimeFormat('de-CH', {
+  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
 });
+
+/** Noon, not midnight: a bare date parses as UTC and would name the day before. */
+function formatDay(isoDate) {
+  return dayFormat.format(new Date(`${isoDate}T12:00:00`));
+}
 
 function formatDistance(metres) {
   if (!metres) return '–';
@@ -91,10 +98,19 @@ function openLightbox(token, photoId) {
 
 function renderTimeline(token, trip) {
   const list = document.querySelector('.timeline');
+  let currentDate = null;
   for (const item of trip.timeline) {
+    if (item.date && item.date !== currentDate) {
+      currentDate = item.date;
+      const header = el('li', 'day');
+      header.append(el('h2', 'day-number', `Tag ${item.day}`));
+      header.append(el('p', 'day-date', formatDay(item.date)));
+      list.append(header);
+    }
+
     const entry = el('li', `item ${item.kind}`);
     const card = el('div', 'card');
-    card.append(el('p', 'when', momentFormat.format(new Date(item.at))));
+    card.append(el('p', 'when', timeFormat.format(new Date(item.at))));
 
     if (item.kind === 'stop' && item.stop) {
       card.append(el('h2', null, item.stop.name));

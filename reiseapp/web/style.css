@@ -86,6 +86,11 @@ body {
   padding: 16px 18px;
 }
 .when { font-size: 12px; color: var(--muted); }
+/* Indented like the cards so the column stays aligned, but with no dot on the
+   rail and generous space above: a new day is a break, not another entry. */
+.day { list-style: none; margin: 28px 0 6px; padding-left: 30px; }
+.day-number { margin: 0; font-size: 20px; }
+.day-date { margin: 0; font-size: 13px; color: var(--muted); }
 .card h2 { margin: 4px 0 0; font-size: 18px; }
 .card p { margin: 8px 0 0; white-space: pre-wrap; }
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -54,6 +54,11 @@ class TimelineItem(BaseModel):
 
     kind: TimelineKind
     at: datetime
+    #: Calendar day this row belongs to, and the 1-based day of the journey.
+    #: Both are derived here rather than in each client so the app, the web
+    #: viewer and the PDF book cut the days at the same place.
+    date: date
+    day: int
     stop: StopRead | None = None
     entry: JournalEntryRead | None = None
     photos: list[PhotoRead] = Field(default_factory=list)
