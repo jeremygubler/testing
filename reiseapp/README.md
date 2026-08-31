@@ -222,6 +222,12 @@ Spur gerechnet. Eine EXIF- oder von Hand gesetzte Position wird dabei **nie**
 Zuordnung wieder gelöst, verliert das Foto die geliehene Position — eine eigene behält
 es.
 
+**Auf der Karte** erscheint jedes Foto, das eine Position hat, als runder Bildstift –
+antippen öffnet es im Vollbild. Ohne Position kein Stift: ein Bild an Punkt 0/0 zu
+zeichnen wäre eine Behauptung, die niemand aufgestellt hat. Die Prüfung fragt deshalb
+ausdrücklich auf `null` und nicht auf Wahrheitswert, sonst verschwänden Äquator und
+Nullmeridian gleich mit.
+
 Ein erneuter Upload derselben Bytes ist ein No-op: der SHA-256 wird pro Reise geprüft
 und das bestehende Foto zurückgegeben – Retrys nach Verbindungsabbruch erzeugen keine
 Dubletten.

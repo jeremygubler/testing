@@ -16,6 +16,7 @@ import { deleteTrip, listMembers } from '@/api/trips';
 import type { Photo, Route, Stop, Trip, TripMember, TripStats } from '@/api/types';
 import { TripMap } from '@/map/TripMap';
 import { PhotoGallery } from '@/photos/PhotoGallery';
+import { PhotoViewer } from '@/photos/PhotoViewer';
 import {
   cachedTrip,
   createStopLocally,
@@ -57,6 +58,9 @@ export default function TripDetailScreen() {
   const [offline, setOffline] = useState(false);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
 
+  // Which photo is open lives here, not in the gallery: it is opened from the
+  // grid and from a pin on the map.
+  const [openPhoto, setOpenPhoto] = useState<Photo | null>(null);
   const [pending, setPending] = useState<PendingStop | null>(null);
   const [stopName, setStopName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -211,8 +215,11 @@ export default function TripDetailScreen() {
 
         <View style={styles.mapFrame}>
           <TripMap
+            tripId={id}
             route={route}
             stops={stops}
+            photos={photos}
+            onPhotoPress={setOpenPhoto}
             onLongPress={
               canEdit ? (lat, lon) => setPending({ lat, lon }) : undefined
             }
@@ -284,8 +291,8 @@ export default function TripDetailScreen() {
           <PhotoGallery
             tripId={id}
             photos={photos}
-            stops={stops}
             canEdit={canEdit}
+            onOpen={setOpenPhoto}
             onChanged={() => void load()}
           />
         </Section>
@@ -324,6 +331,15 @@ export default function TripDetailScreen() {
           ))}
         </Section>
       </ScrollView>
+
+      <PhotoViewer
+        tripId={id}
+        photo={openPhoto}
+        stops={stops}
+        canEdit={canEdit}
+        onClose={() => setOpenPhoto(null)}
+        onChanged={() => void load()}
+      />
 
       <Modal visible={pending !== null} transparent animationType="slide">
         <View style={styles.modalBackdrop}>

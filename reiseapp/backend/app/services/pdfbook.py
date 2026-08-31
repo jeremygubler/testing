@@ -8,6 +8,7 @@ licensing for redistributed PDFs is its own thicket.
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 from datetime import date as date_type
@@ -35,6 +36,8 @@ ACCENT = colors.HexColor("#2f6f4f")
 MUTED = colors.HexColor("#6b6b63")
 PAGE_WIDTH, PAGE_HEIGHT = A4
 CONTENT_WIDTH = PAGE_WIDTH - 40 * mm
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -177,7 +180,10 @@ def _photo_grid(photos: list[BookPhoto], columns: int = 3) -> Table | None:
             ratio = height / width if width else 1
             cells.append(Image(BytesIO(photo.data), width=size, height=size * ratio))
         except Exception:
-            # One unreadable image must not cost the whole book.
+            # One unreadable image must not cost the whole book — but a book
+            # that quietly loses every picture looks like a bug in the export,
+            # and silence is what makes that impossible to tell apart.
+            logger.warning("pdf: skipping an image ReportLab could not read", exc_info=True)
             continue
     if not cells:
         return None
