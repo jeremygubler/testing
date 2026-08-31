@@ -432,10 +432,20 @@ kürzeren Namen aus `.env` darauf.
 ## Mobile-App
 
 ```bash
-cd mobile && npm install
+cd mobile && npm ci
 export EXPO_PUBLIC_API_URL=http://192.168.1.50:8000   # LAN-Adresse des Homelabs
 npm start
 ```
+
+`npm ci`, nicht `npm install`: `npm install` entfernt bei vorhandenem
+`node_modules` die Plattform-Binaries aller anderen Betriebssysteme wieder aus
+der Lockfile. Eine so unter Linux geschriebene Lockfile lässt `npm ci` unter
+Windows mit `Missing: … from lock file` scheitern — und die CI läuft nur unter
+Linux, kann es also nie bemerken. Dagegen steht
+[`__tests__/lockfile.test.ts`](mobile/__tests__/lockfile.test.ts). Muss die
+Lockfile doch einmal neu erzeugt werden, dann ohne `node_modules` daneben:
+`package.json` allein in ein leeres Verzeichnis kopieren und dort
+`npm install --package-lock-only` laufen lassen.
 
 Details, Aufbau und die Dev-Client-Frage: [`mobile/README.md`](mobile/README.md).
 

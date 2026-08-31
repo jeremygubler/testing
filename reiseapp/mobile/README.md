@@ -12,7 +12,7 @@ zuverlässig aufzeichnen, wenn der Screen aus ist – genau dann läuft aber die
 
 ```bash
 cd reiseapp/mobile
-npm install
+npm ci                    # nicht npm install – siehe ../README.md, Abschnitt Mobile-App
 
 # API-URL: auf einem echten Gerät ist "localhost" das Telefon selbst,
 # also die LAN-Adresse des Homelabs eintragen.
