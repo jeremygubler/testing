@@ -284,6 +284,7 @@ export default function TripDetailScreen() {
           <PhotoGallery
             tripId={id}
             photos={photos}
+            stops={stops}
             canEdit={canEdit}
             onChanged={() => void load()}
           />

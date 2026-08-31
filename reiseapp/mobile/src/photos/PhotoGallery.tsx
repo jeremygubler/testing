@@ -2,11 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { deletePhoto, photoSource, uploadPhoto } from '@/api/photos';
-import type { Photo } from '@/api/types';
+import { deletePhoto, photoSource, updatePhoto, uploadPhoto } from '@/api/photos';
+import type { Photo, Stop } from '@/api/types';
 import { Button, ErrorBanner } from '@/ui/components';
 import { describeError } from '@/ui/errors';
 import { formatDate } from '@/ui/format';
@@ -18,17 +27,20 @@ const POSITION_LABEL: Record<Photo['position_source'], string> = {
   exif: 'Position aus dem Foto',
   interpolated: 'Position aus der Route berechnet',
   manual: 'Position von Hand gesetzt',
+  stop: 'Position vom Stop',
   none: 'Ohne Position',
 };
 
 export function PhotoGallery({
   tripId,
   photos,
+  stops,
   canEdit,
   onChanged,
 }: {
   tripId: string;
   photos: Photo[];
+  stops: Stop[];
   canEdit: boolean;
   onChanged: () => void;
 }) {
@@ -80,6 +92,21 @@ export function PhotoGallery({
       setBusy(false);
     }
   }, [tripId, onChanged]);
+
+  /**
+   * Filing a photo under a stop also gives it that stop's position, unless it
+   * already carries one from its own EXIF. For a screenshot or a forwarded
+   * picture this is the only location it will ever have.
+   */
+  async function assignStop(photo: Photo, stopId: string | null) {
+    try {
+      const updated = await updatePhoto(tripId, photo.id, { stopId });
+      setOpen(updated);
+      onChanged();
+    } catch (caught) {
+      setError(describeError(caught));
+    }
+  }
 
   function confirmRemove(photo: Photo) {
     Alert.alert('Foto löschen?', 'Das Original wird vom Server entfernt.', [
@@ -167,6 +194,32 @@ export function PhotoGallery({
                 <Text style={styles.viewerText}>
                   {formatDate(open.taken_at) ?? 'Ohne Datum'} · {POSITION_LABEL[open.position_source]}
                 </Text>
+
+                {canEdit && stops.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.stopRow}
+                  >
+                    <Pressable
+                      onPress={() => void assignStop(open, null)}
+                      style={[styles.chip, open.stop_id === null && styles.chipActive]}
+                    >
+                      <Text style={styles.chipText}>Kein Stop</Text>
+                    </Pressable>
+                    {stops.map((stop) => (
+                      <Pressable
+                        key={stop.id}
+                        onPress={() => void assignStop(open, stop.id)}
+                        style={[styles.chip, open.stop_id === stop.id && styles.chipActive]}
+                      >
+                        <Text style={styles.chipText} numberOfLines={1}>
+                          {stop.name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                ) : null}
                 <View style={styles.viewerActions}>
                   {canEdit ? (
                     <Pressable hitSlop={12} onPress={() => confirmRemove(open)}>
@@ -214,6 +267,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
   },
   viewerText: { color: '#fff', fontSize: 13 },
+  stopRow: { gap: theme.spacing(0.75), paddingVertical: theme.spacing(0.5) },
+  chip: {
+    paddingHorizontal: theme.spacing(1.25),
+    paddingVertical: theme.spacing(0.5),
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    maxWidth: 180,
+  },
+  chipActive: { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
+  chipText: { color: '#fff', fontSize: 13 },
   viewerActions: { flexDirection: 'row', justifyContent: 'space-between' },
   destructive: { color: '#ff8a80', fontSize: 15 },
   close: { color: '#fff', fontSize: 15, fontWeight: '600' },

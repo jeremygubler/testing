@@ -73,15 +73,23 @@ export async function uploadPhoto(
   return JSON.parse(result.body) as PhotoUploadResult;
 }
 
+/**
+ * Only the fields actually passed are sent.
+ *
+ * A PATCH that always carries every key is not a patch: the server cannot tell
+ * "leave the caption alone" from "clear the caption", and editing one field
+ * silently wipes the other.
+ */
 export async function updatePhoto(
   tripId: string,
   photoId: string,
   data: { caption?: string | null; stopId?: string | null },
 ): Promise<Photo> {
-  return request<Photo>(`/trips/${tripId}/photos/${photoId}`, {
-    method: 'PATCH',
-    body: { caption: data.caption ?? null, stop_id: data.stopId ?? null },
-  });
+  const body: Record<string, string | null> = {};
+  if ('caption' in data) body.caption = data.caption ?? null;
+  if ('stopId' in data) body.stop_id = data.stopId ?? null;
+
+  return request<Photo>(`/trips/${tripId}/photos/${photoId}`, { method: 'PATCH', body });
 }
 
 export async function deletePhoto(tripId: string, photoId: string): Promise<void> {

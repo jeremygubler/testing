@@ -28,4 +28,7 @@ class PositionSource(StrEnum):
     EXIF = "exif"
     INTERPOLATED = "interpolated"
     MANUAL = "manual"
+    #: Taken from the stop the photo was filed under. Not measured, not guessed
+    #: from the track — the place the traveller said it belongs to.
+    STOP = "stop"
     NONE = "none"

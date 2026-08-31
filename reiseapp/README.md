@@ -209,8 +209,18 @@ weniger, was schiefgehen kann; die doppelte Bandbreite im LAN stört dort nieman
 3. **Stop.** Zuerst der nächste Stop innerhalb von 500 m, sonst der Stop, in dessen
    Zeitfenster das Foto fällt.
 
-`position_source` (`exif` / `interpolated` / `manual` / `none`) wird mitgeliefert, damit
-in der App eine geschätzte Position nie wie eine gemessene aussieht.
+`position_source` (`exif` / `interpolated` / `manual` / `stop` / `none`) wird
+mitgeliefert, damit in der App eine geschätzte Position nie wie eine gemessene aussieht.
+
+**Ein Foto von Hand einem Stop zuordnen** — in der App im Foto-Vollbild, über die
+Auswahl unter dem Bild — setzt zugleich seine Position auf die des Stops, aber nur, wenn
+es keine eigene hat. Ein Screenshot, ein weitergeleitetes Bild, eine Kamera mit
+abgeschaltetem GPS: dort ist diese Aussage die einzige Ortsangabe, die es je geben wird,
+und sie bekommt mit `stop` eine eigene Quelle — weder gemessen wie EXIF noch aus der
+Spur gerechnet. Eine EXIF- oder von Hand gesetzte Position wird dabei **nie**
+überschrieben: sie sagt, wo die Kamera stand, der Stop nur, wo der Tag war. Wird die
+Zuordnung wieder gelöst, verliert das Foto die geliehene Position — eine eigene behält
+es.
 
 Ein erneuter Upload derselben Bytes ist ein No-op: der SHA-256 wird pro Reise geprüft
 und das bestehende Foto zurückgegeben – Retrys nach Verbindungsabbruch erzeugen keine

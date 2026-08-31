@@ -313,6 +313,11 @@ async def get_photo(session: AsyncSession, trip: Trip, photo_id: UUID) -> Photo:
     return photo
 
 
+#: Positions we will not overwrite when a photo is filed under a stop: they say
+#: where the camera was, and the stop only says where the day was.
+_MEASURED = frozenset({PositionSource.EXIF, PositionSource.MANUAL})
+
+
 async def update_photo(session: AsyncSession, photo: Photo, data: PhotoUpdate) -> Photo:
     values = data.model_dump(exclude_unset=True)
     lat, lon = values.pop("lat", None), values.pop("lon", None)
@@ -323,9 +328,34 @@ async def update_photo(session: AsyncSession, photo: Photo, data: PhotoUpdate) -
         photo.position_source = PositionSource.MANUAL
     for field, value in values.items():
         setattr(photo, field, value)
+
+    # Filing a photo under a stop is the traveller stating where it belongs, and
+    # for a photo that has no position — a screenshot, a forwarded picture, a
+    # camera with GPS off — that statement is the only location there will ever
+    # be. It is recorded as its own source: neither measured like EXIF nor
+    # derived from the track like an interpolated one.
+    if "stop_id" in values and photo.position_source not in _MEASURED:
+        await _position_from_stop(session, photo)
+
     await session.flush()
     await session.refresh(photo)
     return photo
+
+
+async def _position_from_stop(session: AsyncSession, photo: Photo) -> None:
+    if photo.stop_id is None:
+        if photo.position_source == PositionSource.STOP:
+            # The photo only had a position because of the stop it just left.
+            photo.geom = None
+            photo.position_source = PositionSource.NONE
+        return
+
+    stop = await session.get(Stop, photo.stop_id)
+    coordinates = lat_lon(stop.geom) if stop is not None else None  # type: ignore[arg-type]
+    if coordinates is None:
+        return
+    photo.geom = point_ewkt(*coordinates)
+    photo.position_source = PositionSource.STOP
 
 
 async def delete_photo(session: AsyncSession, photo: Photo) -> None:

@@ -93,7 +93,7 @@ export interface WaypointBatchResult {
   duplicates: number;
 }
 
-export type PositionSource = 'exif' | 'interpolated' | 'manual' | 'none';
+export type PositionSource = 'exif' | 'interpolated' | 'manual' | 'stop' | 'none';
 
 export interface Photo {
   id: string;
