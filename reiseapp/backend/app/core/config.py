@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     # Tile source for the web viewer. The MapLibre demo tiles are fine to start
     # with and explicitly not meant for production; point this at a tileserver in
     # the homelab to keep the map self-hosted too.
-    viewer_map_style_url: str = "https://demotiles.maplibre.org/style.json"
+    viewer_map_style_url: str = "https://tiles.openfreemap.org/styles/liberty"
     viewer_path: str = "../web"
 
     # NoDecode is load-bearing: without it the env source JSON-decodes the raw

@@ -476,6 +476,38 @@ Lockfile doch einmal neu erzeugt werden, dann ohne `node_modules` daneben:
 
 Details, Aufbau und die Dev-Client-Frage: [`mobile/README.md`](mobile/README.md).
 
+## Eigene Kartenkacheln
+
+Die App und der Web-Viewer holen ihren Kartenstil per Vorgabe von OpenFreeMap. Das
+braucht keinen Schlüssel und funktioniert weltweit, hängt aber an einem fremden Dienst
+ohne Zusicherung — für eine Reise ohne Empfang ist es ohnehin nichts.
+
+Der Compose-Dienst `tiles` (Profil `tiles`, startet also nur auf Verlangen) liefert
+`.mbtiles` selbst aus. Erzeugt werden die mit `planetiler`, das den OSM-Extrakt selbst
+herunterlädt:
+
+```bash
+mkdir -p /srv/tiles/mbtiles /srv/tiles/cache
+docker run --rm -v /srv/tiles/mbtiles:/data -v /srv/tiles/cache:/cache \
+  ghcr.io/onthegomap/planetiler:latest \
+  --download --area=switzerland --output=/data/switzerland.mbtiles --tmpdir=/cache
+```
+
+`--area` nimmt jeden Geofabrik-Namen, auch `planet`. Danach in der `.env`
+`TILES_DIR=/srv/tiles/mbtiles` setzen und starten:
+
+```bash
+docker compose --profile tiles up -d
+```
+
+Der Dienst liegt hinter einem Profil, weil die Kacheln Gigabyte gross sind und jede
+Installation sie selbst erzeugen oder laden muss. Ein leerer Kachelserver wäre schlimmer
+als keiner — er antwortet.
+
+`TILES_PUBLIC_URL` muss die von aussen erreichbare Adresse sein, nicht `localhost`:
+tileserver-gl schreibt sie in die Stil-URLs, die es ausliefert, und ein Telefon findet
+unter `localhost` sich selbst.
+
 ## Der Name, und was er nicht angefasst hat
 
 Das Produkt heisst **Fernspur** — die Spur, die weit weg entsteht. Domain

@@ -83,7 +83,7 @@ services:
       REISEAPP_S3_REGION: ${S3_REGION:-us-east-1}
       REISEAPP_ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
       REISEAPP_INVITE_TTL_DAYS: ${INVITE_TTL_DAYS:-14}
-      REISEAPP_VIEWER_MAP_STYLE_URL: ${VIEWER_MAP_STYLE_URL:-https://demotiles.maplibre.org/style.json}
+      REISEAPP_VIEWER_MAP_STYLE_URL: ${VIEWER_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
       REISEAPP_VIEWER_PATH: /srv/web
       REISEAPP_CORS_ORIGINS: ${CORS_ORIGINS:-}
       REISEAPP_RUN_MIGRATIONS_ON_STARTUP: ${RUN_MIGRATIONS_ON_STARTUP:-true}
@@ -98,6 +98,25 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  # Self-hosted map tiles. Started only with `--profile tiles`, because the
+  # .mbtiles files are gigabytes that every installation has to build or fetch
+  # for itself — an empty tile server is worse than none, it answers.
+  tiles:
+    image: maptiler/tileserver-gl:latest
+    profiles: ["tiles"]
+    restart: unless-stopped
+    command: ["--public_url", "${TILES_PUBLIC_URL:-http://localhost:8080/}"]
+    volumes:
+      - ${TILES_DIR:-./tiles}:/data
+    ports:
+      - "${TILES_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
 volumes:
   db_data:
