@@ -134,7 +134,9 @@ async def test_pdf_export_of_an_empty_trip_still_works(
     response = await api.get(f"{TRIPS}/{trip_id}/export.pdf", headers=headers)
     assert response.status_code == 200
     text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(response.content)).pages)
-    assert "Keine aufgezeichnete Route" in text
+    # The frame holds route, stops and photos, so its empty state cannot speak
+    # about the route alone.
+    assert "Noch nichts verortet" in text
 
 
 async def test_export_filename_survives_umlauts(

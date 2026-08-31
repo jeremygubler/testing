@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -15,6 +16,7 @@ from app.services import stops as stop_service
 from app.services import timeline as timeline_service
 from app.services import trips as trip_service
 from app.services import waypoints as waypoint_service
+from app.services.geo import lat_lon
 from app.services.gpx import GpxPoint, GpxTrip, build_gpx
 from app.services.pdfbook import BookData, BookItem, BookPhoto, build_pdf
 from app.storage import ObjectNotFoundError, ObjectStore
@@ -22,6 +24,20 @@ from app.storage import ObjectNotFoundError, ObjectStore
 # A book with a thousand photos is neither readable nor a sensible download.
 MAX_BOOK_PHOTOS = 300
 EXPORT_WAYPOINT_LIMIT = 5000
+
+
+def format_distance(metres: float) -> str:
+    """A walk of 420 m is not "0 km".
+
+    Whole kilometres are the right unit for a journey and the wrong one for
+    everything below the first of them; rounding those away tells the reader the
+    trip did not happen.
+    """
+    if metres < 1000:
+        return f"{round(metres)} m"
+    if metres < 10_000:
+        return f"{metres / 1000:.1f} km".replace(".", ",")
+    return f"{round(metres / 1000)} km"
 
 
 def _filename(trip: Trip, extension: str) -> str:
@@ -93,6 +109,15 @@ async def to_json(session: AsyncSession, trip: Trip) -> tuple[dict[str, Any], st
     return payload, _filename(trip, "json")
 
 
+def _places(geometries: Iterable[object]) -> list[tuple[float, float]]:
+    """Coordinates of whatever carries a geometry, skipping what does not."""
+    return [
+        place
+        for place in (lat_lon(geometry) for geometry in geometries)  # type: ignore[arg-type]
+        if place is not None
+    ]
+
+
 async def _photo_bytes(store: ObjectStore, key: str | None) -> bytes | None:
     if key is None:
         return None
@@ -116,7 +141,7 @@ async def to_pdf(
 
     stats: list[tuple[str, str]] = []
     if route.distance_m > 0:
-        stats.append(("Distanz", f"{route.distance_m / 1000:.0f} km"))
+        stats.append(("Distanz", format_distance(route.distance_m)))
     stats.append(("Stops", str(len(stops))))
     stats.append(("Fotos", str(len(photo_models))))
     countries = {stop.country for stop in stops if stop.country}
@@ -184,5 +209,7 @@ async def to_pdf(
         stats=stats,
         route=[(lat, lon) for lon, lat in route.coordinates],
         items=items,
+        stop_places=_places(stop.geom for stop in stops),
+        photo_places=_places(photo.geom for photo in photo_models),
     )
     return build_pdf(book), _filename(trip, "pdf")

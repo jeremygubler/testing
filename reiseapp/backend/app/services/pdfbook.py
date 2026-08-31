@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import date as date_type
 from datetime import datetime
 from io import BytesIO
@@ -68,14 +69,65 @@ class BookData:
     stats: list[tuple[str, str]]
     route: list[tuple[float, float]]
     items: list[BookItem]
+    #: Drawn into the same frame as the route, so a trip that was never tracked
+    #: still shows where it happened.
+    stop_places: list[tuple[float, float]] = field(default_factory=list)
+    photo_places: list[tuple[float, float]] = field(default_factory=list)
+
+
+LatLon = tuple[float, float]
+
+SKETCH_PADDING = 8.0
+
+
+def fit_projection(
+    places: list[LatLon], width: float, height: float, padding: float = SKETCH_PADDING
+) -> Callable[[float, float], tuple[float, float]]:
+    """Maps coordinates into a drawing box, centred and to scale.
+
+    Equirectangular with a cosine correction, so a north-south track is not
+    stretched into a shape the traveller would not recognise. A single place, or
+    several at the same spot, has no extent at all — the guard against a zero
+    span is what keeps that from dividing the drawing by nothing.
+    """
+    lats = [lat for lat, _ in places]
+    lons = [lon for _, lon in places]
+    min_lat, max_lat = min(lats), max(lats)
+    min_lon, max_lon = min(lons), max(lons)
+
+    mid_lat = math.radians((min_lat + max_lat) / 2)
+    stretch = math.cos(mid_lat)
+    span_x = max((max_lon - min_lon) * stretch, 1e-9)
+    span_y = max(max_lat - min_lat, 1e-9)
+
+    scale = min((width - 2 * padding) / span_x, (height - 2 * padding) / span_y)
+    offset_x = (width - span_x * scale) / 2
+    offset_y = (height - span_y * scale) / 2
+
+    def project(lat: float, lon: float) -> tuple[float, float]:
+        return (
+            offset_x + (lon - min_lon) * stretch * scale,
+            offset_y + (lat - min_lat) * scale,
+        )
+
+    return project
 
 
 class RouteSketch(Flowable):
-    """The recorded track, projected into a box. No tiles, no network."""
+    """The trip's geography, projected into a box. No tiles, no network."""
 
-    def __init__(self, points: list[tuple[float, float]], width: float, height: float) -> None:
+    def __init__(
+        self,
+        points: list[LatLon],
+        width: float,
+        height: float,
+        stops: list[LatLon] | None = None,
+        photos: list[LatLon] | None = None,
+    ) -> None:
         super().__init__()
         self.points = points
+        self.stops = stops or []
+        self.photos = photos or []
         self.width = width
         self.height = height
 
@@ -85,53 +137,45 @@ class RouteSketch(Flowable):
         canvas.setLineWidth(0.5)
         canvas.rect(0, 0, self.width, self.height, stroke=1, fill=0)
 
-        if len(self.points) < 2:
+        # Stops and photos share the frame with the route: a trip that was never
+        # tracked still happened somewhere, and drawing nothing said otherwise.
+        places = [*self.points, *self.stops, *self.photos]
+        if not places:
             canvas.setFillColor(MUTED)
             canvas.setFont("Helvetica", 9)
-            canvas.drawCentredString(
-                self.width / 2, self.height / 2, "Keine aufgezeichnete Route"
-            )
+            canvas.drawCentredString(self.width / 2, self.height / 2, "Noch nichts verortet")
             return
 
-        lats = [lat for lat, _ in self.points]
-        lons = [lon for _, lon in self.points]
-        min_lat, max_lat = min(lats), max(lats)
-        min_lon, max_lon = min(lons), max(lons)
+        project = fit_projection(places, self.width, self.height)
 
-        # Equirectangular with a cosine correction, so a north-south track is not
-        # stretched into something that looks nothing like the real shape.
-        mid_lat = math.radians((min_lat + max_lat) / 2)
-        span_x = max((max_lon - min_lon) * math.cos(mid_lat), 1e-9)
-        span_y = max(max_lat - min_lat, 1e-9)
+        if len(self.points) > 1:
+            path = canvas.beginPath()
+            path.moveTo(*project(*self.points[0]))
+            for lat, lon in self.points[1:]:
+                path.lineTo(*project(lat, lon))
 
-        padding = 8
-        scale = min((self.width - 2 * padding) / span_x, (self.height - 2 * padding) / span_y)
-        offset_x = (self.width - span_x * scale) / 2
-        offset_y = (self.height - span_y * scale) / 2
+            canvas.setStrokeColor(ACCENT)
+            canvas.setLineWidth(1.4)
+            canvas.setLineJoin(1)
+            canvas.setLineCap(1)
+            canvas.drawPath(path)
 
-        def project(lat: float, lon: float) -> tuple[float, float]:
-            return (
-                offset_x + (lon - min_lon) * math.cos(mid_lat) * scale,
-                offset_y + (lat - min_lat) * scale,
-            )
+            # Start and end markers, so the direction of travel is readable.
+            canvas.setFillColor(ACCENT)
+            canvas.circle(*project(*self.points[0]), 2.5, stroke=0, fill=1)
+            canvas.setFillColor(colors.HexColor("#a4342b"))
+            canvas.circle(*project(*self.points[-1]), 2.5, stroke=0, fill=1)
 
-        path = canvas.beginPath()
-        start = project(*self.points[0])
-        path.moveTo(*start)
-        for lat, lon in self.points[1:]:
-            path.lineTo(*project(lat, lon))
-
+        canvas.setFillColor(colors.white)
         canvas.setStrokeColor(ACCENT)
-        canvas.setLineWidth(1.4)
-        canvas.setLineJoin(1)
-        canvas.setLineCap(1)
-        canvas.drawPath(path)
+        canvas.setLineWidth(1.2)
+        for lat, lon in self.stops:
+            canvas.circle(*project(lat, lon), 3.2, stroke=1, fill=1)
 
-        # Start and end markers, so the direction of travel is readable.
-        canvas.setFillColor(ACCENT)
-        canvas.circle(*project(*self.points[0]), 2.5, stroke=0, fill=1)
-        canvas.setFillColor(colors.HexColor("#a4342b"))
-        canvas.circle(*project(*self.points[-1]), 2.5, stroke=0, fill=1)
+        canvas.setFillColor(MUTED)
+        for lat, lon in self.photos:
+            x, y = project(lat, lon)
+            canvas.rect(x - 1.8, y - 1.8, 3.6, 3.6, stroke=0, fill=1)
 
 
 # ReportLab carries no locale, and the server's is not the reader's language.
@@ -228,7 +272,12 @@ def build_pdf(data: BookData) -> bytes:
         story.append(Paragraph(_escape(data.description), style["body"]))
         story.append(Spacer(1, 8 * mm))
 
-    story.append(RouteSketch(data.route, CONTENT_WIDTH, 80 * mm))
+    story.append(
+        RouteSketch(
+            data.route, CONTENT_WIDTH, 80 * mm,
+            stops=data.stop_places, photos=data.photo_places,
+        )
+    )
     story.append(Spacer(1, 8 * mm))
 
     if data.stats:
