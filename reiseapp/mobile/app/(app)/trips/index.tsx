@@ -1,11 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { cachedTrips, refreshTrips } from '@/store/facade';
 import type { Trip } from '@/api/types';
-import { useAuth } from '@/auth/AuthContext';
-import { Button, ErrorBanner, Loading } from '@/ui/components';
+import { Badge, Button, EmptyState, ErrorBanner, Loading } from '@/ui/components';
 import { theme } from '@/ui/theme';
 
 function formatRange(trip: Trip): string {
@@ -15,13 +15,18 @@ function formatRange(trip: Trip): string {
   return `${start} – ${new Date(trip.end_date).toLocaleDateString('de-CH')}`;
 }
 
+function nights(trip: Trip): number | null {
+  if (!trip.start_date || !trip.end_date) return null;
+  const ms = new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime();
+  const days = Math.round(ms / 86_400_000);
+  return days >= 0 ? days : null;
+}
+
 export default function TripListScreen() {
-  const { user, signOut } = useAuth();
   const router = useRouter();
   const [trips, setTrips] = useState<Trip[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
   const [offline, setOffline] = useState(false);
 
   const load = useCallback(async () => {
@@ -50,90 +55,103 @@ export default function TripListScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hallo {user?.display_name}</Text>
-          <Text style={styles.subtitle}>{trips?.length ?? 0} Reisen</Text>
-        </View>
-        <Pressable onPress={signOut} accessibilityRole="button">
-          <Text style={styles.signOut}>Abmelden</Text>
-        </Pressable>
-      </View>
-
-      <ErrorBanner message={error} />
-      {offline ? (
-        <Text style={styles.offline}>
-          Offline – angezeigt wird der zuletzt synchronisierte Stand.
-        </Text>
-      ) : null}
-
       <FlatList
         data={trips ?? []}
         keyExtractor={(trip) => trip.id}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            <ErrorBanner message={error} />
+            {offline ? (
+              <View style={styles.offline}>
+                <Ionicons name="cloud-offline" size={16} color={theme.colors.inkMuted} />
+                <Text style={styles.offlineText}>
+                  Offline – gezeigt wird der zuletzt synchronisierte Stand.
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        }
         ListEmptyComponent={
           error ? null : (
-            <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>Noch keine Reise</Text>
-              <Text style={styles.emptyText}>
-                Leg eine an – Route, Stops und Fotos kommen in den nächsten Phasen dazu.
-              </Text>
-            </View>
+            <EmptyState
+              title="Noch keine Reise"
+              hint="Leg eine an, starte die Aufzeichnung, und die Route entsteht von selbst."
+              action={<Button title="Erste Reise anlegen" onPress={() => router.push('/trips/new')} />}
+            />
           )
         }
-        renderItem={({ item }) => (
-          <Link href={`/trips/${item.id}`} asChild>
-            <Pressable style={styles.card}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardMeta}>{formatRange(item)}</Text>
-              {item.role !== 'owner' ? (
-                <Text style={styles.badge}>geteilt · {item.role}</Text>
-              ) : null}
-            </Pressable>
-          </Link>
-        )}
+        renderItem={({ item }) => {
+          const nightCount = nights(item);
+          return (
+            <Link href={`/trips/${item.id}`} asChild>
+              <Pressable
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              >
+                <View style={styles.cardHead}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={20} color={theme.colors.inkSoft} />
+                </View>
+                <Text style={styles.cardMeta}>{formatRange(item)}</Text>
+                <View style={styles.cardFooter}>
+                  {nightCount !== null ? (
+                    <Badge label={`${nightCount} ${nightCount === 1 ? 'Tag' : 'Tage'}`} />
+                  ) : null}
+                  {item.role !== 'owner' ? <Badge label={item.role} tone="brand" /> : null}
+                </View>
+              </Pressable>
+            </Link>
+          );
+        }}
       />
 
       <View style={styles.footer}>
-        <Button title="Neue Reise" onPress={() => router.push('/trips/new')} />
+        <Button
+          title="Neue Reise"
+          onPress={() => router.push('/trips/new')}
+          icon={<Ionicons name="add" size={20} color={theme.colors.inkInverted} />}
+        />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: theme.spacing(6) },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing(3),
-    paddingBottom: theme.spacing(2),
-  },
-  greeting: { fontSize: 24, fontWeight: '700', color: theme.colors.text },
-  subtitle: { fontSize: 14, color: theme.colors.muted },
-  signOut: { color: theme.colors.accent, fontSize: 15 },
+  container: { flex: 1, backgroundColor: theme.colors.ground },
+  list: { padding: theme.space.lg, gap: theme.space.md, paddingBottom: theme.space.huge },
+  listHeader: { gap: theme.space.md },
   offline: {
-    fontSize: 13,
-    color: theme.colors.danger,
-    paddingHorizontal: theme.spacing(3),
-    paddingBottom: theme.spacing(1),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.space.sm,
+    backgroundColor: theme.colors.surfaceSunk,
+    borderRadius: theme.radii.sm,
+    paddingHorizontal: theme.space.md,
+    paddingVertical: theme.space.sm,
   },
-  list: { paddingHorizontal: theme.spacing(3), gap: theme.spacing(1.5), paddingBottom: theme.spacing(3) },
+  offlineText: { ...theme.type.caption, color: theme.colors.inkMuted, flex: 1 },
   card: {
     backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.border,
+    borderRadius: theme.radii.lg,
     borderWidth: 1,
-    borderRadius: theme.radius,
-    padding: theme.spacing(2),
-    gap: theme.spacing(0.5),
+    borderColor: theme.colors.border,
+    padding: theme.space.lg,
+    gap: theme.space.sm,
+    ...theme.shadow.card,
   },
-  cardTitle: { fontSize: 17, fontWeight: '600', color: theme.colors.text },
-  cardMeta: { fontSize: 13, color: theme.colors.muted },
-  badge: { fontSize: 12, color: theme.colors.accent },
-  empty: { alignItems: 'center', gap: theme.spacing(1), paddingVertical: theme.spacing(6) },
-  emptyTitle: { fontSize: 17, fontWeight: '600', color: theme.colors.text },
-  emptyText: { fontSize: 14, color: theme.colors.muted, textAlign: 'center' },
-  footer: { padding: theme.spacing(3) },
+  cardPressed: { backgroundColor: theme.colors.surfaceSunk },
+  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.space.md },
+  cardTitle: { ...theme.type.heading, color: theme.colors.ink, flex: 1 },
+  cardMeta: { ...theme.type.bodySmall, color: theme.colors.inkSoft },
+  cardFooter: { flexDirection: 'row', gap: theme.space.sm, flexWrap: 'wrap' },
+  footer: {
+    padding: theme.space.lg,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
 });
