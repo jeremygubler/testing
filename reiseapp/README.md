@@ -273,6 +273,12 @@ Fotos sind im JSON-Dump nur Metadaten; die Dateien werden separat hochgeladen.
 
 ## Export
 
+**In der App:** Reise öffnen → Abschnitt **Teilen & Export**. Reisebuch, GPX oder JSON
+landen über den Teilen-Dialog des Systems direkt in Mail, Drive oder Chat; die Datei wird
+in den Cache geladen und nicht dauerhaft abgelegt.
+
+Per API, etwa für ein Skript:
+
 ```bash
 TOKEN=$(curl -s localhost:8000/api/v1/auth/login -H 'content-type: application/json' \
   -d '{"email":"du@example.com","password":"..."}' | jq -r .access_token)
@@ -287,8 +293,13 @@ curl -sJO -H "authorization: Bearer $TOKEN" localhost:8000/api/v1/trips/$TRIP/ex
   uneinheitlich zurückgelesen.
 - **JSON** – vollständiger Dump inklusive Mitgliedern, Stops, Wegpunkten, Foto-Metadaten
   und Journal. Versioniert (`format`, `version`), damit Phase 7 ihn wieder einlesen kann.
-- **PDF-Reisebuch** – Deckblatt mit Route und Kennzahlen, danach die Timeline mit Text
-  und Fotos.
+- **PDF-Reisebuch** – Deckblatt mit Route und Kennzahlen, danach die Timeline in
+  Tageskapiteln, mit Text und Fotos.
+
+Im selben Abschnitt der App entstehen auch die **öffentlichen Links**: einmal erzeugt,
+zeigt der Token die Reise schreibgeschützt im Web-Viewer, ohne Konto. Gespeichert wird
+nur sein Hash, er ist also genau einmal sichtbar — beim Erzeugen. Die Liste darunter
+zeigt die noch gültigen Links mit ihrer Aufrufzahl und widerruft sie auf Tippen.
 
 Die Route im PDF ist eine **Vektor-Skizze aus den aufgezeichneten Punkten**, keine
 Kartenkacheln. Ein Export, der zum Rendern eine Internetverbindung braucht, widerspricht

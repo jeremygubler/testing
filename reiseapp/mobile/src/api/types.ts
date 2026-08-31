@@ -187,3 +187,20 @@ export interface WorldOverview {
   countries: string[];
   total_distance_m: number;
 }
+
+export interface Share {
+  id: string;
+  label: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+  include_photos: boolean;
+  view_count: number;
+  last_viewed_at: string | null;
+  created_at: string;
+}
+
+export interface ShareCreated extends Share {
+  /** Returned exactly once – the server keeps only a hash of it. */
+  token: string;
+  url_path: string;
+}

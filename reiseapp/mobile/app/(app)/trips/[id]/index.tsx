@@ -23,6 +23,7 @@ import {
   lastSyncedAt as readLastSyncedAt,
   refreshTrip,
 } from '@/store/facade';
+import { ShareSection } from '@/sharing/ShareSection';
 import { SyncStatus } from '@/sync/SyncStatus';
 import { TrackingPanel } from '@/tracking/TrackingPanel';
 import { Button, ErrorBanner, Field, Loading } from '@/ui/components';
@@ -287,6 +288,12 @@ export default function TripDetailScreen() {
             onChanged={() => void load()}
           />
         </Section>
+
+        {trip.role === 'owner' ? (
+          <Section title="Teilen & Export">
+            <ShareSection tripId={id} title={trip.title} />
+          </Section>
+        ) : null}
 
         {canEdit ? (
           <Section title="Verwalten">
