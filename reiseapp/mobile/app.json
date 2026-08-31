@@ -56,8 +56,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "http://localhost:8000",
-      "mapStyleUrl": "https://tiles.openfreemap.org/styles/liberty"
+      "apiBaseUrl": "http://localhost:8000"
     }
   }
 }

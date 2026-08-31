@@ -41,10 +41,14 @@ Umstellen, etwa auf `tileserver-gl` im Homelab mit einem OSM-Extrakt von Geofabr
 export EXPO_PUBLIC_MAP_STYLE_URL=http://192.168.1.50:8080/style.json
 ```
 
-Die Variable schlägt `extra.mapStyleUrl` aus der `app.json`. Sie wird beim **Bundeln**
-eingesetzt, nicht zur Laufzeit gelesen — nach einer Änderung muss Metro mit `--clear`
-neu starten, sonst gilt weiter der alte Wert. Welcher Host tatsächlich benutzt wird,
-steht in der App unter **Du**.
+Die Variable wird beim **Bundeln** eingesetzt, nicht zur Laufzeit gelesen — nach einer
+Änderung muss Metro mit `--clear` neu starten, sonst gilt weiter der alte Wert. Welcher
+Host tatsächlich benutzt wird, steht in der App unter **Du**.
+
+Der Default steht bewusst in `src/config.ts` und nicht in `extra` der `app.json`:
+`expo-constants` serialisiert diese Datei während des Gradle-Builds in die APK
+(`createExpoConfig` bei `preBuild`). Ein Wert in `extra` lässt sich also nur durch einen
+Rebuild ändern, einer in `config.ts` reist mit jedem gewöhnlichen Metro-Reload mit.
 
 Antwortet der Stil-Server nicht, blendet die Karte das ein, statt schwarz zu bleiben.
 
