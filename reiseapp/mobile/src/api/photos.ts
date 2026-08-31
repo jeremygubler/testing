@@ -1,4 +1,6 @@
-import { absoluteUrl, authHeaders, request } from './client';
+import { File, UploadType } from 'expo-file-system';
+
+import { absoluteUrl, apiErrorFrom, authHeaders, NetworkError, request, withSession } from './client';
 import type { Photo, PhotoUploadResult } from './types';
 
 export async function listPhotos(tripId: string): Promise<Photo[]> {
@@ -25,24 +27,50 @@ function hintsFrom(asset: PhotoAsset): Record<string, string> {
   return hints;
 }
 
+/**
+ * Uploaded natively, not through fetch.
+ *
+ * Two reasons, and the first one is fatal: since SDK 54 Expo replaces the global
+ * fetch with its own implementation, which builds the multipart body in
+ * JavaScript and accepts only strings, Blobs and objects with bytes(). React
+ * Native's classic `{ uri, name, type }` file part is not among them — it fails
+ * with "Unsupported FormDataPart implementation" before the request ever leaves
+ * the phone.
+ *
+ * The second reason is why this is the better answer rather than a workaround:
+ * createUploadTask streams the file from disk. A JS-assembled body would pull
+ * every original into memory first, and originals at full resolution are the
+ * whole point of this app.
+ */
 export async function uploadPhoto(
   tripId: string,
   asset: PhotoAsset,
 ): Promise<PhotoUploadResult> {
-  const form = new FormData();
-  const name = asset.fileName ?? asset.uri.split('/').pop() ?? 'photo.jpg';
-  // React Native's FormData takes this shape for files; it is not a web Blob.
-  form.append('file', {
-    uri: asset.uri,
-    name,
-    type: asset.mimeType ?? 'image/jpeg',
-  } as unknown as Blob);
-  for (const [key, value] of Object.entries(hintsFrom(asset))) form.append(key, value);
+  const url = absoluteUrl(`/trips/${tripId}/photos`);
+  const file = new File(asset.uri);
 
-  return request<PhotoUploadResult>(`/trips/${tripId}/photos`, {
-    method: 'POST',
-    body: form,
-  });
+  let result;
+  try {
+    result = await withSession((accessToken) =>
+      file
+        .createUploadTask(url, {
+          uploadType: UploadType.MULTIPART,
+          fieldName: 'file',
+          mimeType: asset.mimeType ?? 'image/jpeg',
+          parameters: hintsFrom(asset),
+          headers: {
+            Accept: 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+        })
+        .uploadAsync(),
+    );
+  } catch (cause) {
+    throw new NetworkError(cause);
+  }
+
+  if (result.status >= 400) throw apiErrorFrom(result.status, result.body);
+  return JSON.parse(result.body) as PhotoUploadResult;
 }
 
 export async function updatePhoto(

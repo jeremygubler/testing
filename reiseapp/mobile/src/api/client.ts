@@ -78,6 +78,16 @@ export function absoluteUrl(path: string): string {
   return `${API_BASE_URL}${API_PREFIX}${path}`;
 }
 
+/** Builds the same error from a body already read, e.g. by a native upload. */
+export function apiErrorFrom(status: number, body: string): ApiError {
+  try {
+    const parsed = JSON.parse(body) as ApiErrorBody;
+    return new ApiError(status, parsed.error.type, parsed.error.message);
+  } catch {
+    return new ApiError(status, 'http_error', `HTTP ${status}`);
+  }
+}
+
 async function parseError(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as ApiErrorBody;
@@ -142,6 +152,20 @@ async function refreshSession(): Promise<StoredTokens | null> {
   });
 
   return refreshInFlight;
+}
+
+/**
+ * Runs a request that cannot go through `fetch` — a native streaming upload,
+ * say — without duplicating the one rule that must not diverge: a 401 refreshes
+ * the session once and the call is retried with the new token.
+ */
+export async function withSession<T extends { status: number }>(
+  call: (accessToken: string | undefined) => Promise<T>,
+): Promise<T> {
+  const result = await call(tokens?.accessToken);
+  if (result.status !== 401 || !tokens?.refreshToken) return result;
+  const refreshed = await refreshSession();
+  return refreshed ? call(refreshed.accessToken) : result;
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
