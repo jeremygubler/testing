@@ -27,16 +27,26 @@ WatermelonDB in Phase 6 ebenfalls), es braucht also einen Dev-Client.
 
 ### Kartenkacheln
 
-Der Style ist konfigurierbar; Default sind die freien **MapLibre-Demo-Tiles** – gut
-zum Loslegen, ausdrücklich nicht für Produktion gedacht:
+Default ist **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`):
+kein API-Key, keine Registrierung, und die Tiles sind als Datensatz veröffentlicht,
+lassen sich also später selbst ausliefern.
+
+Davor standen hier die MapLibre-Demo-Tiles. Die enthalten nur Ländergrenzen — auf
+Weltzoom sieht das nach Karte aus, über einem Dorf ist es ein farbiges Rechteck. Genau
+so ist es aufgefallen.
+
+Umstellen, etwa auf `tileserver-gl` im Homelab mit einem OSM-Extrakt von Geofabrik:
 
 ```bash
 export EXPO_PUBLIC_MAP_STYLE_URL=http://192.168.1.50:8080/style.json
 ```
 
-Für volle Datenhoheit auch bei der Karte: `tileserver-gl` im Homelab mit einem
-OSM-Extrakt (z. B. von Geofabrik) und diese URL setzen. Der Rest der App ändert sich
-dadurch nicht.
+Die Variable schlägt `extra.mapStyleUrl` aus der `app.json`. Sie wird beim **Bundeln**
+eingesetzt, nicht zur Laufzeit gelesen — nach einer Änderung muss Metro mit `--clear`
+neu starten, sonst gilt weiter der alte Wert. Welcher Host tatsächlich benutzt wird,
+steht in der App unter **Du**.
+
+Antwortet der Stil-Server nicht, blendet die Karte das ein, statt schwarz zu bleiben.
 
 Checks (identisch zu CI):
 

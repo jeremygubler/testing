@@ -57,7 +57,7 @@
     },
     "extra": {
       "apiBaseUrl": "http://localhost:8000",
-      "mapStyleUrl": "https://demotiles.maplibre.org/style.json"
+      "mapStyleUrl": "https://tiles.openfreemap.org/styles/liberty"
     }
   }
 }
