@@ -47,6 +47,30 @@ npm test            # Jest: reine Logik (Profil, Sync, IDs, Distanz)
 npx expo export --platform android   # Bundle-Smoke-Test
 ```
 
+## Bauen unter Windows
+
+Zwei Dinge, ohne die der Android-Build dort nicht durchläuft:
+
+**Lange Pfade erlauben** — einmalig, als Administrator, danach neu starten:
+
+```powershell
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+  -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+```
+
+**CMake 4.x installieren** — im SDK Manager von Android Studio unter *SDK Tools*
+mit gesetztem Häkchen bei *Show Package Details*.
+
+Das Ausgelieferte CMake 3.22.1 bringt ein ninja von 2021 mit, das bei Pfaden
+über 260 Zeichen aufgibt. Der Codegen von React Native bettet den absoluten
+Quellpfad ein zweites Mal in den Objektpfad ein; die Shadow Nodes von
+`react-native-gesture-handler` landen damit bei rund 380 Zeichen. Das Projekt zu
+verschieben hilft nicht — 294 dieser Zeichen sind unabhängig vom Ablageort.
+
+Dass Gradle das neuere CMake benutzt, stellt der Config-Plugin
+`plugins/withCmakeVersion.js` sicher. `android/` wird generiert, eine
+Handänderung an `app/build.gradle` wäre beim nächsten `prebuild` weg.
+
 ## Aufbau
 
 ```

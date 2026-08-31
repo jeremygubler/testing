@@ -27,6 +27,12 @@
         {
           "photosPermission": "Fernspur fügt damit deine Fotos zur Reise hinzu – im Original, mit Zeit und Ort aus den Bilddaten."
         }
+      ],
+      [
+        "./plugins/withCmakeVersion",
+        {
+          "version": "4.1.2"
+        }
       ]
     ],
     "ios": {
