@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Linking, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/ui/components';
 import { describeError } from '@/ui/errors';
 import { theme } from '@/ui/theme';
 import {
   permissionState,
-  requestPermissions,
+  requestBackgroundPermission,
+  requestForegroundPermission,
+  resumeIfInterrupted,
   startTracking,
   status,
   stopTracking,
@@ -14,6 +16,7 @@ import {
   type PermissionOutcome,
   type TrackingStatus,
 } from './controller';
+import { planStart } from './permission';
 import { PROFILES } from './profile';
 
 const POLL_MS = 4000;
@@ -31,11 +34,21 @@ export function TrackingPanel({ tripId, onSynced }: { tripId: string; onSynced?:
   }, []);
 
   useEffect(() => {
-    void refresh();
+    // A cold start after Android killed the process looks the same as coming
+    // forward: an active trip, and no updates running.
+    void (async () => {
+      await resumeIfInterrupted().catch(() => undefined);
+      await refresh();
+    })();
     const timer = setInterval(() => void refresh(), POLL_MS);
-    // The queue drains in the background; catch up whenever we come forward.
+    // Coming forward is also the moment we learn what the user did on the system
+    // settings page, and the first moment Android lets us start a service again.
     const subscription = AppState.addEventListener('change', (next) => {
-      if (next === 'active') void refresh();
+      if (next !== 'active') return;
+      void (async () => {
+        await resumeIfInterrupted().catch(() => undefined);
+        await refresh();
+      })();
     });
     return () => {
       clearInterval(timer);
@@ -53,14 +66,28 @@ export function TrackingPanel({ tripId, onSynced }: { tripId: string; onSynced?:
       if (trackingThisTrip) {
         await stopTracking();
       } else {
-        let granted = permission;
-        if (granted !== 'granted') granted = await requestPermissions();
+        let granted = permission ?? (await permissionState());
+        // Only the foreground dialog, deliberately: asking for "always" here
+        // would send the user to the settings page and put us in the background,
+        // where the start below is exactly what Android refuses.
+        if (granted === 'denied') granted = await requestForegroundPermission();
         setPermission(granted);
-        if (granted === 'denied') {
-          setMessage('Ohne Standortfreigabe kann die Route nicht aufgezeichnet werden.');
+
+        const plan = planStart(granted, AppState.currentState);
+        if (!plan.start) {
+          setMessage(
+            plan.reason === 'needs-permission'
+              ? 'Ohne Standortfreigabe kann die Route nicht aufgezeichnet werden.'
+              : 'Die Aufzeichnung lässt sich nur bei geöffneter App starten.',
+          );
           return;
         }
         await startTracking(tripId);
+        if (!plan.background) {
+          setMessage(
+            'Läuft – aber nur solange die App offen ist. „Immer erlauben“ macht die Spur lückenlos.',
+          );
+        }
       }
       await refresh();
     } catch (caught) {
@@ -68,6 +95,17 @@ export function TrackingPanel({ tripId, onSynced }: { tripId: string; onSynced?:
     } finally {
       setBusy(false);
     }
+  }
+
+  async function upgrade() {
+    setMessage('Dort „Immer zulassen“ wählen – beim Zurückkommen läuft die Aufzeichnung weiter.');
+    await requestBackgroundPermission();
+    // Android answers a twice-denied permission silently, without leaving the
+    // app. Then the settings page is the only way left.
+    if ((await permissionState()) !== 'granted' && AppState.currentState === 'active') {
+      await Linking.openSettings();
+    }
+    await refresh();
   }
 
   async function upload() {
@@ -113,12 +151,13 @@ export function TrackingPanel({ tripId, onSynced }: { tripId: string; onSynced?:
       ) : null}
 
       {permission === 'foreground-only' ? (
-        <Pressable onPress={() => void Linking.openSettings()}>
+        <View style={styles.upgrade}>
           <Text style={styles.warning}>
-            Nur „Während der Nutzung“ erlaubt: Die Spur bricht ab, sobald die App in den
-            Hintergrund geht. Zum Ändern auf „Immer“ hier tippen.
+            Nur „Während der Nutzung“ erlaubt: Die Spur bricht ab, sobald der Bildschirm
+            ausgeht. „Immer“ vergibt Android ausschliesslich in den Systemeinstellungen.
           </Text>
-        </Pressable>
+          <Button title="„Immer“ einrichten" variant="ghost" onPress={() => void upgrade()} />
+        </View>
       ) : null}
 
       <View style={styles.queue}>
@@ -169,6 +208,7 @@ const styles = StyleSheet.create({
   },
   dotLive: { backgroundColor: theme.colors.accent },
   warning: { fontSize: 13, color: theme.colors.danger, lineHeight: 18 },
+  upgrade: { gap: theme.spacing(0.75) },
   queue: {},
   queueText: { fontSize: 13, color: theme.colors.muted },
   message: { fontSize: 13, color: theme.colors.text },
