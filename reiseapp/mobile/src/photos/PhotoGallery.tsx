@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { deletePhoto, photoSource, uploadPhoto } from '@/api/photos';
 import type { Photo } from '@/api/types';
@@ -34,6 +36,10 @@ export function PhotoGallery({
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Photo | null>(null);
+  // A full-screen modal draws under the status and navigation bars, so its own
+  // controls have to be inset by hand or they end up beneath the system UI,
+  // visible but untappable.
+  const insets = useSafeAreaInsets();
 
   const pickAndUpload = useCallback(async () => {
     setError(null);
@@ -75,14 +81,26 @@ export function PhotoGallery({
     }
   }, [tripId, onChanged]);
 
-  async function remove(photo: Photo) {
-    try {
-      await deletePhoto(tripId, photo.id);
-      setOpen(null);
-      onChanged();
-    } catch (caught) {
-      setError(describeError(caught));
-    }
+  function confirmRemove(photo: Photo) {
+    Alert.alert('Foto löschen?', 'Das Original wird vom Server entfernt.', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Löschen',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await deletePhoto(tripId, photo.id);
+              setOpen(null);
+              onChanged();
+            } catch (caught) {
+              setOpen(null);
+              setError(describeError(caught));
+            }
+          })();
+        },
+      },
+    ]);
   }
 
   return (
@@ -117,26 +135,45 @@ export function PhotoGallery({
         <Button title="Fotos hinzufügen" onPress={pickAndUpload} busy={busy} variant="ghost" />
       ) : null}
 
-      <Modal visible={open !== null} transparent animationType="fade">
+      <Modal
+        visible={open !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        // Without this the Android back button and the back gesture do nothing
+        // at all, and a full-screen photo becomes a room with no door.
+        onRequestClose={() => setOpen(null)}
+      >
         <View style={styles.viewer}>
           {open ? (
             <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Foto schliessen"
+                hitSlop={16}
+                onPress={() => setOpen(null)}
+                style={[styles.closeButton, { top: insets.top + theme.spacing(1) }]}
+              >
+                <Ionicons name="close" size={26} color="#fff" />
+              </Pressable>
+
               <Image
                 source={photoSource(tripId, open.id, 'original')}
                 style={styles.full}
                 contentFit="contain"
               />
-              <View style={styles.viewerBar}>
+
+              <View style={[styles.viewerBar, { paddingBottom: insets.bottom + theme.spacing(2) }]}>
                 <Text style={styles.viewerText}>
                   {formatDate(open.taken_at) ?? 'Ohne Datum'} · {POSITION_LABEL[open.position_source]}
                 </Text>
                 <View style={styles.viewerActions}>
                   {canEdit ? (
-                    <Pressable onPress={() => void remove(open)}>
+                    <Pressable hitSlop={12} onPress={() => confirmRemove(open)}>
                       <Text style={styles.destructive}>Löschen</Text>
                     </Pressable>
                   ) : null}
-                  <Pressable onPress={() => setOpen(null)}>
+                  <Pressable hitSlop={12} onPress={() => setOpen(null)}>
                     <Text style={styles.close}>Schliessen</Text>
                   </Pressable>
                 </View>
@@ -159,8 +196,20 @@ const styles = StyleSheet.create({
   progress: { fontSize: 13, color: theme.colors.muted },
   viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center' },
   full: { flex: 1 },
+  closeButton: {
+    position: 'absolute',
+    right: theme.spacing(2),
+    zIndex: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
   viewerBar: {
-    padding: theme.spacing(2),
+    paddingTop: theme.spacing(2),
+    paddingHorizontal: theme.spacing(2),
     gap: theme.spacing(1),
     backgroundColor: 'rgba(0,0,0,0.6)',
   },
