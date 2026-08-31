@@ -8,6 +8,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getWorldOverview } from '@/api/trips';
 import type { Bounds, TripOverview, WorldOverview } from '@/api/types';
 import { MAP_STYLE_URL } from '@/config';
+import { MapStyleError } from '@/map/MapStyleError';
+import { useStyleStatus } from '@/map/style-status';
 import { formatDistance } from '@/ui/format';
 import { Badge, EmptyState, ErrorBanner, Loading } from '@/ui/components';
 import { theme } from '@/ui/theme';
@@ -57,6 +59,7 @@ export default function WorldScreen() {
     }, []),
   );
 
+  const style = useStyleStatus();
   const routes = useMemo(() => routesOf(data?.trips ?? []), [data]);
   const bounds = useMemo(
     () => union((data?.trips ?? []).map((t) => t.bounds).filter((b): b is Bounds => b !== null)),
@@ -70,7 +73,12 @@ export default function WorldScreen() {
 
   return (
     <View style={styles.container}>
-      <Map style={styles.map} mapStyle={MAP_STYLE_URL}>
+      <Map
+        style={styles.map}
+        mapStyle={MAP_STYLE_URL}
+        onDidFinishLoadingStyle={style.onDidFinishLoadingStyle}
+        onDidFailLoadingMap={style.onDidFailLoadingMap}
+      >
         <Camera
           initialViewState={{ bounds: bounds ?? WORLD, padding: PADDING }}
         />
@@ -97,6 +105,8 @@ export default function WorldScreen() {
           </GeoJSONSource>
         ) : null}
       </Map>
+
+      {style.status === 'failed' ? <MapStyleError /> : null}
 
       <View style={styles.sheet}>
         <View style={styles.grabber} />

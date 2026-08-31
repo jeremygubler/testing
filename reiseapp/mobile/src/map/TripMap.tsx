@@ -6,6 +6,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { Bounds, Route, Stop } from '@/api/types';
 import { MAP_STYLE_URL } from '@/config';
 import { theme } from '@/ui/theme';
+import { MapStyleError } from './MapStyleError';
+import { useStyleStatus } from './style-status';
 
 /** Zürich, so an empty trip opens somewhere rather than in the Atlantic. */
 const FALLBACK_CENTER: [number, number] = [8.5417, 47.3769];
@@ -41,12 +43,15 @@ export function TripMap({
   );
 
   const bounds = useMemo(() => boundsOf(route, stops), [route, stops]);
+  const style = useStyleStatus();
 
   return (
     <View style={styles.container}>
       <Map
         style={styles.map}
         mapStyle={MAP_STYLE_URL}
+        onDidFinishLoadingStyle={style.onDidFinishLoadingStyle}
+        onDidFailLoadingMap={style.onDidFailLoadingMap}
         onLongPress={(event) => {
           const [lon, lat] = event.nativeEvent.lngLat;
           onLongPress?.(lat, lon);
@@ -81,6 +86,8 @@ export function TripMap({
           </Marker>
         ))}
       </Map>
+
+      {style.status === 'failed' ? <MapStyleError /> : null}
     </View>
   );
 }
