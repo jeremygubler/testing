@@ -140,6 +140,7 @@ Instanz nicht öffentlich erreichbar ist.
 | GET | `/api/v1/auth/me` | eingeloggt |
 | POST/GET | `/api/v1/auth/invites` | Admin |
 | POST/GET | `/api/v1/trips` | eingeloggt |
+| GET | `/api/v1/trips/overview` | eingeloggt |
 | GET/PATCH/DELETE | `/api/v1/trips/{id}` | viewer / editor / owner |
 | GET/POST | `/api/v1/trips/{id}/members` | viewer / owner |
 | PATCH/DELETE | `/api/v1/trips/{id}/members/{user_id}` | owner |
@@ -331,6 +332,27 @@ Die Kehrseite ist harmlos: Ein Datensatz kann mehrfach geliefert werden. Da jede
 Datensatz eine client-erzeugte UUID hat und jeder Schreibvorgang idempotent ist, ändert
 eine doppelte Zustellung nichts. Zu viel liefern ist sicher, zu wenig nicht — deshalb
 diese Richtung.
+
+## Weltkarte
+
+`GET /trips/overview` liefert **alle** sichtbaren Reisen in einer Antwort: je eine
+grob vereinfachte Linie, Bounds, Distanz und Länder, dazu die Vereinigung aller
+Länder und die Gesamtdistanz.
+
+Drei Entscheidungen dahinter:
+
+- **Eine Abfrage für alle Routen**, nicht eine pro Reise. `ST_MakeLine` gruppiert
+  nach `trip_id`; die naheliegende Schleife über den Einzelroute-Endpunkt wäre ein
+  Roundtrip pro Reise — ausgerechnet auf dem Bildschirm, der alle gleichzeitig will.
+- **0.01° Vereinfachung**, rund ein Kilometer. Auf einer Weltkarte ist das immer noch
+  feiner als ein Bildschirmpixel, macht aus einer dreiwöchigen Reise aber Dutzende
+  statt Zehntausende Punkte.
+- **Ein einzelner Wegpunkt ist keine Route.** `ST_MakeLine` erzeugt daraus eine
+  entartete Linie, die `ST_Length` als 0 meldet und die keine Karte zeichnen kann —
+  die Reise erscheint deshalb ohne Spur statt mit einer kaputten.
+
+Reisen ohne Aufzeichnung bleiben in der Liste. Eine geplante Reise soll auf dem
+Kartenschirm nicht verschwinden, nur weil noch niemand losgelaufen ist.
 
 ## Statistik
 

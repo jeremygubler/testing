@@ -164,3 +164,23 @@ export interface TripStats {
   journal_entry_count: number;
   countries: string[];
 }
+
+export interface TripOverview {
+  id: string;
+  title: string;
+  start_date: string | null;
+  end_date: string | null;
+  role: MemberRole;
+  countries: string[];
+  point_count: number;
+  distance_m: number;
+  /** [lon, lat] pairs, already simplified for a world-scale view. */
+  coordinates: [number, number][];
+  bounds: Bounds | null;
+}
+
+export interface WorldOverview {
+  trips: TripOverview[];
+  countries: string[];
+  total_distance_m: number;
+}

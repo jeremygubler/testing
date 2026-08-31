@@ -8,6 +8,7 @@ from app.api.deps import CurrentUser, SessionDep
 from app.core.errors import NotFoundError
 from app.models import MemberRole
 from app.models.trip import Trip
+from app.schemas.overview import WorldOverview
 from app.schemas.trip import (
     TripCreate,
     TripMemberCreate,
@@ -18,6 +19,7 @@ from app.schemas.trip import (
     TripWithRole,
 )
 from app.services import auth as auth_service
+from app.services import overview as overview_service
 from app.services import trips as trip_service
 
 router = APIRouter(tags=["trips"])
@@ -40,6 +42,15 @@ async def list_trips(session: SessionDep, user: CurrentUser) -> list[TripWithRol
         _with_role(trip, role)
         for trip, role in await trip_service.list_trips_for_user(session, user)
     ]
+
+
+# Must stay above /{trip_id}: routes match in declaration order, and a UUID path
+# parameter would otherwise swallow the literal "overview" and answer 422.
+@router.get("/overview", response_model=WorldOverview)
+async def world_overview(session: SessionDep, user: CurrentUser) -> WorldOverview:
+    """Every visible trip as a coarse line — what the world map needs, in one call."""
+    trips = await trip_service.list_trips_for_user(session, user)
+    return await overview_service.world_overview(session, trips)
 
 
 @router.get("/{trip_id}", response_model=TripWithRole)

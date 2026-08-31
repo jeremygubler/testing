@@ -43,6 +43,14 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="world"
+        options={{
+          title: 'Welt',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => <Ionicons name="earth" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Du',
