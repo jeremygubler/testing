@@ -41,6 +41,12 @@ class WaypointBatchResult(BaseModel):
     duplicates: int
 
 
+class TrackCleared(BaseModel):
+    """How many points the delete affected – what a confirmation can honestly say."""
+
+    removed: int
+
+
 class WaypointRead(BaseModel):
     id: UUID
     lat: float

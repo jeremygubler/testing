@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -10,8 +11,8 @@ import {
   View,
 } from 'react-native';
 
-import { getRoute, getStats } from '@/api/geo';
-import { listMembers } from '@/api/trips';
+import { clearTrack, getRoute, getStats } from '@/api/geo';
+import { deleteTrip, listMembers } from '@/api/trips';
 import type { Photo, Route, Stop, Trip, TripMember, TripStats } from '@/api/types';
 import { TripMap } from '@/map/TripMap';
 import { PhotoGallery } from '@/photos/PhotoGallery';
@@ -136,6 +137,55 @@ export default function TripDetailScreen() {
     ]);
   }
 
+  function confirmClearTrack() {
+    Alert.alert(
+      'Spur löschen?',
+      `${route.point_count} aufgezeichnete Punkte werden entfernt. Stops, Fotos und `
+        + 'Tagebuch bleiben.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Löschen',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await clearTrack(id);
+                await load();
+              } catch (caught) {
+                setError(describeError(caught));
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }
+
+  function confirmDeleteTrip() {
+    Alert.alert(
+      'Reise löschen?',
+      `„${trip?.title ?? ''}" wird mit allen Punkten, Stops und Fotos entfernt.`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Löschen',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await deleteTrip(id);
+                router.replace('/trips');
+              } catch (caught) {
+                setError(describeError(caught));
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }
+
   if (error && !trip) {
     return (
       <View style={styles.container}>
@@ -198,11 +248,7 @@ export default function TripDetailScreen() {
             <Text style={styles.muted}>Noch keine Stops.</Text>
           ) : (
             stops.map((stop) => (
-              <Pressable
-                key={stop.id}
-                onLongPress={canEdit ? () => confirmDelete(stop) : undefined}
-                style={styles.row}
-              >
+              <View key={stop.id} style={styles.row}>
                 <View style={styles.rowMain}>
                   <Text style={styles.rowTitle}>{stop.name}</Text>
                   <Text style={styles.rowMeta}>
@@ -210,7 +256,19 @@ export default function TripDetailScreen() {
                     {formatDate(stop.arrived_at) ? ` · ${formatDate(stop.arrived_at)}` : ''}
                   </Text>
                 </View>
-              </Pressable>
+                {canEdit ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Stop ${stop.name} löschen`}
+                    // A visible button, not the long-press this used to be: an
+                    // undiscoverable gesture is the same as no function at all.
+                    hitSlop={12}
+                    onPress={() => confirmDelete(stop)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={theme.colors.muted} />
+                  </Pressable>
+                ) : null}
+              </View>
             ))
           )}
         </Section>
@@ -229,6 +287,25 @@ export default function TripDetailScreen() {
             onChanged={() => void load()}
           />
         </Section>
+
+        {canEdit ? (
+          <Section title="Verwalten">
+            {route.point_count > 0 ? (
+              <Button
+                title={`Spur löschen (${route.point_count} Punkte)`}
+                variant="ghost"
+                onPress={confirmClearTrack}
+              />
+            ) : null}
+            {trip.role === 'owner' ? (
+              <Button title="Reise löschen" variant="ghost" onPress={confirmDeleteTrip} />
+            ) : null}
+            <Text style={styles.muted}>
+              Die Spur zu löschen behält die Reise mit Stops, Fotos und Tagebuch – nützlich,
+              wenn eine Aufzeichnung nichts taugt.
+            </Text>
+          </Section>
+        ) : null}
 
         <Section title="Reisende">
           {members.map((member) => (

@@ -34,6 +34,11 @@ export async function deleteStop(tripId: string, stopId: string): Promise<void> 
   await request<void>(`/trips/${tripId}/stops/${stopId}`, { method: 'DELETE' });
 }
 
+/** Throws away the recorded track and keeps the trip, its stops and its photos. */
+export async function clearTrack(tripId: string): Promise<{ removed: number }> {
+  return request<{ removed: number }>(`/trips/${tripId}/waypoints`, { method: 'DELETE' });
+}
+
 /** Batch upload. The backend deduplicates on id, so retrying a batch is safe. */
 export async function uploadWaypoints(
   tripId: string,

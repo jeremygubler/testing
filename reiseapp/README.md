@@ -144,7 +144,7 @@ Instanz nicht öffentlich erreichbar ist.
 | GET/PATCH/DELETE | `/api/v1/trips/{id}` | viewer / editor / owner |
 | GET/POST | `/api/v1/trips/{id}/members` | viewer / owner |
 | PATCH/DELETE | `/api/v1/trips/{id}/members/{user_id}` | owner |
-| POST/GET | `/api/v1/trips/{id}/waypoints` | editor / viewer |
+| POST/GET/DELETE | `/api/v1/trips/{id}/waypoints` | editor / viewer / editor |
 | GET | `/api/v1/trips/{id}/route` | viewer |
 | GET | `/api/v1/trips/{id}/stats` | viewer |
 | POST/GET | `/api/v1/trips/{id}/stops` | editor / viewer |

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,6 +60,25 @@ async def store_batch(
     return WaypointBatchResult(
         received=len(items), stored=stored, duplicates=len(items) - stored
     )
+
+
+async def clear_track(session: AsyncSession, trip: Trip) -> int:
+    """
+    Drops the trip's recorded track, keeping the trip, its stops and its photos.
+
+    A soft delete like everywhere else: a track thrown away by mistake is a trip
+    that cannot be walked again, so the rows stay and only stop counting. Returns
+    how many points were affected, which is what makes the confirmation honest.
+    """
+    result = await session.execute(
+        update(Waypoint)
+        .where(Waypoint.trip_id == trip.id, Waypoint.deleted_at.is_(None))
+        .values(deleted_at=datetime.now(UTC))
+        .returning(Waypoint.id)
+    )
+    removed = len(result.scalars().all())
+    await session.flush()
+    return removed
 
 
 async def list_waypoints(

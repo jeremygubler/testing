@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query
 from app.api.deps import SessionDep, TripForEditor, TripForViewer
 from app.schemas.geo import (
     RouteRead,
+    TrackCleared,
     TripStats,
     WaypointBatch,
     WaypointBatchResult,
@@ -23,6 +24,12 @@ async def upload_waypoints(
 ) -> WaypointBatchResult:
     """Batch upload. Idempotent: re-sending a batch stores nothing twice."""
     return await waypoint_service.store_batch(session, trip, data.waypoints)
+
+
+@router.delete("/{trip_id}/waypoints", response_model=TrackCleared)
+async def clear_track(session: SessionDep, trip: TripForEditor) -> TrackCleared:
+    """Throws away the recorded track and keeps everything else about the trip."""
+    return TrackCleared(removed=await waypoint_service.clear_track(session, trip))
 
 
 @router.get("/{trip_id}/waypoints", response_model=list[WaypointRead])

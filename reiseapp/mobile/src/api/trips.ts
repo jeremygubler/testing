@@ -28,6 +28,11 @@ export async function createTrip(input: {
   });
 }
 
+/** Soft delete on the server: the rows stay, the trip stops being listed. */
+export async function deleteTrip(id: string): Promise<void> {
+  await request<void>(`/trips/${id}`, { method: 'DELETE' });
+}
+
 export async function listMembers(tripId: string): Promise<TripMember[]> {
   return request<TripMember[]>(`/trips/${tripId}/members`);
 }
