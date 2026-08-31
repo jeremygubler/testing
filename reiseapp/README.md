@@ -1,4 +1,4 @@
-# Zugvogel
+# Fernspur
 
 Self-hostbares, offline-first Reise-Tracking – die Polarsteps-Alternative, bei der die
 Bewegungsdaten im eigenen Homelab bleiben.
@@ -7,7 +7,7 @@ Bewegungsdaten im eigenen Homelab bleiben.
 
 ## Warum
 
-| | Polarsteps | Zugvogel |
+| | Polarsteps | Fernspur |
 |---|---|---|
 | Datenhoheit | Cloud des Anbieters | eigener Docker-Stack, kein Account-Zwang nach aussen |
 | Offline | teilweise | offline-first, Sync mit Konfliktauflösung |
@@ -390,7 +390,7 @@ kürzeren Namen aus `.env` darauf.
 
 | `.env` | Backend-Variable | Default | Zweck |
 |---|---|---|---|
-| `POSTGRES_USER` / `_PASSWORD` / `_DB` | – | `Zugvogel` | Postgres-Credentials |
+| `POSTGRES_USER` / `_PASSWORD` / `_DB` | – | `Fernspur` | Postgres-Credentials |
 | – | `REISEAPP_DATABASE_URL` | aus Compose zusammengesetzt | asyncpg-DSN |
 | `JWT_SECRET` | `REISEAPP_JWT_SECRET` | – (Pflicht) | Signatur Access/Refresh-Token |
 | `ACCESS_TOKEN_TTL_MINUTES` | `REISEAPP_ACCESS_TOKEN_TTL_MINUTES` | `15` | Lebensdauer Access-Token |
@@ -419,9 +419,14 @@ Details, Aufbau und die Dev-Client-Frage: [`mobile/README.md`](mobile/README.md)
 
 ## Der Name, und was er nicht angefasst hat
 
-Das Produkt heisst **Zugvogel**. Umbenannt wurde alles, was jemand zu sehen
-bekommt: App-Name und Berechtigungstexte, Bundle-ID (`ch.zugvogel.app`),
+Das Produkt heisst **Fernspur** — die Spur, die weit weg entsteht. Domain
+`fernspur.ch`, Bundle-ID `ch.fernspur.app` auf beiden Plattformen. Umbenannt
+wurde alles, was jemand zu sehen bekommt: App-Name und Berechtigungstexte,
 API-Titel, GPX-Creator, PDF-Autor, Web-Viewer, diese Dokumentation.
+
+Die Bundle-ID ist ab der ersten Store-Veröffentlichung unveränderlich — eine
+neue ID ist eine neue App, ohne Bewertungen und ohne Bestandskunden. Deshalb
+steht sie jetzt, bevor es etwas zu verlieren gibt.
 
 Bewusst **nicht** umbenannt, weil es laufende Installationen kosten würde:
 
@@ -435,7 +440,7 @@ Bewusst **nicht** umbenannt, weil es laufende Installationen kosten würde:
 Nichts davon ist sichtbar. Wer beim nächsten grösseren Umbau ohnehin migriert,
 kann sie mitnehmen.
 
-**Exporte bleiben lesbar.** Der JSON-Dump trägt jetzt `"format": "zugvogel/trip"`,
+**Exporte bleiben lesbar.** Der JSON-Dump trägt jetzt `"format": "fernspur/trip"`,
 der Importer akzeptiert aber weiterhin `"reiseapp/trip"` — Dateien auf einer
 Festplatte überleben eine Umbenennung, und ein Export von letzter Woche muss sich
 weiterhin einlesen lassen.

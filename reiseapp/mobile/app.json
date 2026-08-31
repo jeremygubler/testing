@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Zugvogel",
-    "slug": "zugvogel",
+    "name": "Fernspur",
+    "slug": "fernspur",
     "version": "0.1.0",
-    "scheme": "zugvogel",
+    "scheme": "fernspur",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,8 +15,8 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Zugvogel zeichnet damit deine Reiseroute auf der Karte auf.",
-          "locationAlwaysAndWhenInUsePermission": "Zugvogel zeichnet deine Route auch dann weiter auf, wenn der Bildschirm aus ist oder du andere Apps nutzt. Ohne \"Immer\" bricht die Spur ab, sobald du die App verlässt.",
+          "locationWhenInUsePermission": "Fernspur zeichnet damit deine Reiseroute auf der Karte auf.",
+          "locationAlwaysAndWhenInUsePermission": "Fernspur zeichnet deine Route auch dann weiter auf, wenn der Bildschirm aus ist oder du andere Apps nutzt. Ohne \"Immer\" bricht die Spur ab, sobald du die App verlässt.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
@@ -25,16 +25,16 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Zugvogel fügt damit deine Fotos zur Reise hinzu – im Original, mit Zeit und Ort aus den Bilddaten."
+          "photosPermission": "Fernspur fügt damit deine Fotos zur Reise hinzu – im Original, mit Zeit und Ort aus den Bilddaten."
         }
       ]
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "ch.zugvogel.app"
+      "bundleIdentifier": "ch.fernspur.app"
     },
     "android": {
-      "package": "ch.zugvogel.app",
+      "package": "ch.fernspur.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

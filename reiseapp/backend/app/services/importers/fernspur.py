@@ -26,14 +26,14 @@ def _time(value: Any) -> datetime | None:
         return None
 
 
-def parse_zugvogel_json(data: bytes) -> ImportedTrip:
+def parse_fernspur_json(data: bytes) -> ImportedTrip:
     """Reads back our own export – the round trip that makes data ownership real."""
     try:
         payload = json.loads(data)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise AppError("Not valid JSON") from exc
     if not isinstance(payload, dict) or payload.get("format") not in OWN_FORMAT_MARKERS:
-        raise AppError("Not a Zugvogel export")
+        raise AppError("Not a Fernspur export")
     if payload.get("version") not in SUPPORTED_VERSIONS:
         raise AppError(f"Unsupported export version: {payload.get('version')}")
 

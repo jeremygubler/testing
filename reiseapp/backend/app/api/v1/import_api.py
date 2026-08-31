@@ -26,7 +26,7 @@ async def import_file(
     format: Annotated[ImportFormat | None, Form()] = None,
     title: Annotated[str | None, Form()] = None,
 ) -> ImportSummary:
-    """Imports GPX, a Zugvogel export, a Polarsteps export or a Google Timeline.
+    """Imports GPX, a Fernspur export, a Polarsteps export or a Google Timeline.
 
     Without trip_id a new trip is created from the file's own metadata. Importing
     the same file twice is a no-op: ids are derived from content, so the second

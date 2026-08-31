@@ -28,7 +28,7 @@ function optionsFor(profile: TrackingProfileName): Location.LocationTaskOptions 
     showsBackgroundLocationIndicator: true,
     foregroundService: {
       notificationTitle: 'Reise wird aufgezeichnet',
-      notificationBody: 'Zugvogel zeichnet deine Route auf. Tippen zum Öffnen.',
+      notificationBody: 'Fernspur zeichnet deine Route auf. Tippen zum Öffnen.',
       notificationColor: '#2f6f4f',
       killServiceOnDestroy: false,
     },

@@ -11,7 +11,7 @@ import { drainQueue } from './sync';
 import { getActiveTripId, getProfileName, setProfileName } from './state';
 import type { BufferedWaypoint } from './types';
 
-export const LOCATION_TASK = 'zugvogel-location-updates';
+export const LOCATION_TASK = 'fernspur-location-updates';
 
 /** Set by the controller so the task can restart updates with new options. */
 type Restart = (profile: TrackingProfileName) => Promise<void>;

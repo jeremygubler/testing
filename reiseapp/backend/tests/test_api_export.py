@@ -92,7 +92,7 @@ async def test_json_export_is_complete_and_reimportable(
     assert response.status_code == 200
     payload = json.loads(response.text)
 
-    assert payload["format"] == "zugvogel/trip"
+    assert payload["format"] == "fernspur/trip"
     assert payload["version"] == 1
     assert payload["trip"]["title"] == "Island"
     assert len(payload["waypoints"]) == 2

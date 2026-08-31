@@ -219,7 +219,7 @@ async function main() {
   app.className = '';
   app.replaceChildren(document.getElementById('tpl-page').content.cloneNode(true));
 
-  document.title = `${trip.title} – Zugvogel`;
+  document.title = `${trip.title} – Fernspur`;
   document.querySelector('.title').textContent = trip.title;
   const range = [trip.start_date, trip.end_date]
     .filter(Boolean)
