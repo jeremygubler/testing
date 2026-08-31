@@ -13,7 +13,7 @@ from xml.etree import ElementTree as ET
 GPX_NS = "http://www.topografix.com/GPX/1/1"
 XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
 SCHEMA_LOCATION = f"{GPX_NS} http://www.topografix.com/GPX/1/1/gpx.xsd"
-CREATOR = "reiseapp"
+CREATOR = "Zugvogel"
 
 
 @dataclass(frozen=True)

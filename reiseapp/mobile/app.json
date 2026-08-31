@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "reiseapp",
-    "slug": "reiseapp",
+    "name": "Zugvogel",
+    "slug": "zugvogel",
     "version": "0.1.0",
-    "scheme": "reiseapp",
+    "scheme": "zugvogel",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,8 +15,8 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "reiseapp zeichnet damit deine Reiseroute auf der Karte auf.",
-          "locationAlwaysAndWhenInUsePermission": "reiseapp zeichnet deine Route auch dann weiter auf, wenn der Bildschirm aus ist oder du andere Apps nutzt. Ohne \"Immer\" bricht die Spur ab, sobald du die App verlässt.",
+          "locationWhenInUsePermission": "Zugvogel zeichnet damit deine Reiseroute auf der Karte auf.",
+          "locationAlwaysAndWhenInUsePermission": "Zugvogel zeichnet deine Route auch dann weiter auf, wenn der Bildschirm aus ist oder du andere Apps nutzt. Ohne \"Immer\" bricht die Spur ab, sobald du die App verlässt.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
@@ -25,16 +25,16 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "reiseapp fügt damit deine Fotos zur Reise hinzu – im Original, mit Zeit und Ort aus den Bilddaten."
+          "photosPermission": "Zugvogel fügt damit deine Fotos zur Reise hinzu – im Original, mit Zeit und Ort aus den Bilddaten."
         }
       ]
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.reiseapp.client"
+      "bundleIdentifier": "ch.zugvogel.app"
     },
     "android": {
-      "package": "app.reiseapp.client",
+      "package": "ch.zugvogel.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

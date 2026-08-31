@@ -194,7 +194,7 @@ def build_pdf(data: BookData) -> bytes:
         topMargin=20 * mm,
         bottomMargin=18 * mm,
         title=data.title,
-        author="reiseapp",
+        author="Zugvogel",
     )
     style = _styles()
     story: list[object] = []

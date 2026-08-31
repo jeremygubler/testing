@@ -10,9 +10,15 @@ from app.core.errors import AppError
 
 class ImportFormat(StrEnum):
     GPX = "gpx"
-    REISEAPP = "reiseapp"
+    ZUGVOGEL = "zugvogel"
     POLARSTEPS = "polarsteps"
     GOOGLE_TIMELINE = "google_timeline"
+
+
+# Our own dumps carry this marker. "reiseapp/trip" is what the app wrote before
+# it had its name, and files on disk outlive a rename — a dump someone exported
+# last week has to keep importing.
+OWN_FORMAT_MARKERS = frozenset({"zugvogel/trip", "reiseapp/trip"})
 
 
 @dataclass
@@ -82,8 +88,8 @@ def detect_format(data: bytes) -> ImportFormat:
         raise AppError("Unrecognised file – expected GPX, JSON or a Polarsteps zip") from exc
 
     if isinstance(payload, dict):
-        if payload.get("format") == "reiseapp/trip":
-            return ImportFormat.REISEAPP
+        if payload.get("format") in OWN_FORMAT_MARKERS:
+            return ImportFormat.ZUGVOGEL
         if "timelineObjects" in payload or "semanticSegments" in payload:
             return ImportFormat.GOOGLE_TIMELINE
         if "locations" in payload:

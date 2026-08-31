@@ -20,7 +20,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.db.session import dispose_engine
 
-logger = logging.getLogger("reiseapp")
+logger = logging.getLogger("zugvogel")
 
 
 async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         level=settings.log_level.upper(),
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
-    logger.info("reiseapp backend %s starting (env=%s)", __version__, settings.env)
+    logger.info("zugvogel backend %s starting (env=%s)", __version__, settings.env)
     yield
     await dispose_engine()
 
@@ -110,7 +110,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
-        title="reiseapp",
+        title="Zugvogel",
         version=__version__,
         summary="Self-hosted travel tracking backend",
         lifespan=lifespan,

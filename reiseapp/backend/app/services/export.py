@@ -75,7 +75,7 @@ async def to_json(session: AsyncSession, trip: Trip) -> tuple[dict[str, Any], st
     members = await trip_service.list_members(session, trip)
 
     payload = {
-        "format": "reiseapp/trip",
+        "format": "zugvogel/trip",
         "version": 1,
         "exported_at": datetime.now(UTC).isoformat(),
         "trip": TripRead.model_validate(trip).model_dump(mode="json"),

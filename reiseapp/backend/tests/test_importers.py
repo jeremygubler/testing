@@ -16,7 +16,7 @@ from app.services.importers import (
     parse_google_timeline,
     parse_gpx,
     parse_polarsteps,
-    parse_reiseapp_json,
+    parse_zugvogel_json,
 )
 
 GPX = """<?xml version="1.0"?>
@@ -90,9 +90,9 @@ def test_broken_xml_is_an_error_not_a_crash() -> None:
 
 # --- own export ------------------------------------------------------------
 
-REISEAPP = json.dumps(
+OWN_DUMP = json.dumps(
     {
-        "format": "reiseapp/trip",
+        "format": "zugvogel/trip",
         "version": 1,
         "trip": {"title": "Island", "description": "Ringstrasse"},
         "waypoints": [
@@ -109,8 +109,8 @@ REISEAPP = json.dumps(
 ).encode()
 
 
-def test_reiseapp_export_round_trips() -> None:
-    trip = parse_reiseapp_json(REISEAPP)
+def test_own_export_round_trips() -> None:
+    trip = parse_zugvogel_json(OWN_DUMP)
     assert trip.title == "Island"
     # 0/0 means "no fix", not the Gulf of Guinea.
     assert len(trip.waypoints) == 1
@@ -121,10 +121,10 @@ def test_reiseapp_export_round_trips() -> None:
 
 
 def test_unknown_export_version_is_refused() -> None:
-    payload = json.loads(REISEAPP)
+    payload = json.loads(OWN_DUMP)
     payload["version"] = 99
     with pytest.raises(AppError, match="version"):
-        parse_reiseapp_json(json.dumps(payload).encode())
+        parse_zugvogel_json(json.dumps(payload).encode())
 
 
 # --- Polarsteps ------------------------------------------------------------
@@ -256,7 +256,9 @@ def test_google_waypoints_come_back_in_time_order() -> None:
     ("data", "expected"),
     [
         (GPX, ImportFormat.GPX),
-        (REISEAPP, ImportFormat.REISEAPP),
+        (OWN_DUMP, ImportFormat.ZUGVOGEL),
+        # A dump written before the app was named still has to import.
+        (OWN_DUMP.replace(b"zugvogel/trip", b"reiseapp/trip"), ImportFormat.ZUGVOGEL),
         (_polarsteps_zip(), ImportFormat.POLARSTEPS),
         (b'{"timelineObjects": []}', ImportFormat.GOOGLE_TIMELINE),
         (b'{"locations": []}', ImportFormat.GOOGLE_TIMELINE),

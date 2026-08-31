@@ -18,11 +18,11 @@ from app.services.importers.base import (
 from app.services.importers.google import parse_google_timeline
 from app.services.importers.gpx_in import parse_gpx
 from app.services.importers.polarsteps import parse_polarsteps
-from app.services.importers.reiseapp import parse_reiseapp_json
+from app.services.importers.zugvogel import parse_zugvogel_json
 
 _PARSERS = {
     ImportFormat.GPX: parse_gpx,
-    ImportFormat.REISEAPP: parse_reiseapp_json,
+    ImportFormat.ZUGVOGEL: parse_zugvogel_json,
     ImportFormat.POLARSTEPS: parse_polarsteps,
     ImportFormat.GOOGLE_TIMELINE: parse_google_timeline,
 }
@@ -44,5 +44,5 @@ __all__ = [
     "parse_google_timeline",
     "parse_gpx",
     "parse_polarsteps",
-    "parse_reiseapp_json",
+    "parse_zugvogel_json",
 ]

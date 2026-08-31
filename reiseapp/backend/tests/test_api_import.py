@@ -121,7 +121,7 @@ async def test_export_import_round_trip(api: AsyncClient, db_session: AsyncSessi
     dump = (await api.get(f"{TRIPS}/{trip_id}/export.json", headers=headers)).content
     result = await _import(api, headers, dump, name="island.json")
 
-    assert result["detected_format"] == "reiseapp"
+    assert result["detected_format"] == "zugvogel"
     assert result["waypoints_stored"] == 2
     assert result["stops_created"] == 1
     assert result["entries_created"] == 1

@@ -33,7 +33,7 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.title}>reiseapp</Text>
+          <Text style={styles.title}>Zugvogel</Text>
           <Text style={styles.subtitle}>Deine Reisen, auf deinem Server.</Text>
         </View>
 
