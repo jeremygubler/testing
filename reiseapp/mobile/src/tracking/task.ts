@@ -6,9 +6,16 @@ import type { WaypointInput } from '@/api/types';
 import { deviceId } from './device';
 import { waypointId } from './ids';
 import { nextProfile, PROFILES, type TrackingProfileName } from './profile';
+import { keepMoving } from './filter';
 import { drop, enqueue, takeBatch } from './queue';
 import { drainQueue } from './sync';
-import { getActiveTripId, getProfileName, setProfileName } from './state';
+import {
+  getActiveTripId,
+  getLastFix,
+  getProfileName,
+  setLastFix,
+  setProfileName,
+} from './state';
 import type { BufferedWaypoint } from './types';
 
 export const LOCATION_TASK = 'fernspur-location-updates';
@@ -105,8 +112,18 @@ TaskManager.defineTask<{ locations: Location.LocationObject[] }>(
     const points = await Promise.all(
       locations.map((location) => toBuffered(tripId, device, location)),
     );
-    await enqueue(points);
 
+    // Noise is dropped here, before it reaches the buffer: a fix that only says
+    // "still inside your own error circle" is not a place you have been, and
+    // once it is stored every distance and every statistic carries it forever.
+    const moved = keepMoving(await getLastFix(), points);
+    if (moved.length > 0) {
+      await enqueue(moved);
+      await setLastFix(moved[moved.length - 1] ?? null);
+    }
+
+    // The profile still follows every fix, moved or not — speed is what decides
+    // how often to listen, and standing still is exactly when to listen less.
     await adaptProfile(locations);
     // Best effort: with no connectivity the points simply stay buffered.
     await syncNow().catch(() => undefined);

@@ -8,9 +8,11 @@ import { MAP_STYLE_URL } from '@/config';
 import { theme } from '@/ui/theme';
 import { MapStyleError } from './MapStyleError';
 import { useStyleStatus } from './style-status';
+import { useDeviceCenter } from './useDeviceCenter';
 
-/** Zürich, so an empty trip opens somewhere rather than in the Atlantic. */
-const FALLBACK_CENTER: [number, number] = [8.5417, 47.3769];
+/** The whole world: the only claim that is true when we know nothing. */
+const WORLD_CENTER: [number, number] = [0, 20];
+const NEIGHBOURHOOD_ZOOM = 13;
 const MAP_PADDING = { top: 48, right: 48, bottom: 48, left: 48 };
 
 function boundsOf(route: Route, stops: Stop[]): Bounds | null {
@@ -44,6 +46,15 @@ export function TripMap({
 
   const bounds = useMemo(() => boundsOf(route, stops), [route, stops]);
   const style = useStyleStatus();
+  const deviceCenter = useDeviceCenter();
+
+  // The camera reads its view state once, on mount, so the map must not be built
+  // before we know what to point it at.
+  if (!bounds && deviceCenter === undefined) return <View style={styles.container} />;
+
+  const initialViewState = bounds
+    ? { bounds, padding: MAP_PADDING }
+    : { center: deviceCenter ?? WORLD_CENTER, zoom: deviceCenter ? NEIGHBOURHOOD_ZOOM : 1 };
 
   return (
     <View style={styles.container}>
@@ -57,13 +68,7 @@ export function TripMap({
           onLongPress?.(lat, lon);
         }}
       >
-        <Camera
-          initialViewState={
-            bounds
-              ? { bounds, padding: MAP_PADDING }
-              : { center: FALLBACK_CENTER, zoom: 8 }
-          }
-        />
+        <Camera initialViewState={initialViewState} />
 
         {line ? (
           <GeoJSONSource id="trip-route" data={line}>

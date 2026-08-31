@@ -2,7 +2,13 @@ import * as Location from 'expo-location';
 
 import { clearTrip, stats } from './queue';
 import { PROFILES, type TrackingProfileName } from './profile';
-import { getActiveTripId, getProfileName, setActiveTripId, setProfileName } from './state';
+import {
+  getActiveTripId,
+  getProfileName,
+  setActiveTripId,
+  setLastFix,
+  setProfileName,
+} from './state';
 import { LOCATION_TASK, setProfileRestartHandler, syncNow } from './task';
 import type { PermissionOutcome } from './permission';
 import type { QueueStats } from './types';
@@ -78,6 +84,9 @@ export async function startTracking(tripId: string): Promise<PermissionOutcome> 
   if (outcome === 'denied') return outcome;
 
   await setActiveTripId(tripId);
+  // Forget where the last recording ended: otherwise starting again from the
+  // same spot rejects the opening fix as noise, and the trip begins nowhere.
+  await setLastFix(null);
   // Start conservatively: the first fixes tell us how fast we are actually moving.
   const profile: TrackingProfileName = 'walking';
   await setProfileName(profile);
