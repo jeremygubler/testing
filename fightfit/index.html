@@ -85,7 +85,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   --bg:var(--gold-grad);
   display:inline-flex;align-items:center;justify-content:center;gap:.6rem;
   font-family:var(--display);font-weight:800;font-stretch:112%;font-size:.86rem;
-  letter-spacing:.16em;text-transform:uppercase;
+  letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;
   padding:1.05rem 2.1rem;border:0;border-radius:2px;cursor:pointer;
   background:var(--bg);color:#0a0a0a;position:relative;isolation:isolate;
   transition:transform .25s var(--ease),box-shadow .25s var(--ease),filter .25s var(--ease);
@@ -115,10 +115,10 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .mark{font-family:var(--display);font-weight:900;font-stretch:120%;font-style:italic;
   font-size:1.32rem;letter-spacing:.01em;text-transform:uppercase;line-height:1;white-space:nowrap}
 .mark span{color:var(--gold)}
-.nav{display:flex;align-items:center;gap:2.15rem}
+.nav{display:flex;align-items:center;gap:1.75rem}
 .nav a{
   font-family:var(--display);font-weight:600;font-stretch:108%;font-size:.78rem;
-  letter-spacing:.18em;text-transform:uppercase;color:var(--mute);
+  letter-spacing:.18em;text-transform:uppercase;color:var(--mute);white-space:nowrap;
   transition:color .2s var(--ease);position:relative;padding-block:.4rem;
 }
 .nav a::after{content:"";position:absolute;left:0;bottom:0;height:1px;width:0;
@@ -127,7 +127,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .nav a:hover::after{width:100%}
 /* two header CTAs: one for the desktop bar, one inside the mobile drawer */
 .nav__cta,.hdr__cta{display:none}
-@media (min-width:1040px){.hdr__cta{display:inline-flex}}
+@media (min-width:1240px){.hdr__cta{display:inline-flex}}
 
 .burger{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
   width:44px;height:44px;background:none;cursor:pointer;
@@ -137,9 +137,9 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .burger[aria-expanded="true"] span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
 .burger[aria-expanded="true"] span:nth-child(2){opacity:0}
 .burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
-@media (min-width:900px){.burger{display:none}}
+@media (min-width:1080px){.burger{display:none}}
 
-@media (max-width:899px){
+@media (max-width:1079px){
   .nav{
     position:fixed;inset:74px 0 0;flex-direction:column;align-items:stretch;
     justify-content:flex-start;gap:0;overflow-y:auto;overscroll-behavior:contain;
@@ -245,6 +245,49 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .pillar__n{position:absolute;top:1.2rem;right:1.35rem;font-family:var(--display);
   font-weight:800;font-size:.72rem;letter-spacing:.1em;color:rgba(255,255,255,.16)}
 
+/* ─────────────────────────  COACH  ───────────────────────── */
+.coach{border-top:1px solid var(--line);background:var(--ink-2)}
+.coach__grid{display:grid;gap:clamp(2.25rem,5vw,4rem);align-items:center}
+@media (min-width:900px){.coach__grid{grid-template-columns:.85fr 1.15fr}}
+.coach h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem);margin-bottom:.55rem}
+.coach__role{
+  font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.74rem;
+  letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:1.6rem;
+}
+.coach__body p+p{margin-top:1.15rem}
+.coach__quote{
+  margin:2rem 0 0;padding:1.35rem 0 .25rem 1.5rem;border-left:2px solid var(--gold);
+  font-family:var(--display);font-weight:600;font-stretch:108%;font-style:italic;
+  font-size:clamp(1.05rem,1rem + .5vw,1.3rem);line-height:1.4;color:var(--white);
+}
+.creds{list-style:none;margin:2rem 0 0;padding:0;display:grid;gap:.8rem}
+@media (min-width:620px){.creds{grid-template-columns:repeat(2,1fr)}}
+.creds li{display:flex;gap:.75rem;align-items:flex-start;color:var(--mute);font-size:.95rem}
+.creds svg{width:16px;height:16px;flex:none;margin-top:.32rem;stroke:var(--gold);fill:none;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.portrait{
+  position:relative;aspect-ratio:4/5;border-radius:var(--r);overflow:hidden;
+  background:var(--ink-3);border:1px solid var(--line);
+}
+.portrait img{width:100%;height:100%;object-fit:cover}
+.portrait__ph{
+  position:absolute;inset:.75rem;border:1px dashed rgba(201,162,39,.45);border-radius:8px;
+  display:grid;place-content:center;gap:.7rem;text-align:center;padding:1.5rem;
+}
+.portrait__ph svg{width:34px;height:34px;margin:0 auto;stroke:var(--gold);fill:none;
+  stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.portrait__ph b{font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.72rem;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.portrait__ph span{color:var(--mute);font-size:.84rem;line-height:1.5;max-width:24ch}
+
+/* Unersetzte Platzhalter sollen unübersehbar sein — nie versehentlich live gehen. */
+.todo{
+  background:rgba(201,162,39,.16);color:var(--gold-hi);
+  box-shadow:inset 0 0 0 1px rgba(201,162,39,.4);
+  border-radius:3px;padding:.05em .4em;font-style:normal;
+}
+
 /* ─────────────────────────  PROGRAM  ───────────────────────── */
 .program{border-top:1px solid var(--line);background:linear-gradient(180deg,var(--ink),var(--ink-2))}
 .offer{
@@ -331,6 +374,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .ft a:hover{color:var(--gold-hi)}
 .ft__claim{font-family:var(--display);font-weight:700;font-stretch:110%;font-style:italic;
   text-transform:uppercase;letter-spacing:.06em;color:var(--white);margin-top:.9rem;font-size:.95rem}
+.ft__bar a{text-decoration:underline;text-underline-offset:3px}
 .ft__bar{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--line);
   display:flex;flex-wrap:wrap;gap:.75rem 1.5rem;justify-content:space-between;
   color:#6d6d6b;font-size:.82rem}
@@ -382,6 +426,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
     <nav class="nav" id="nav" aria-label="Hauptnavigation">
       <a href="#fightfit">Was ist FightFit</a>
       <a href="#training">Training</a>
+      <a href="#coach">Coach</a>
       <a href="#program">12 Week Program</a>
       <a href="#open">FightFit Open</a>
       <a href="#kontakt">Kontakt</a>
@@ -538,6 +583,50 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   </div>
 </section>
 
+<!-- ══════════════  DEIN COACH  ══════════════ -->
+<!-- TODO vor dem Livegang: Name, Rolle, Bio, Qualifikationen und Zitat ersetzen.
+     Foto: assets/coach.jpg ablegen (Hochformat 4:5, mind. 800x1000px), dann den
+     Platzhalter-Block unten durch das auskommentierte <img> ersetzen. -->
+<section class="coach" id="coach">
+  <div class="shell coach__grid">
+    <figure class="portrait rv" style="margin:0">
+      <!-- <img src="assets/coach.jpg" width="800" height="1000" alt="[Name] — Head Coach bei FIGHTFIT" decoding="async"> -->
+      <div class="portrait__ph">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="15" rx="2"/>
+          <circle cx="12" cy="11.5" r="3.2"/>
+          <path d="M7.5 5 9 2.8h6L16.5 5"/>
+        </svg>
+        <b>Coach-Foto</b>
+        <span>Hochformat 4:5, mind. 800&times;1000px, als assets/coach.jpg</span>
+      </div>
+    </figure>
+
+    <div class="coach__body rv">
+      <p class="eyebrow">Dein Coach</p>
+      <h2><span class="todo">[Vorname Nachname]</span></h2>
+      <p class="coach__role">Head Coach &middot; FIGHTFIT</p>
+
+      <p class="lede"><span class="todo">[Kurzbio, 2–3 Sätze: Woher kommst du, was hast du selbst
+      trainiert, wie lange coachst du schon? Konkret statt allgemein — genau das schafft
+      Vertrauen bei Leuten ohne Kampfsporterfahrung.]</span></p>
+
+      <p class="lede"><span class="todo">[Zweiter Absatz: Wie unterrichtest du? Was erwartet
+      Teilnehmende in deiner Stunde — Aufbau, Tempo, wie du mit Anfängern umgehst?]</span></p>
+
+      <ul class="creds">
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg><span class="todo">[Qualifikation oder Trainerlizenz]</span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg><span class="todo">[Jahre Erfahrung im Kampfsport]</span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg><span class="todo">[Disziplinen, z.B. Boxen, Kickboxen, BJJ]</span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg><span class="todo">[Weitere Ausbildung, z.B. Athletik, Nothilfe]</span></li>
+      </ul>
+
+      <blockquote class="coach__quote"><span class="todo">[Ein Satz von dir — deine Trainingsphilosophie
+      in einer Zeile.]</span></blockquote>
+    </div>
+  </div>
+</section>
+
 <!-- ══════════════  HAUPTANGEBOT  ══════════════ -->
 <section class="program" id="program">
   <div class="shell">
@@ -645,6 +734,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
           <li><a href="#program">12 Week Program</a></li>
           <li><a href="#open">FightFit Open</a></li>
           <li><a href="#training">Die 5 Bereiche</a></li>
+          <li><a href="#coach">Dein Coach</a></li>
           <li><a href="#fightfit">Was ist FightFit</a></li>
         </ul>
       </div>
@@ -659,6 +749,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
     </div>
     <div class="ft__bar">
       <span>&copy; <span id="yr">2026</span> FIGHTFIT — Alle Rechte vorbehalten.</span>
+      <span><a href="agb.html">AGB</a></span>
       <span>You don't have to fight to train like a fighter.</span>
     </div>
   </div>
