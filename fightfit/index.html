@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIGHTFIT — Train like a fighter. | Premium Combat Fitness Basel</title>
+<meta name="description" content="FIGHTFIT verbindet Striking, Grappling, Kraft und Konditionstraining zu einem intensiven Ganzkörpertraining. 12 Week Program in Basel — beginner friendly, kein Sparring, keine Vorerfahrung nötig.">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230a0a0a'/><text x='16' y='23' font-family='sans-serif' font-size='17' font-weight='700' fill='%23c9a227' text-anchor='middle'>FF</text></svg>">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="FIGHTFIT — Train like a fighter.">
+<meta property="og:description" content="Premium Combat Fitness in Basel. Striking · Grappling · Strength · Conditioning · Mindset.">
+<meta property="og:image" content="assets/fightfit-logo.jpg">
+
+<script>document.documentElement.classList.add('js')</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,100..125,400..900;1,100..125,400..900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ─────────────────────────  TOKENS  ───────────────────────── */
+:root{
+  --ink:#050505;
+  --ink-2:#0d0d0e;
+  --ink-3:#141416;
+  --line:rgba(255,255,255,.10);
+  --line-strong:rgba(255,255,255,.18);
+  --white:#f7f7f5;
+  --mute:#a2a2a0;
+  --gold:#c9a227;
+  --gold-lo:#8f6f16;
+  --gold-hi:#f0d98a;
+  --gold-grad:linear-gradient(140deg,#f4e4ae 0%,#d4af37 38%,#a8801d 72%,#e8cf88 100%);
+  --shell:min(1180px,100% - 2.5rem);
+  --r:14px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+
+/* ─────────────────────────  BASE  ───────────────────────── */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0;background:var(--ink);color:var(--white);
+  font-family:var(--body);font-size:clamp(1rem,.96rem + .2vw,1.075rem);
+  line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+img{max-width:100%;display:block;height:auto}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4{font-family:var(--display);font-weight:800;font-stretch:112%;
+  line-height:.98;letter-spacing:-.01em;margin:0;text-transform:uppercase}
+p{margin:0}
+::selection{background:var(--gold);color:#0a0a0a}
+:focus-visible{outline:2px solid var(--gold-hi);outline-offset:3px;border-radius:4px}
+
+.shell{width:var(--shell);margin-inline:auto}
+.gold{color:var(--gold)}
+.gold-fill{background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.eyebrow{
+  font-family:var(--display);font-weight:700;font-size:.75rem;font-stretch:112%;
+  letter-spacing:.32em;text-transform:uppercase;color:var(--gold);
+  display:flex;align-items:center;gap:.85rem;margin-bottom:1.25rem;
+}
+.eyebrow::before{content:"";width:34px;height:1px;background:var(--gold);opacity:.7;flex:none}
+.eyebrow.is-center{justify-content:center}
+.eyebrow.is-center::after{content:"";width:34px;height:1px;background:var(--gold);opacity:.7;flex:none}
+
+.lede{color:var(--mute);max-width:58ch}
+section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
+
+/* ─────────────────────────  BUTTONS  ───────────────────────── */
+.btn{
+  --bg:var(--gold-grad);
+  display:inline-flex;align-items:center;justify-content:center;gap:.6rem;
+  font-family:var(--display);font-weight:800;font-stretch:112%;font-size:.86rem;
+  letter-spacing:.16em;text-transform:uppercase;
+  padding:1.05rem 2.1rem;border:0;border-radius:2px;cursor:pointer;
+  background:var(--bg);color:#0a0a0a;position:relative;isolation:isolate;
+  transition:transform .25s var(--ease),box-shadow .25s var(--ease),filter .25s var(--ease);
+  box-shadow:0 10px 34px -14px rgba(201,162,39,.85);
+}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 18px 40px -14px rgba(201,162,39,.95)}
+.btn:active{transform:translateY(0)}
+.btn--ghost{
+  background:transparent;color:var(--white);
+  box-shadow:inset 0 0 0 1px var(--line-strong);
+}
+.btn--ghost:hover{box-shadow:inset 0 0 0 1px var(--gold);color:var(--gold-hi);filter:none}
+.btn--sm{padding:.8rem 1.4rem;font-size:.74rem}
+
+/* ─────────────────────────  HEADER  ───────────────────────── */
+.hdr{
+  position:fixed;inset:0 0 auto;z-index:100;
+  transition:background .35s var(--ease),border-color .35s var(--ease),backdrop-filter .35s var(--ease);
+  border-bottom:1px solid transparent;
+}
+.hdr[data-stuck]{
+  background:rgba(5,5,5,.82);backdrop-filter:blur(14px) saturate(1.3);
+  -webkit-backdrop-filter:blur(14px) saturate(1.3);border-bottom-color:var(--line);
+}
+.hdr__in{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;
+  height:74px;width:var(--shell);margin-inline:auto}
+.mark{font-family:var(--display);font-weight:900;font-stretch:120%;font-style:italic;
+  font-size:1.32rem;letter-spacing:.01em;text-transform:uppercase;line-height:1;white-space:nowrap}
+.mark span{color:var(--gold)}
+.nav{display:flex;align-items:center;gap:2.15rem}
+.nav a{
+  font-family:var(--display);font-weight:600;font-stretch:108%;font-size:.78rem;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--mute);
+  transition:color .2s var(--ease);position:relative;padding-block:.4rem;
+}
+.nav a::after{content:"";position:absolute;left:0;bottom:0;height:1px;width:0;
+  background:var(--gold);transition:width .3s var(--ease)}
+.nav a:hover{color:var(--white)}
+.nav a:hover::after{width:100%}
+/* two header CTAs: one for the desktop bar, one inside the mobile drawer */
+.nav__cta,.hdr__cta{display:none}
+@media (min-width:1040px){.hdr__cta{display:inline-flex}}
+
+.burger{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  width:44px;height:44px;background:none;cursor:pointer;
+  border:1px solid var(--line-strong);border-radius:2px}
+.burger span{display:block;width:18px;height:1.5px;background:var(--white);
+  transition:transform .3s var(--ease),opacity .2s var(--ease)}
+.burger[aria-expanded="true"] span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+.burger[aria-expanded="true"] span:nth-child(2){opacity:0}
+.burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+@media (min-width:900px){.burger{display:none}}
+
+@media (max-width:899px){
+  .nav{
+    position:fixed;inset:74px 0 0;flex-direction:column;align-items:stretch;
+    justify-content:flex-start;gap:0;overflow-y:auto;overscroll-behavior:contain;
+    background:rgba(5,5,5,.98);backdrop-filter:blur(16px);border-top:1px solid var(--line);
+    padding:.5rem 1.25rem 2.5rem;
+    clip-path:inset(0 0 100% 0);opacity:0;pointer-events:none;
+    transition:clip-path .4s var(--ease),opacity .3s var(--ease);
+  }
+  .nav[data-open]{clip-path:inset(0 0 0 0);opacity:1;pointer-events:auto}
+  .nav a{padding:1.05rem 0;border-bottom:1px solid var(--line);font-size:.95rem;letter-spacing:.14em}
+  .nav a::after{display:none}
+  .nav a.nav__cta{display:inline-flex;margin-top:1.4rem;border-bottom:0;color:#0a0a0a}
+}
+
+/* ─────────────────────────  HERO  ───────────────────────── */
+.hero{
+  min-height:88svh;display:grid;align-items:center;padding:clamp(6.5rem,12vh,9rem) 0 clamp(2.5rem,6vh,4rem);
+  position:relative;overflow:clip;
+}
+.hero::before{
+  content:"";position:absolute;inset:-20% -10% auto 30%;height:120%;z-index:0;
+  background:radial-gradient(60% 55% at 60% 40%,rgba(201,162,39,.20),transparent 70%);
+  filter:blur(30px);pointer-events:none;
+}
+.hero::after{
+  content:"";position:absolute;inset:auto 0 0;height:38%;z-index:0;
+  background:linear-gradient(to top,var(--ink),transparent);pointer-events:none;
+}
+.hero__grid{position:relative;z-index:1;display:grid;gap:clamp(2.5rem,6vw,4.5rem);align-items:center}
+@media (min-width:960px){.hero__grid{grid-template-columns:1.05fr .95fr}}
+
+.hero h1{font-size:clamp(3.1rem,10.5vw,7.1rem);font-weight:900;font-stretch:118%;font-style:italic;letter-spacing:-.02em}
+.hero h1 .line{display:block}
+.hero__sub{margin-top:1.6rem;font-size:clamp(1.02rem,.95rem + .5vw,1.28rem);color:var(--mute);max-width:44ch}
+.hero__sub strong{color:var(--white);font-weight:600}
+.hero__cta{display:flex;flex-wrap:wrap;gap:.9rem;margin-top:2.4rem}
+
+.hero__visual{position:relative;display:grid;place-items:center;margin:0}
+.hero__visual::before{
+  content:"";position:absolute;width:118%;aspect-ratio:1;border-radius:50%;z-index:0;
+  background:radial-gradient(circle,rgba(201,162,39,.22),rgba(201,162,39,.05) 45%,transparent 70%);
+  filter:blur(18px);pointer-events:none;
+}
+.hero__visual img{
+  position:relative;z-index:1;width:min(100%,540px);mix-blend-mode:screen;
+  -webkit-mask-image:radial-gradient(ellipse 62% 62% at 50% 50%,#000 58%,transparent 100%);
+  mask-image:radial-gradient(ellipse 62% 62% at 50% 50%,#000 58%,transparent 100%);
+}
+
+.facts{
+  position:relative;z-index:1;margin-top:clamp(3rem,7vw,4.5rem);
+  display:grid;grid-template-columns:repeat(2,1fr);gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+}
+@media (min-width:760px){.facts{grid-template-columns:repeat(4,1fr)}}
+.fact{background:var(--ink-2);padding:1.5rem 1.5rem 1.65rem}
+.fact dt{font-family:var(--display);font-size:.68rem;font-weight:700;font-stretch:110%;
+  letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem}
+.fact dd{margin:0;font-family:var(--display);font-weight:800;font-stretch:112%;
+  font-size:clamp(1.15rem,1rem + .7vw,1.5rem);text-transform:uppercase;line-height:1.1}
+.fact dd small{display:block;font-family:var(--body);font-weight:400;font-size:.82rem;
+  text-transform:none;color:var(--mute);letter-spacing:0;margin-top:.3rem}
+
+/* ─────────────────────────  ABOUT  ───────────────────────── */
+.about{border-top:1px solid var(--line);background:linear-gradient(180deg,var(--ink-2),var(--ink))}
+.about__grid{display:grid;gap:clamp(2rem,5vw,4rem)}
+@media (min-width:900px){.about__grid{grid-template-columns:.9fr 1.1fr;align-items:start}}
+.about h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.about p+p{margin-top:1.15rem}
+.about__body p:first-child{color:var(--white);font-size:1.12em}
+.tags{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:2rem}
+.tag{
+  font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.72rem;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--gold-hi);
+  border:1px solid rgba(201,162,39,.35);border-radius:999px;padding:.5rem 1.05rem;
+  background:rgba(201,162,39,.06);
+}
+
+/* ─────────────────────────  PILLARS  ───────────────────────── */
+.pillars{border-top:1px solid var(--line)}
+.pillars__head{display:grid;gap:1.25rem;margin-bottom:clamp(2.5rem,5vw,3.75rem)}
+@media (min-width:900px){.pillars__head{grid-template-columns:1fr 1fr;align-items:end}}
+.pillars h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.grid5{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+@media (min-width:560px){.grid5{grid-template-columns:repeat(2,1fr)}}
+@media (min-width:1040px){.grid5{grid-template-columns:repeat(5,1fr)}}
+.pillar{
+  background:var(--ink-2);padding:2.15rem 1.6rem 2.35rem;position:relative;overflow:hidden;
+  transition:background .35s var(--ease);
+}
+.pillar::before{
+  content:"";position:absolute;inset:auto 0 0;height:2px;background:var(--gold-grad);
+  transform:scaleX(0);transform-origin:left;transition:transform .45s var(--ease);
+}
+.pillar:hover{background:var(--ink-3)}
+.pillar:hover::before{transform:scaleX(1)}
+.pillar svg{width:40px;height:40px;stroke:var(--gold);fill:none;stroke-width:1.5;
+  stroke-linecap:round;stroke-linejoin:round;margin-bottom:1.35rem;
+  transition:transform .45s var(--ease)}
+.pillar:hover svg{transform:translateY(-3px) scale(1.06)}
+.pillar h3{font-size:1.16rem;letter-spacing:.06em;margin-bottom:.6rem}
+.pillar p{color:var(--mute);font-size:.94rem;line-height:1.55}
+.pillar__n{position:absolute;top:1.2rem;right:1.35rem;font-family:var(--display);
+  font-weight:800;font-size:.72rem;letter-spacing:.1em;color:rgba(255,255,255,.16)}
+
+/* ─────────────────────────  PROGRAM  ───────────────────────── */
+.program{border-top:1px solid var(--line);background:linear-gradient(180deg,var(--ink),var(--ink-2))}
+.offer{
+  display:grid;gap:0;border:1px solid var(--line-strong);border-radius:var(--r);
+  overflow:hidden;background:var(--ink-2);
+  box-shadow:0 50px 110px -60px rgba(0,0,0,1);
+}
+@media (min-width:940px){.offer{grid-template-columns:1.12fr .88fr}}
+.offer__main{padding:clamp(2rem,4vw,3.25rem)}
+.offer__side{
+  padding:clamp(2rem,4vw,3.25rem);background:var(--ink-3);
+  border-top:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;
+}
+@media (min-width:940px){.offer__side{border-top:0;border-left:1px solid var(--line)}}
+.offer h2{font-size:clamp(2rem,1.4rem + 2.4vw,3.1rem);margin-bottom:.9rem}
+.offer h2 em{font-style:italic;font-weight:900}
+.badge{
+  display:inline-flex;align-items:center;gap:.5rem;margin-bottom:1.5rem;
+  font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.7rem;
+  letter-spacing:.2em;text-transform:uppercase;color:#0a0a0a;
+  background:var(--gold-grad);padding:.42rem .85rem;border-radius:2px;
+}
+.specs{list-style:none;margin:0;padding:0;display:grid;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:1.9rem}
+@media (min-width:620px){.specs{grid-template-columns:repeat(2,1fr)}}
+.specs li{background:var(--ink-3);padding:1.05rem 1.25rem;display:flex;gap:.85rem;align-items:flex-start}
+.specs svg{width:17px;height:17px;flex:none;margin-top:.28rem;stroke:var(--gold);fill:none;
+  stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.specs b{display:block;font-family:var(--display);font-weight:700;font-stretch:108%;
+  font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:.15rem}
+.specs span{font-size:.98rem;font-weight:500}
+
+.price{font-family:var(--display);font-weight:900;font-stretch:118%;line-height:1;
+  font-size:clamp(3rem,2rem + 4.5vw,4.6rem);letter-spacing:-.02em}
+.price sup{font-size:.3em;vertical-align:super;letter-spacing:.1em;font-weight:700;margin-right:.35em;color:var(--mute)}
+.price-note{color:var(--mute);font-size:.92rem;margin-top:.7rem}
+.offer__side .btn{width:100%;margin-top:1.9rem}
+.check{list-style:none;margin:1.9rem 0 0;padding:0;display:grid;gap:.75rem}
+.check li{display:flex;gap:.7rem;align-items:flex-start;color:var(--mute);font-size:.94rem}
+.check svg{width:16px;height:16px;flex:none;margin-top:.3rem;stroke:var(--gold);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* ─────────────────────────  OPEN  ───────────────────────── */
+.open{border-top:1px solid var(--line)}
+.open__card{
+  border:1px solid var(--line);border-radius:var(--r);background:var(--ink-2);
+  padding:clamp(2rem,4vw,3.25rem);display:grid;gap:2rem;align-items:center;position:relative;overflow:hidden;
+}
+@media (min-width:900px){.open__card{grid-template-columns:1fr auto}}
+.open__card::before{
+  content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--gold-grad);
+}
+.open h2{font-size:clamp(1.9rem,1.4rem + 2.2vw,2.9rem);margin-bottom:.85rem}
+.open__meta{display:flex;flex-wrap:wrap;gap:.5rem .95rem;margin-top:1.35rem;color:var(--mute);
+  font-family:var(--display);font-weight:600;font-stretch:108%;font-size:.78rem;
+  letter-spacing:.16em;text-transform:uppercase}
+.open__meta span{display:inline-flex;align-items:center;gap:.95rem}
+.open__meta span:not(:last-child)::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:.75}
+.open__time{font-family:var(--display);font-weight:800;font-stretch:112%;text-transform:uppercase;
+  font-size:clamp(1.4rem,1.1rem + 1.2vw,2rem);white-space:nowrap}
+.open__time small{display:block;font-family:var(--body);font-weight:400;font-size:.85rem;
+  color:var(--mute);text-transform:none;letter-spacing:0;margin-top:.35rem}
+
+/* ─────────────────────────  CTA BAND  ───────────────────────── */
+.band{
+  border-top:1px solid var(--line);text-align:center;position:relative;overflow:clip;
+  background:var(--ink-2);
+}
+.band::before{
+  content:"";position:absolute;inset:-60% 0 auto;height:200%;
+  background:radial-gradient(45% 40% at 50% 50%,rgba(201,162,39,.16),transparent 70%);pointer-events:none;
+}
+.band__in{position:relative;z-index:1}
+.band h2{font-size:clamp(2.3rem,1.5rem + 4vw,4.6rem);font-weight:900;font-stretch:118%;font-style:italic}
+.band p{color:var(--mute);margin:1.4rem auto 2.4rem;max-width:46ch}
+
+/* ─────────────────────────  FOOTER  ───────────────────────── */
+.ft{border-top:1px solid var(--line);padding:clamp(3rem,6vw,4.5rem) 0 2.5rem;background:var(--ink)}
+.ft__grid{display:grid;gap:2.5rem}
+@media (min-width:760px){.ft__grid{grid-template-columns:1.4fr 1fr 1fr}}
+.ft h4{font-size:.72rem;letter-spacing:.24em;color:var(--gold);margin-bottom:1.1rem;font-weight:700}
+.ft p,.ft li{color:var(--mute);font-size:.94rem}
+.ft ul{list-style:none;margin:0;padding:0;display:grid;gap:.65rem}
+.ft a:hover{color:var(--gold-hi)}
+.ft__claim{font-family:var(--display);font-weight:700;font-stretch:110%;font-style:italic;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--white);margin-top:.9rem;font-size:.95rem}
+.ft__bar{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:.75rem 1.5rem;justify-content:space-between;
+  color:#6d6d6b;font-size:.82rem}
+
+/* ─────────────────────────  REVEAL  ───────────────────────── */
+.js .rv{opacity:0;transform:translateY(22px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.js .rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  .js .rv{opacity:1;transform:none;transition:none}
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════  HEADER  ══════════════ -->
+<header class="hdr" id="hdr">
+  <div class="hdr__in">
+    <a class="mark" href="#top" aria-label="FIGHTFIT — Startseite">FIGHT<span>FIT</span></a>
+
+    <nav class="nav" id="nav" aria-label="Hauptnavigation">
+      <a href="#fightfit">Was ist FightFit</a>
+      <a href="#training">Training</a>
+      <a href="#program">12 Week Program</a>
+      <a href="#open">FightFit Open</a>
+      <a href="#kontakt">Kontakt</a>
+      <a class="btn btn--sm nav__cta" href="#program">Secure your spot</a>
+    </nav>
+
+    <div style="display:flex;gap:.75rem;align-items:center">
+      <a class="btn btn--sm hdr__cta" href="#program">Secure your spot</a>
+      <button class="burger" id="burger" aria-label="Menü öffnen" aria-controls="nav" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ══════════════  HERO  ══════════════ -->
+<section class="hero">
+  <div class="shell">
+    <div class="hero__grid">
+      <div>
+        <p class="eyebrow">Premium Combat Fitness · Basel</p>
+        <h1><span class="line">Train like</span><span class="line">a <span class="gold-fill">fighter.</span></span></h1>
+        <p class="hero__sub">
+          <strong>You don't have to fight to train like a fighter.</strong>
+          Striking, Grappling, Kraft und Konditionstraining — vereint in einem
+          intensiven Ganzkörpertraining.
+        </p>
+        <div class="hero__cta">
+          <a class="btn" href="#program">Secure your spot</a>
+          <a class="btn btn--ghost" href="#fightfit">Was ist FightFit?</a>
+        </div>
+      </div>
+
+      <figure class="hero__visual rv">
+        <img src="assets/fightfit-mark.jpg" width="614" height="339"
+             alt="FIGHTFIT Logo — FF Monogramm" fetchpriority="high" decoding="async">
+      </figure>
+    </div>
+
+    <dl class="facts rv">
+      <div class="fact"><dt>Start</dt><dd>12. Okt 2026<small>Montag, 12:00–13:00</small></dd></div>
+      <div class="fact"><dt>Dauer</dt><dd>12 Wochen<small>12 Sessions</small></dd></div>
+      <div class="fact"><dt>Ort</dt><dd>Basel<small>Blotzheimerstrasse</small></dd></div>
+      <div class="fact"><dt>Gruppe</dt><dd>Max. 16<small>Teilnehmer pro Kurs</small></dd></div>
+    </dl>
+  </div>
+</section>
+
+<!-- ══════════════  WAS IST FIGHTFIT  ══════════════ -->
+<section class="about" id="fightfit">
+  <div class="shell about__grid">
+    <div class="rv">
+      <p class="eyebrow">Was ist FightFit</p>
+      <h2>Kämpfen<br>musst du<br><span class="gold-fill">nicht.</span></h2>
+    </div>
+    <div class="about__body rv">
+      <p class="lede">
+        FightFit verbindet Elemente aus Striking, Grappling, Kraft- und Konditionstraining
+        zu einem intensiven Ganzkörpertraining.
+      </p>
+      <p class="lede">
+        Du trainierst wie ein Fighter — ohne kämpfen zu müssen. Keine Kampfsporterfahrung
+        notwendig, kein Sparring. Im Mittelpunkt stehen Technik, Athletik, Kraft, Ausdauer
+        und das Fighter Mindset.
+      </p>
+      <p class="lede">
+        Kein klassisches Kampfsport-Gym. Ein Training, das dich fordert, technisch sauber
+        aufbaut und dich Woche für Woche stärker macht.
+      </p>
+      <div class="tags">
+        <span class="tag">Beginner friendly</span>
+        <span class="tag">No fighting</span>
+        <span class="tag">No sparring</span>
+        <span class="tag">No experience needed</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  DIE 5 BEREICHE  ══════════════ -->
+<section class="pillars" id="training">
+  <div class="shell">
+    <div class="pillars__head rv">
+      <div>
+        <p class="eyebrow">Die 5 Bereiche</p>
+        <h2>Ein Training.<br><span class="gold-fill">Fünf Säulen.</span></h2>
+      </div>
+      <p class="lede">
+        Jede Session kombiniert Technik, Athletik und Kopf — aufgebaut auf den fünf
+        Bereichen, die einen Fighter ausmachen.
+      </p>
+    </div>
+
+    <div class="grid5">
+      <article class="pillar rv">
+        <span class="pillar__n">01</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6.5 5.5A2.5 2.5 0 0 1 9 3h5.5A4.5 4.5 0 0 1 19 7.5v3a4 4 0 0 1-4 4H9.5a3 3 0 0 1-3-3z"/>
+          <path d="M8 14.5v2.2a1.8 1.8 0 0 0 1.8 1.8h4.9a1.8 1.8 0 0 0 1.8-1.8v-2.2"/>
+          <path d="M9 18.5V20a1 1 0 0 0 1 1h4.5a1 1 0 0 0 1-1v-1.5"/>
+          <path d="M19 8.2h.6A1.4 1.4 0 0 1 21 9.6v1.2a1.4 1.4 0 0 1-1.4 1.4H19"/>
+        </svg>
+        <h3>Striking</h3>
+        <p>Boxing &amp; Kickboxing Fundamentals — Technik, Distanz und saubere Schlagmechanik.</p>
+      </article>
+
+      <article class="pillar rv">
+        <span class="pillar__n">02</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="6.5" cy="6" r="2"/>
+          <path d="M3 19.5c.4-3 1.9-5 4.4-5.6l3.6-.9 3-2.4"/>
+          <path d="M7.4 13.9 5.6 11l1.4-2.4"/>
+          <circle cx="18" cy="8.5" r="2"/>
+          <path d="M21 19.5c-.3-2.6-1.4-4.6-3.4-5.4l-3.2-1.2-2.4.6"/>
+          <path d="M12 19.5h9"/><path d="M3 19.5h5"/>
+        </svg>
+        <h3>Grappling</h3>
+        <p>Kontrolle, Bewegung und Partnerwork — Körperbeherrschung statt Kraftakt.</p>
+      </article>
+
+      <article class="pillar rv">
+        <span class="pillar__n">03</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 7.5a3 3 0 1 1 6 0"/>
+          <path d="M14.6 7.8c2.4 1.2 3.9 3.6 3.9 6.4A6.5 6.5 0 0 1 12 20.9a6.5 6.5 0 0 1-6.5-6.7c0-2.8 1.5-5.2 3.9-6.4z"/>
+          <path d="M9.4 7.8h5.2"/>
+        </svg>
+        <h3>Strength</h3>
+        <p>Functional Strength — Kraft, die im Training und im Alltag trägt.</p>
+      </article>
+
+      <article class="pillar rv">
+        <span class="pillar__n">04</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M2.5 12.5h3.8l1.9-5.4 3 11 2.4-7.3 1.5 1.7h6.4"/>
+        </svg>
+        <h3>Conditioning</h3>
+        <p>Fighter-style Conditioning — Intervalle, Rounds und echte Ausdauer.</p>
+      </article>
+
+      <article class="pillar rv">
+        <span class="pillar__n">05</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20.5 12.4c0-4.4-3.6-8-8-8a8 8 0 0 0-8 7.6c0 1.6-.5 2.6-1.4 3.6-.5.5-.3 1.3.4 1.5l1.9.5v2.3a1.6 1.6 0 0 0 1.6 1.6h3.3"/>
+          <path d="M10.3 21.5V18"/>
+          <path d="M9.6 12.6a2 2 0 1 1 2.2-2.9 2 2 0 1 1 2.9 2.4 2 2 0 1 1-2.6 2.3 2 2 0 1 1-2.5-1.8z"/>
+        </svg>
+        <h3>Mindset</h3>
+        <p>Challenge yourself. Get stronger. Der Kopf entscheidet, wie weit du gehst.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  HAUPTANGEBOT  ══════════════ -->
+<section class="program" id="program">
+  <div class="shell">
+    <div class="offer rv">
+      <div class="offer__main">
+        <span class="badge">Hauptangebot</span>
+        <h2>FightFit<br><em class="gold-fill">12 Week Program</em></h2>
+        <p class="lede">
+          Zwölf Wochen, zwölf Sessions, eine feste Gruppe. Strukturierter Aufbau von
+          Technik, Kraft und Kondition — vom ersten Tag an beginner friendly.
+        </p>
+
+        <ul class="specs">
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+            <div><b>Start</b><span>Montag, 12. Oktober 2026</span></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
+            <div><b>Zeit</b><span>Montag · 12:00–13:00 Uhr</span></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10.5c0 5.2-8 11-8 11s-8-5.8-8-11a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10.5" r="2.8"/></svg>
+            <div><b>Ort</b><span>Basel, Blotzheimerstrasse</span></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 20v-1.8a3.5 3.5 0 0 0-3.5-3.5H6.5A3.5 3.5 0 0 0 3 18.2V20"/><circle cx="9.7" cy="7.5" r="3.5"/><path d="M21 20v-1.8a3.5 3.5 0 0 0-2.7-3.4M15.5 4.2a3.5 3.5 0 0 1 0 6.6"/></svg>
+            <div><b>Gruppe</b><span>Max. 16 Teilnehmer</span></div>
+          </li>
+        </ul>
+
+        <ul class="check">
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>Beginner friendly — jedes Level startet hier.</li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>No fighting. No sparring. No experience needed.</li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg>Feste Gruppe, persönliches Coaching, klarer Aufbau.</li>
+        </ul>
+      </div>
+
+      <aside class="offer__side">
+        <p class="eyebrow">Gesamtpreis</p>
+        <p class="price"><sup>CHF</sup>299<span class="gold">.–</span></p>
+        <p class="price-note">12 Wochen · 12 Sessions · alles inklusive.<br>Plätze limitiert auf 16 Teilnehmer.</p>
+        <a class="btn" href="#kontakt">Secure your spot</a>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  FIGHTFIT OPEN  ══════════════ -->
+<section class="open" id="open">
+  <div class="shell">
+    <div class="open__card rv">
+      <div>
+        <p class="eyebrow">Zusätzliches Angebot</p>
+        <h2>FightFit <span class="gold-fill">Open</span></h2>
+        <p class="lede">
+          Drop-in Combat Fitness — ohne Abo, ohne Kursbindung. Komm vorbei, trainier
+          eine Runde wie ein Fighter.
+        </p>
+        <p class="open__meta">
+          <span>Striking</span><span>Grappling</span><span>Strength</span><span>Conditioning</span>
+        </p>
+      </div>
+      <div>
+        <p class="open__time">Samstag<br>13:00–14:00<small>Drop-in · Basel, Blotzheimerstrasse</small></p>
+        <a class="btn btn--ghost btn--sm" href="#kontakt" style="margin-top:1.4rem">Drop-in anfragen</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  CTA BAND  ══════════════ -->
+<section class="band" id="kontakt">
+  <div class="shell band__in rv">
+    <p class="eyebrow is-center">Bereit?</p>
+    <h2>Train like<br>a <span class="gold-fill">fighter.</span></h2>
+    <p>
+      Max. 16 Plätze im 12 Week Program. Sichere dir deinen Platz — oder stell uns
+      vorher deine Fragen.
+    </p>
+    <div style="display:flex;flex-wrap:wrap;gap:.9rem;justify-content:center">
+      <a class="btn" href="mailto:info@fightfit.ch?subject=Anmeldung%20FIGHTFIT%2012%20Week%20Program">Secure your spot</a>
+      <a class="btn btn--ghost" href="mailto:info@fightfit.ch?subject=Frage%20zu%20FIGHTFIT">Frage stellen</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ══════════════  FOOTER  ══════════════ -->
+<footer class="ft">
+  <div class="shell">
+    <div class="ft__grid">
+      <div>
+        <p class="mark" style="font-size:1.5rem">FIGHT<span>FIT</span></p>
+        <p class="ft__claim">Train like a fighter.</p>
+        <p style="margin-top:1rem;max-width:34ch">
+          Premium Combat Fitness in Basel. Striking · Grappling · Strength ·
+          Conditioning · Mindset.
+        </p>
+      </div>
+      <div>
+        <h4>Training</h4>
+        <ul>
+          <li><a href="#program">12 Week Program</a></li>
+          <li><a href="#open">FightFit Open</a></li>
+          <li><a href="#training">Die 5 Bereiche</a></li>
+          <li><a href="#fightfit">Was ist FightFit</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Kontakt</h4>
+        <ul>
+          <li>Blotzheimerstrasse<br>4055 Basel</li>
+          <li><a href="mailto:info@fightfit.ch">info@fightfit.ch</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="ft__bar">
+      <span>&copy; <span id="yr">2026</span> FIGHTFIT — Alle Rechte vorbehalten.</span>
+      <span>You don't have to fight to train like a fighter.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  /* sticky header state */
+  const hdr = document.getElementById("hdr");
+  const onScroll = () => hdr.toggleAttribute("data-stuck", window.scrollY > 12);
+  addEventListener("scroll", onScroll, {passive:true});
+  onScroll();
+
+  /* mobile nav */
+  const burger = document.getElementById("burger");
+  const nav = document.getElementById("nav");
+  const setNav = open => {
+    nav.toggleAttribute("data-open", open);
+    burger.setAttribute("aria-expanded", String(open));
+    burger.setAttribute("aria-label", open ? "Menü schliessen" : "Menü öffnen");
+    document.body.style.overflow = open ? "hidden" : "";
+  };
+  burger.addEventListener("click", () => setNav(!nav.hasAttribute("data-open")));
+  nav.addEventListener("click", e => { if (e.target.closest("a")) setNav(false); });
+  addEventListener("keydown", e => { if (e.key === "Escape") setNav(false); });
+
+  /* scroll reveal */
+  const items = document.querySelectorAll(".rv");
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entries, obs) => {
+      entries.forEach((entry, i) => {
+        if (!entry.isIntersecting) return;
+        entry.target.style.transitionDelay = Math.min(i * 70, 280) + "ms";
+        entry.target.classList.add("in");
+        obs.unobserve(entry.target);
+      });
+    }, {rootMargin:"0px 0px -12% 0px", threshold:0.08});
+    items.forEach(el => io.observe(el));
+  } else {
+    items.forEach(el => el.classList.add("in"));
+  }
+
+  document.getElementById("yr").textContent = new Date().getFullYear();
+})();
+</script>
+</body>
+</html>
