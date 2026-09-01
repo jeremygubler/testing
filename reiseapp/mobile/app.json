@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Fernspur",
+    "slug": "fernspur",
+    "version": "0.1.0",
+    "scheme": "fernspur",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Fernspur zeichnet damit deine Reiseroute auf der Karte auf.",
+          "locationAlwaysAndWhenInUsePermission": "Fernspur zeichnet deine Route auch dann weiter auf, wenn der Bildschirm aus ist oder du andere Apps nutzt. Ohne \"Immer\" bricht die Spur ab, sobald du die App verlässt.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Fernspur fügt damit deine Fotos zur Reise hinzu – im Original, mit Zeit und Ort aus den Bilddaten."
+        }
+      ],
+      [
+        "./plugins/withCmakeVersion",
+        {
+          "version": "4.1.2"
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ch.fernspur.app"
+    },
+    "android": {
+      "package": "ch.fernspur.app",
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:8000"
+    }
+  }
+}

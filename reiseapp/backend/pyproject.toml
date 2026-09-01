@@ -1,0 +1,81 @@
+[project]
+name = "reiseapp-backend"
+version = "0.1.0"
+description = "Self-hosted travel tracking backend (FastAPI + PostGIS)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "geoalchemy2>=0.15",
+    "shapely>=2.0",
+    "alembic>=1.14",
+    "argon2-cffi>=23.1",
+    "pyjwt>=2.9",
+    "python-multipart>=0.0.12",
+    "boto3>=1.35",
+    "pillow>=11.0",
+    "pillow-heif>=0.18",
+    "reportlab>=4.2",
+    "email-validator>=2.2",
+    # Runtime, not just tests: the PDF book fetches its map image from the
+    # tileserver with it.
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pypdf>=5.0",
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["integration: needs a live Postgres/PostGIS (docker compose up db)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency markers are meant to be evaluated in the signature.
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Query",
+]
+
+[tool.mypy]
+# Must match the runtime (python:3.12-slim) and CI: typechecking against an
+# older version makes mypy reject 3.12 syntax in third-party stubs.
+python_version = "3.12"
+strict = true
+plugins = []
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# reportlab ships no type information, so its Flowable is Any and strict mode
+# refuses to subclass it. Scoped to the one module that needs to.
+module = "app.services.pdfbook"
+disallow_subclassing_any = false
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
