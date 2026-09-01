@@ -500,6 +500,47 @@ docker run --rm -v /srv/tiles/mbtiles:/data -v /srv/tiles/cache:/cache \
 docker compose --profile tiles up -d
 ```
 
+**Mehrere Länder brauchen eine `config.json`.** Ohne sie sucht sich tileserver-gl
+beim Start *eine* `.mbtiles` aus und ignoriert die übrigen — im Log steht dann
+„No input file specified, using …". Die Datei gehört neben die Kacheln:
+
+```json
+{
+  "options": { "paths": { "root": "/data", "mbtiles": "/data" } },
+  "data": {
+    "switzerland": { "mbtiles": "switzerland.mbtiles" },
+    "thailand":    { "mbtiles": "thailand.mbtiles" },
+    "gcc-states":  { "mbtiles": "gcc-states.mbtiles" }
+  }
+}
+```
+
+Danach listet `curl http://<host>:8080/data.json` alle drei. Ein eigener Stil
+gehört in denselben Ordner und wird unter `"styles"` eingetragen; ohne einen
+solchen erzeugt tileserver-gl nur die Notbehelf-Ansicht `basic-preview`.
+
+### Die Karte im PDF-Buch
+
+Ist `REISEAPP_TILES_BASE_URL` gesetzt, holt der Export ein gerendertes Kartenbild
+mit der Route darauf und setzt es an die Stelle der Vektorskizze:
+
+```
+REISEAPP_TILES_BASE_URL=http://tiles:8080
+REISEAPP_TILES_STYLE=basic-preview
+```
+
+Der Ausschnitt kommt von tileserver-gls `static/auto`, das Zoom und Mittelpunkt
+selbst so wählt, dass die Route hineinpasst — dieselbe Mercator-Rechnung hier zu
+wiederholen hiesse, sie ein zweites Mal falsch zu machen.
+
+Die Route wird vorher auf 120 Punkte ausgedünnt: der ganze Linienzug steht in der
+URL, und Server hören irgendwo bei 8 kB auf zu lesen. Anfang und Ende bleiben
+dabei ausdrücklich erhalten, sonst würde die Reise auf der Seite kürzer aussehen,
+als sie war.
+
+Bleibt die Variable leer oder antwortet der Server nicht, zeichnet das Buch seine
+Skizze — ein Export darf nicht daran scheitern, dass ein Dienst fehlt.
+
 Der Dienst liegt hinter einem Profil, weil die Kacheln Gigabyte gross sind und jede
 Installation sie selbst erzeugen oder laden muss. Ein leerer Kachelserver wäre schlimmer
 als keiner — er antwortet.

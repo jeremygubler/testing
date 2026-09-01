@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     viewer_map_style_url: str = "https://tiles.openfreemap.org/styles/liberty"
     viewer_path: str = "../web"
 
+    # A self-hosted tileserver-gl, used to render the map page of the PDF book.
+    # Empty means the book falls back to its vector sketch — which is why this is
+    # optional: an export must not depend on a service that may not exist.
+    tiles_base_url: str = ""
+    tiles_style: str = "basic-preview"
+
     # NoDecode is load-bearing: without it the env source JSON-decodes the raw
     # value before any validator runs, so a comma-separated list is a parse error
     # and an empty REISEAPP_CORS_ORIGINS="" crashes the process at startup —

@@ -8,10 +8,12 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models import Trip
 from app.schemas.trip import TripRead
 from app.services import journal as journal_service
 from app.services import photos as photo_service
+from app.services import staticmap
 from app.services import stops as stop_service
 from app.services import timeline as timeline_service
 from app.services import trips as trip_service
@@ -202,6 +204,14 @@ async def to_pdf(
                 )
             )
 
+    settings = get_settings()
+    # The route as PostGIS simplified it, which is also what the page can show.
+    map_image = await staticmap.render(
+        settings.tiles_base_url,
+        settings.tiles_style,
+        [(lat, lon) for lon, lat in route.coordinates],
+    )
+
     book = BookData(
         title=trip.title,
         description=trip.description,
@@ -211,5 +221,6 @@ async def to_pdf(
         items=items,
         stop_places=_places(stop.geom for stop in stops),
         photo_places=_places(photo.geom for photo in photo_models),
+        map_image=map_image,
     )
     return build_pdf(book), _filename(trip, "pdf")

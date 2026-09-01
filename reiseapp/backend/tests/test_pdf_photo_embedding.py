@@ -32,4 +32,7 @@ async def test_the_book_actually_contains_the_photo(
 
     pdf = await api.get(f"{TRIPS}/{trip}/export.pdf", headers=headers)
     assert pdf.status_code == 200, pdf.text
-    assert b"/Image" in pdf.content, "no embedded image resource in the PDF"
+    # Not b"/Image": ReportLab writes /ImageB /ImageC /ImageI into every page's
+    # /ProcSet, so that marker passes on a book with no pictures at all — which
+    # is exactly the failure this test exists to catch.
+    assert b"/Subtype /Image" in pdf.content, "no embedded image resource in the PDF"

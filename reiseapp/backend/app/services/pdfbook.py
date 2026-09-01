@@ -69,6 +69,9 @@ class BookData:
     stats: list[tuple[str, str]]
     route: list[tuple[float, float]]
     items: list[BookItem]
+    #: A rendered map with the route on it, when a tileserver could supply one.
+    #: Absent falls back to the sketch, which needs no network and no service.
+    map_image: bytes | None = None
     #: Drawn into the same frame as the route, so a trip that was never tracked
     #: still shows where it happened.
     stop_places: list[tuple[float, float]] = field(default_factory=list)
@@ -249,6 +252,29 @@ def _photo_grid(photos: list[BookPhoto], columns: int = 3) -> Table | None:
     return table
 
 
+def _map_page(data: BookData) -> Flowable:
+    """The rendered map if there is one, the sketch otherwise.
+
+    Not a conditional at the call site, because the fallback is the normal case
+    for anyone who has not set up a tileserver — and a book without a map page
+    would be missing a page, not a picture.
+    """
+    height = 80 * mm
+    if data.map_image is not None:
+        try:
+            reader = ImageReader(BytesIO(data.map_image))
+            width, pixels_high = reader.getSize()
+            ratio = pixels_high / width if width else 0.62
+            return Image(BytesIO(data.map_image), width=CONTENT_WIDTH, height=CONTENT_WIDTH * ratio)
+        except Exception:
+            logger.warning("pdf: the map image could not be read", exc_info=True)
+
+    return RouteSketch(
+        data.route, CONTENT_WIDTH, height,
+        stops=data.stop_places, photos=data.photo_places,
+    )
+
+
 def build_pdf(data: BookData) -> bytes:
     buffer = BytesIO()
     document = SimpleDocTemplate(
@@ -272,12 +298,7 @@ def build_pdf(data: BookData) -> bytes:
         story.append(Paragraph(_escape(data.description), style["body"]))
         story.append(Spacer(1, 8 * mm))
 
-    story.append(
-        RouteSketch(
-            data.route, CONTENT_WIDTH, 80 * mm,
-            stops=data.stop_places, photos=data.photo_places,
-        )
-    )
+    story.append(_map_page(data))
     story.append(Spacer(1, 8 * mm))
 
     if data.stats:
