@@ -9,10 +9,13 @@ $schema = ff_schema();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    $in  = (array)($_POST['c'] ?? []);
-    $out = [];
+    $in = (array)($_POST['c'] ?? []);
+    // Vom gespeicherten Stand ausgehen und nur überschreiben, was wirklich
+    // mitgeschickt wurde. Ein unvollständiges Formular darf nie Inhalte leeren.
+    $out = ff_content();
     foreach ($schema as $sec => $def) {
-        $posted = (array)($in[$sec] ?? []);
+        if (!array_key_exists($sec, $in)) continue;
+        $posted = (array)$in[$sec];
         if (isset($def['repeater'])) {
             $rows = [];
             foreach ($posted as $row) {
@@ -27,7 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             continue;
         }
         foreach ($def['fields'] as $key => [$type, , ]) {
-            $val = (string)($posted[$key] ?? '');
+            if (!array_key_exists($key, $posted)) continue;
+            $val = (string)$posted[$key];
             $out[$sec][$key] = $type === 'list'
                 ? array_values(array_filter(array_map('trim', preg_split('/\r?\n/', $val)), 'strlen'))
                 : mb_substr(trim($val), 0, 4000);
