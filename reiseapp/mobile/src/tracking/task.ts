@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
+import { ApiError } from '@/api/client';
 import { uploadWaypoints } from '@/api/geo';
 import type { WaypointInput } from '@/api/types';
 import { deviceId } from './device';
@@ -66,16 +67,39 @@ function toApi(point: BufferedWaypoint): WaypointInput {
   };
 }
 
+/**
+ * The server has stopped being the problem.
+ *
+ * 404: the trip was deleted — on this device or another one. 403: the user is
+ * no longer a member of it. 410: gone for good. In all three the points have no
+ * destination left, and retrying them forever would keep a buffer that can
+ * never reach zero.
+ */
+const PERMANENT_REFUSALS = new Set([403, 404, 410]);
+
+function isPermanent(error: unknown): boolean {
+  return error instanceof ApiError && PERMANENT_REFUSALS.has(error.status);
+}
+
 /** Uploads whatever is buffered. Safe to call at any time; failures just wait. */
-export async function syncNow(): Promise<{ uploaded: number; failed: boolean }> {
+export async function syncNow(): Promise<{
+  uploaded: number;
+  failed: boolean;
+  discarded: number;
+}> {
   const result = await drainQueue({
     takeBatch,
     drop,
+    isPermanent,
     upload: async (tripId, points) => {
       await uploadWaypoints(tripId, points.map(toApi));
     },
   });
-  return { uploaded: result.uploaded, failed: result.failed };
+  return {
+    uploaded: result.uploaded,
+    failed: result.failed,
+    discarded: result.discarded,
+  };
 }
 
 async function adaptProfile(locations: Location.LocationObject[]): Promise<void> {

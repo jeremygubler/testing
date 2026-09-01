@@ -11,12 +11,23 @@ export interface SyncDeps {
   takeBatch: (limit: number) => Promise<BufferedWaypoint[]>;
   drop: (ids: string[]) => Promise<void>;
   upload: (tripId: string, points: BufferedWaypoint[]) => Promise<void>;
+  /**
+   * Whether the server's refusal will still stand tomorrow.
+   *
+   * A connection that dropped is worth retrying forever; a trip that was
+   * deleted is not. Without this distinction the buffer keeps points nobody
+   * will ever accept, retries them on every run, and shows a count that can
+   * never reach zero.
+   */
+  isPermanent?: (error: unknown) => boolean;
 }
 
 export interface SyncResult {
   uploaded: number;
   batches: number;
   failed: boolean;
+  /** Points thrown away because their destination is gone for good. */
+  discarded: number;
 }
 
 export const BATCH_SIZE = 500;
@@ -28,6 +39,7 @@ export async function drainQueue(
 ): Promise<SyncResult> {
   let uploaded = 0;
   let batches = 0;
+  let discarded = 0;
 
   for (let i = 0; i < MAX_BATCHES_PER_RUN; i += 1) {
     const pending = await deps.takeBatch(batchSize);
@@ -45,10 +57,18 @@ export async function drainQueue(
     for (const [tripId, points] of byTrip) {
       try {
         await deps.upload(tripId, points);
-      } catch {
+      } catch (error) {
+        if (deps.isPermanent?.(error)) {
+          // Dropped, not kept: these points have nowhere left to go, and a
+          // buffer that never empties tells the user their data is stuck when
+          // in truth it is undeliverable.
+          await deps.drop(points.map((point) => point.id));
+          discarded += points.length;
+          continue;
+        }
         // Leave everything in the buffer and stop: the next run retries. Points
         // are only dropped after the server has confirmed them.
-        return { uploaded, batches, failed: true };
+        return { uploaded, batches, failed: true, discarded };
       }
       // The upload is idempotent server-side, so a crash between upload and drop
       // costs one duplicate request, never a lost or doubled point.
@@ -60,7 +80,7 @@ export async function drainQueue(
     if (pending.length < batchSize) break;
   }
 
-  return { uploaded, batches, failed: false };
+  return { uploaded, batches, failed: false, discarded };
 }
 
 /** Exponential backoff with a ceiling, for the retry timer. */

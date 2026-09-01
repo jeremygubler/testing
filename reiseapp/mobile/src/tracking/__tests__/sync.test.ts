@@ -42,14 +42,19 @@ describe('drainQueue', () => {
     const queue = fakeQueue([point('1'), point('2'), point('3')]);
     const result = await drainQueue(queue.deps, { batchSize: 2 });
 
-    expect(result).toEqual({ uploaded: 3, batches: 2, failed: false });
+    expect(result).toEqual({ uploaded: 3, batches: 2, failed: false, discarded: 0 });
     expect(queue.remaining).toEqual([]);
     expect(queue.uploads.map((batch) => batch.length)).toEqual([2, 1]);
   });
 
   it('does nothing on an empty buffer', async () => {
     const queue = fakeQueue([]);
-    expect(await drainQueue(queue.deps)).toEqual({ uploaded: 0, batches: 0, failed: false });
+    expect(await drainQueue(queue.deps)).toEqual({
+      uploaded: 0,
+      batches: 0,
+      failed: false,
+      discarded: 0,
+    });
   });
 
   it('keeps the points when the upload fails', async () => {
@@ -85,6 +90,67 @@ describe('drainQueue', () => {
     const result = await drainQueue(queue.deps, { batchSize: 10 });
     expect(result.failed).toBe(true);
     expect(queue.remaining).toHaveLength(2);
+  });
+
+  describe('a refusal that will not change', () => {
+    function goneQueue(initial: BufferedWaypoint[], gone: string) {
+      const queue = fakeQueue(initial);
+      queue.deps.upload = async (tripId, points) => {
+        if (tripId === gone) throw new Error('404');
+        queue.uploads.push(points);
+      };
+      queue.deps.isPermanent = (error) => String(error).includes('404');
+      return queue;
+    }
+
+    it('throws the points away instead of keeping them forever', async () => {
+      // A trip deleted on another device: the server will answer 404 today,
+      // tomorrow and in a year, and a buffer that never empties tells the user
+      // their data is stuck when it is merely undeliverable.
+      const queue = goneQueue([point('1', 'weg'), point('2', 'weg')], 'weg');
+
+      const result = await drainQueue(queue.deps, { batchSize: 10 });
+
+      expect(result.discarded).toBe(2);
+      expect(result.failed).toBe(false);
+      expect(queue.remaining).toHaveLength(0);
+    });
+
+    it('keeps going for the trips that are still there', async () => {
+      const queue = goneQueue([point('1', 'weg'), point('2', 'da')], 'weg');
+
+      const result = await drainQueue(queue.deps, { batchSize: 10 });
+
+      expect(result.discarded).toBe(1);
+      expect(result.uploaded).toBe(1);
+      expect(queue.remaining.map((row) => row.id)).toEqual([]);
+    });
+
+    it('still keeps what only failed temporarily', async () => {
+      const queue = fakeQueue([point('1', 'trip-a')]);
+      queue.deps.upload = async () => {
+        throw new Error('offline');
+      };
+      queue.deps.isPermanent = (error) => String(error).includes('404');
+
+      const result = await drainQueue(queue.deps, { batchSize: 10 });
+
+      expect(result.failed).toBe(true);
+      expect(result.discarded).toBe(0);
+      expect(queue.remaining).toHaveLength(1);
+    });
+
+    it('without a classifier nothing is ever thrown away', async () => {
+      const queue = fakeQueue([point('1', 'weg')]);
+      queue.deps.upload = async () => {
+        throw new Error('404');
+      };
+
+      const result = await drainQueue(queue.deps, { batchSize: 10 });
+
+      expect(result.discarded).toBe(0);
+      expect(queue.remaining).toHaveLength(1);
+    });
   });
 });
 

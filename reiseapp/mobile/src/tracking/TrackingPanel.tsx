@@ -113,10 +113,14 @@ export function TrackingPanel({ tripId, onSynced }: { tripId: string; onSynced?:
     setMessage(null);
     try {
       const result = await syncNow();
+      const discarded =
+        result.discarded > 0
+          ? ` ${result.discarded} Punkte verworfen: ihre Reise gibt es nicht mehr.`
+          : '';
       setMessage(
         result.failed
-          ? 'Upload fehlgeschlagen – die Punkte bleiben gepuffert.'
-          : `${result.uploaded} Punkte hochgeladen.`,
+          ? `Upload fehlgeschlagen – die Punkte bleiben gepuffert.${discarded}`
+          : `${result.uploaded} Punkte hochgeladen.${discarded}`,
       );
       if (!result.failed && result.uploaded > 0) onSynced?.();
       await refresh();
