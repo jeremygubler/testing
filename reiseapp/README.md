@@ -502,22 +502,43 @@ docker compose --profile tiles up -d
 
 **Mehrere Länder brauchen eine `config.json`.** Ohne sie sucht sich tileserver-gl
 beim Start *eine* `.mbtiles` aus und ignoriert die übrigen — im Log steht dann
-„No input file specified, using …". Die Datei gehört neben die Kacheln:
+„No input file specified, using …". Sobald die Datei existiert, verschwindet
+allerdings auch der automatisch erzeugte Stil, und ohne Stil rendert der Server
+keine Bilder. Beides gehört also hinein:
 
 ```json
 {
-  "options": { "paths": { "root": "/data", "mbtiles": "/data" } },
+  "options": {
+    "paths": {
+      "root": "/data",
+      "fonts": "/usr/src/app/node_modules/tileserver-gl-styles/fonts",
+      "styles": "/usr/src/app/node_modules/tileserver-gl-styles/styles",
+      "mbtiles": "/data"
+    }
+  },
+  "styles": { "basic-preview": { "style": "basic-preview/style.json" } },
   "data": {
-    "switzerland": { "mbtiles": "switzerland.mbtiles" },
-    "thailand":    { "mbtiles": "thailand.mbtiles" },
-    "gcc-states":  { "mbtiles": "gcc-states.mbtiles" }
+    "v3":         { "mbtiles": "switzerland.mbtiles" },
+    "thailand":   { "mbtiles": "thailand.mbtiles" },
+    "gcc-states": { "mbtiles": "gcc-states.mbtiles" }
   }
 }
 ```
 
-Danach listet `curl http://<host>:8080/data.json` alle drei. Ein eigener Stil
-gehört in denselben Ordner und wird unter `"styles"` eingetragen; ohne einen
-solchen erzeugt tileserver-gl nur die Notbehelf-Ansicht `basic-preview`.
+Drei Details, die je einen Anlauf gekostet haben:
+
+- **`root` bleibt `/data`**, wo die Konfiguration und die Kacheln liegen. Zeigt es
+  auf das Stil-Verzeichnis im Image, findet der Server seine Kacheln nicht mehr
+  und startet nicht.
+- **Schriften und Stile absolut**, denn sie liegen im Image und nicht bei den
+  Kacheln. Fehlt der `fonts`-Pfad, sucht der Server sie unter `/data/fonts` und
+  antwortet mit 400 — in der App als „Failed to load glyph range".
+- **Die Datenquelle muss `v3` heissen.** Der mitgelieferte Stil bindet sich fest
+  an `mbtiles://{v3}`; jeder andere Name lässt ihn ins Leere zeigen.
+
+Ein Stil bedient genau eine Quelle. Für mehrere Länder auf einer Karte müssen die
+`.mbtiles` zu einer Datei zusammengeführt werden — bis dahin zeichnet der Stil
+das Land, das unter `v3` steht, und die übrigen liegen als Rohdaten daneben.
 
 ### Die Karte im PDF-Buch
 

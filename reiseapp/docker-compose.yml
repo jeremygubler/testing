@@ -114,7 +114,9 @@ services:
     ports:
       - "${TILES_PORT:-8080}:8080"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      # /styles.json, not /health: tileserver-gl has no health endpoint, so the
+      # obvious check marked a perfectly working server unhealthy for hours.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/styles.json || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
