@@ -47,7 +47,18 @@ drift:
 downgrade:
 	cd $(BACKEND) && .venv/bin/alembic downgrade base && .venv/bin/alembic upgrade head
 
-check: lint typecheck test drift test-integration downgrade
+# Catches what the test suite structurally cannot: production code importing a
+# package that is only a dev dependency. The image installs `pip install .`
+# without the dev extra, while every venv that runs the tests has it — so the
+# suite passes and the container dies on startup with ModuleNotFoundError.
+runtime-import:
+	cd $(BACKEND) && rm -rf .venv-runtime \
+	  && .venv/bin/python -m venv .venv-runtime \
+	  && .venv-runtime/bin/pip -q install . \
+	  && .venv-runtime/bin/python -c "import app.main" \
+	  && rm -rf .venv-runtime
+
+check: lint typecheck test drift test-integration downgrade runtime-import
 
 # --- mobile ---
 

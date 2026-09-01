@@ -72,3 +72,12 @@ jobs:
 
       - name: Migrations are reversible
         run: alembic downgrade base
+
+      # The image installs the runtime dependencies only. A test suite whose
+      # venv also carries the dev extra cannot see production code importing a
+      # dev-only package — it passes, and the container dies on startup.
+      - name: The runtime image can import the app
+        run: |
+          python -m venv /tmp/venv-runtime
+          /tmp/venv-runtime/bin/pip -q install .
+          /tmp/venv-runtime/bin/python -c "import app.main"
