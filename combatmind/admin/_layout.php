@@ -11,7 +11,7 @@ function admin_head(string $title, bool $nav = true): void {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title><?= h($title) ?> — FIGHTFIT Admin</title>
+<title><?= h($title) ?> — COMBAT MIND Admin</title>
 <style>
 :root{--ink:#08080a;--ink-2:#111114;--ink-3:#191920;--line:#26262e;--white:#f2f2f0;
   --mute:#9a9aa2;--gold:#c9a227;--gold-hi:#f0d98a;color-scheme:dark}
@@ -75,7 +75,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.55}
 <body>
 <?php if ($nav): ?>
 <div class="bar"><div class="bar__in">
-  <a class="logo" href="index.php">FIGHT<span>FIT</span> Admin</a>
+  <a class="logo" href="index.php">COMBAT<span>MIND</span> Admin</a>
   <span style="display:flex;gap:.75rem;align-items:center">
     <a href="../index.php" target="_blank" rel="noopener" style="font-size:.88rem">Website ansehen ↗</a>
     <a href="logout.php" style="font-size:.88rem;color:var(--mute)">Abmelden</a>

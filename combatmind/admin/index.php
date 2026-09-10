@@ -19,7 +19,7 @@ if (!auth_is_setup()) {
     }
     admin_head('Einrichten', false);
     ?>
-    <h1>FIGHTFIT Admin einrichten</h1>
+    <h1>COMBAT MIND Admin einrichten</h1>
     <p class="sub">Lege ein Passwort fest. Es wird nur als Hash gespeichert, nie im Klartext.</p>
     <?php if ($err): ?><div class="flash err"><?= h($err) ?></div><?php endif ?>
     <form method="post" class="card">
@@ -49,7 +49,7 @@ if (!auth_check()) {
     admin_head('Anmelden', false);
     ?>
     <h1>Anmelden</h1>
-    <p class="sub">FIGHTFIT Admin</p>
+    <p class="sub">COMBAT MIND Admin</p>
     <?php if ($err): ?><div class="flash err"><?= h($err) ?><?= $wait > 0 ? ' Bitte in ' . ceil($wait / 60) . ' Minuten erneut versuchen.' : '' ?></div><?php endif ?>
     <form method="post" class="card">
       <?= csrf_field() ?>

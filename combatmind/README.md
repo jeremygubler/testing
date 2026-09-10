@@ -1,14 +1,15 @@
-# FIGHTFIT — Website
+# COMBAT MIND — Website
 
-Statische Seite mit kleinem Admin. Kein Framework, kein Build-Schritt, keine
-Datenbank — läuft auf jedem Webhosting mit PHP 8 (Hostpoint, Infomaniak, cyon).
+Combat Fitness in Basel. Statische Seite mit kleinem Admin — kein Framework,
+kein Build-Schritt, keine Datenbank. Läuft auf jedem Webhosting mit PHP 8,
+also auch bei hosttech.
 
 ## Hochladen
 
 Den gesamten Ordnerinhalt ins Web-Root des Hosters legen (`httpdocs`, `public_html`
 oder `www` — je nach Anbieter). Danach:
 
-1. `https://fightfit-bs.ch/admin/` aufrufen
+1. `https://<deine-domain>/admin/` aufrufen
 2. Passwort festlegen (mind. 10 Zeichen) — das passiert genau einmal
 3. Fertig. Unter «Texte», «Galerie» und «Termine» pflegst du ab jetzt alles selbst.
 
@@ -24,11 +25,14 @@ Hostern standardmässig aktiv.
 
 ```
 index.php          Startseite — baut sich aus data/content.json.php auf
-agb.html           AGB (statisch, kein Admin nötig)
+danke.php          Bestätigungsseite nach der Anmeldung (Tally-Redirect)
+impressum.php      Impressum
+agb.php            AGB / Teilnahmebedingungen
+datenschutz.php    Datenschutzerklärung
 admin/             Login, Texte, Galerie, Termine, Passwort ändern
-inc/               core (Speicher/Auth/CSRF), schema, media, events
+inc/               core (Speicher/Auth/CSRF), schema, media, events, legal
 data/              Inhalte als JSON. Nicht öffentlich abrufbar.
-assets/            Logo, Coach-Foto
+assets/            Hero-Bild, Coach-Foto, Logo
 assets/gallery/    hochgeladene Galeriebilder
 ```
 
@@ -62,3 +66,13 @@ Zum Zurückspielen einfach wieder hochladen.
 
 `data/auth.json.php` per FTP löschen. Beim nächsten Aufruf von `/admin/` kannst
 du ein neues Passwort setzen. Die Inhalte bleiben erhalten.
+
+## Noch offen vor dem Livegang
+
+- COMBAT-MIND-Logo einsetzen (Hauptlogo, horizontale Version, CM-Emblem)
+- Geschäftsadresse, E-Mail-Adresse und Rechtsform in den Admin eintragen
+- Tally-Formular neu aufsetzen und Link + Formular-ID im Admin hinterlegen
+- Tally-Redirect nach dem Absenden auf `danke.php` setzen
+- AGB und Datenschutzerklärung durch die bestehenden Dokumente ersetzen
+- Echte Fotos von Jocelyn und aus dem Training hochladen
+- Stripe / TWINT Business einrichten, IBAN erst nach Konto-Eröffnung ergänzen

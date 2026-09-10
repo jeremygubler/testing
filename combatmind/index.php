@@ -4,42 +4,42 @@ require __DIR__ . '/inc/schema.php';
 require __DIR__ . '/inc/media.php';
 require __DIR__ . '/inc/events.php';
 
-$c       = ff_content();
-$events  = events_upcoming();
-$gallery = gallery_items();
-$formUrl = $c['contact']['form_url'] ?: 'https://tally.so/r/lbE7e5';
-$formId  = $c['contact']['form_id'];
-$cta     = 'href="' . h($formUrl) . '"' . ($formId ? ' data-tally-open="' . h($formId) . '" data-tally-layout="modal" data-tally-width="720" data-tally-overlay="1" data-tally-auto-close="4000"' : '');
+$c        = ff_content();
+$events   = events_upcoming();
+$gallery  = gallery_items();
+$formUrl  = $c['contact']['form_url'];
+$formId   = $c['contact']['form_id'];
+// Solange kein Formular hinterlegt ist, zeigt der CTA auf den Anmelde-Abschnitt.
+$cta      = $formUrl
+    ? 'href="' . h($formUrl) . '"' . ($formId ? ' data-tally-open="' . h($formId) . '" data-tally-layout="modal" data-tally-width="720" data-tally-overlay="1" data-tally-auto-close="4000"' : '')
+    : 'href="#anmeldung"';
+$heroPhoto = $c['hero']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['hero']['photo']))
+    ? 'assets/' . basename($c['hero']['photo']) : '';
 ?>
 <!doctype html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FIGHTFIT — Train like a fighter. | Premium Combat Fitness Basel</title>
-<meta name="description" content="FIGHTFIT verbindet Striking, Grappling, Kraft und Konditionstraining zu einem intensiven Ganzkörpertraining. 12 Week Program in Basel — beginner friendly, kein Sparring, keine Vorerfahrung nötig.">
+<title>COMBAT MIND Basel | Combat Fitness – Train Like a Fighter</title>
+<meta name="description" content="Combat Fitness in Basel: Striking, Grappling, Strength, Conditioning &amp; Mindset. 12 Week Program für Erwachsene – keine Kampfsporterfahrung nötig.">
 <meta name="theme-color" content="#0a0a0a">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230a0a0a'/><text x='16' y='23' font-family='sans-serif' font-size='17' font-weight='700' fill='%23c9a227' text-anchor='middle'>FF</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230a0a0a'/><text x='16' y='23' font-family='sans-serif' font-size='16' font-weight='700' fill='%23c9a227' text-anchor='middle'>CM</text></svg>">
 
-<link rel="canonical" href="https://fightfit-bs.ch/">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="FIGHTFIT">
+<meta property="og:site_name" content="COMBAT MIND">
 <meta property="og:locale" content="de_CH">
-<meta property="og:url" content="https://fightfit-bs.ch/">
-<meta property="og:title" content="FIGHTFIT — Train like a fighter.">
-<meta property="og:description" content="Premium Combat Fitness in Basel. Striking · Grappling · Strength · Conditioning · Mindset.">
-<meta property="og:image" content="https://fightfit-bs.ch/assets/fightfit-logo.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="800">
+<meta property="og:title" content="COMBAT MIND – Train like a fighter.">
+<meta property="og:description" content="Combat Fitness in Basel. Striking · Grappling · Strength · Conditioning · Mindset.">
 <meta name="twitter:card" content="summary_large_image">
-
-<script>document.documentElement.classList.add('js')</script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script>document.documentElement.classList.add('js')</script>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,100..125,400..900;1,100..125,400..900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
+
 /* ─────────────────────────  TOKENS  ───────────────────────── */
 :root{
   --ink:#050505;
@@ -181,26 +181,23 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   content:"";position:absolute;inset:auto 0 0;height:38%;z-index:0;
   background:linear-gradient(to top,var(--ink),transparent);pointer-events:none;
 }
-.hero__grid{position:relative;z-index:1;display:grid;gap:clamp(2.5rem,6vw,4.5rem);align-items:center}
-@media (min-width:960px){.hero__grid{grid-template-columns:1.05fr .95fr}}
+.hero__grid{position:relative;z-index:1;max-width:min(100%,54rem)}
+.hero--photo::before{opacity:.5}
+.hero__bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+.hero__bg img{width:100%;height:100%;object-fit:cover;opacity:.34}
+.hero__bg::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(100deg,var(--ink) 12%,rgba(5,5,5,.72) 48%,rgba(5,5,5,.35) 100%)}
 
-.hero h1{font-size:clamp(3.1rem,10.5vw,7.1rem);font-weight:900;font-stretch:118%;font-style:italic;letter-spacing:-.02em}
-.hero h1 .line{display:block}
-.hero__sub{margin-top:1.6rem;font-size:clamp(1.02rem,.95rem + .5vw,1.28rem);color:var(--mute);max-width:44ch}
+.hero h1{font-weight:900;font-stretch:118%;font-style:italic;letter-spacing:-.02em;max-width:none}
+.h1-brand{display:block;font-size:clamp(2.9rem,9vw,6.4rem);line-height:.92;text-wrap:balance}
+.h1-brand em{font-style:italic;background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.h1-claim{display:block;font-size:clamp(1.15rem,.85rem + 1.7vw,2.05rem);font-weight:700;
+  font-stretch:112%;letter-spacing:.02em;color:var(--mute);margin-top:1rem}
+.hero__pillars{font-family:var(--display);font-weight:600;font-stretch:108%;font-size:.78rem;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-top:1.6rem}
+.hero__sub{margin-top:1.6rem;font-size:clamp(1.02rem,.95rem + .5vw,1.28rem);color:var(--mute);max-width:48ch}
 .hero__sub strong{color:var(--white);font-weight:600}
 .hero__cta{display:flex;flex-wrap:wrap;gap:.9rem;margin-top:2.4rem}
-
-.hero__visual{position:relative;display:grid;place-items:center;margin:0}
-.hero__visual::before{
-  content:"";position:absolute;width:118%;aspect-ratio:1;border-radius:50%;z-index:0;
-  background:radial-gradient(circle,rgba(201,162,39,.22),rgba(201,162,39,.05) 45%,transparent 70%);
-  filter:blur(18px);pointer-events:none;
-}
-.hero__visual img{
-  position:relative;z-index:1;width:min(100%,540px);mix-blend-mode:screen;
-  -webkit-mask-image:radial-gradient(ellipse 62% 62% at 50% 50%,#000 58%,transparent 100%);
-  mask-image:radial-gradient(ellipse 62% 62% at 50% 50%,#000 58%,transparent 100%);
-}
 
 .facts{
   position:relative;z-index:1;margin-top:clamp(3rem,7vw,4.5rem);
@@ -343,27 +340,6 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .check svg{width:16px;height:16px;flex:none;margin-top:.3rem;stroke:var(--gold);fill:none;stroke-width:2;
   stroke-linecap:round;stroke-linejoin:round}
 
-/* ─────────────────────────  OPEN  ───────────────────────── */
-.open{border-top:1px solid var(--line)}
-.open__card{
-  border:1px solid var(--line);border-radius:var(--r);background:var(--ink-2);
-  padding:clamp(2rem,4vw,3.25rem);display:grid;gap:2rem;align-items:center;position:relative;overflow:hidden;
-}
-@media (min-width:900px){.open__card{grid-template-columns:1fr auto}}
-.open__card::before{
-  content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--gold-grad);
-}
-.open h2{font-size:clamp(1.9rem,1.4rem + 2.2vw,2.9rem);margin-bottom:.85rem}
-.open__meta{display:flex;flex-wrap:wrap;gap:.5rem .95rem;margin-top:1.35rem;color:var(--mute);
-  font-family:var(--display);font-weight:600;font-stretch:108%;font-size:.78rem;
-  letter-spacing:.16em;text-transform:uppercase}
-.open__meta span{display:inline-flex;align-items:center;gap:.95rem}
-.open__meta span:not(:last-child)::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:.75}
-.open__time{font-family:var(--display);font-weight:800;font-stretch:112%;text-transform:uppercase;
-  font-size:clamp(1.4rem,1.1rem + 1.2vw,2rem);white-space:nowrap}
-.open__time small{display:block;font-family:var(--body);font-weight:400;font-size:.85rem;
-  color:var(--mute);text-transform:none;letter-spacing:0;margin-top:.35rem}
-
 /* ─────────────────────────  CTA BAND  ───────────────────────── */
 .band{
   border-top:1px solid var(--line);text-align:center;position:relative;overflow:clip;
@@ -451,55 +427,67 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   .js .rv{opacity:1;transform:none;transition:none}
   *{animation-duration:.001ms!important;transition-duration:.001ms!important}
 }
-</style>
 
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SportsActivityLocation",
-  "name": "FIGHTFIT",
-  "slogan": "Train like a fighter.",
-  "description": "Premium Combat Fitness in Basel. Striking, Grappling, Strength, Conditioning und Mindset in einem intensiven Ganzkörpertraining.",
-  "url": "https://fightfit-bs.ch/",
-  "email": "info@fightfit-bs.ch",
-  "image": "https://fightfit-bs.ch/assets/fightfit-logo.jpg",
-  "address": {
-    "@type": "PostalAddress",
-    "streetAddress": "Blotzheimerstrasse",
-    "postalCode": "4055",
-    "addressLocality": "Basel",
-    "addressCountry": "CH"
-  },
-  "makesOffer": [{
-    "@type": "Offer",
-    "name": "FIGHTFIT — 12 Week Program",
-    "price": "299",
-    "priceCurrency": "CHF",
-    "availability": "https://schema.org/LimitedAvailability",
-    "url": "https://fightfit-bs.ch/#program"
-  }]
-}
-</script>
+/* ─────────────────────────  PROGRESSION  ───────────────────────── */
+.prog{border-top:1px solid var(--line);background:linear-gradient(180deg,var(--ink-2),var(--ink))}
+.prog__head{display:grid;gap:1.25rem;margin-bottom:clamp(2.25rem,4.5vw,3.25rem)}
+@media (min-width:900px){.prog__head{grid-template-columns:1fr 1fr;align-items:end}}
+.prog h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.weeks{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;grid-template-columns:repeat(2,1fr)}
+@media (min-width:680px){.weeks{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:1040px){.weeks{grid-template-columns:repeat(4,1fr)}}
+.week{background:var(--ink-2);padding:1.35rem 1.4rem 1.5rem;position:relative;
+  transition:background .3s var(--ease)}
+.week:hover{background:var(--ink-3)}
+.week b{display:block;font-family:var(--display);font-weight:800;font-stretch:112%;
+  font-size:.68rem;letter-spacing:.22em;color:var(--gold);margin-bottom:.5rem}
+.week span{font-family:var(--display);font-weight:700;font-stretch:110%;text-transform:uppercase;
+  letter-spacing:.02em;font-size:.98rem;line-height:1.2;display:block}
+.week--last{background:var(--ink-3)}
+.week--last span{background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ─────────────────────────  FAQ  ───────────────────────── */
+.faq{border-top:1px solid var(--line)}
+.faq__grid{display:grid;gap:clamp(2rem,5vw,4rem)}
+@media (min-width:900px){.faq__grid{grid-template-columns:.8fr 1.2fr;align-items:start}}
+.faq h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.qa{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden}
+.qa details{background:var(--ink-2);transition:background .3s var(--ease)}
+.qa details[open]{background:var(--ink-3)}
+.qa summary{cursor:pointer;list-style:none;padding:1.2rem 1.4rem;display:flex;gap:1rem;
+  align-items:center;justify-content:space-between;
+  font-family:var(--display);font-weight:700;font-stretch:110%;text-transform:uppercase;
+  letter-spacing:.03em;font-size:.95rem}
+.qa summary::-webkit-details-marker{display:none}
+.qa summary::after{content:"";flex:none;width:11px;height:11px;border-right:1.5px solid var(--gold);
+  border-bottom:1.5px solid var(--gold);transform:rotate(45deg) translateY(-2px);
+  transition:transform .3s var(--ease)}
+.qa details[open] summary::after{transform:rotate(225deg) translateY(-2px)}
+.qa summary:hover{color:var(--gold-hi)}
+.qa p{margin:0;padding:0 1.4rem 1.35rem;color:var(--mute);font-size:.96rem;max-width:62ch}
+</style>
 </head>
 <body>
 
 <!-- ══════════════  HEADER  ══════════════ -->
 <header class="hdr" id="hdr">
   <div class="hdr__in">
-    <a class="mark" href="#top" aria-label="FIGHTFIT — Startseite">FIGHT<span>FIT</span></a>
+    <a class="mark" href="#top" aria-label="COMBAT MIND — Startseite">COMBAT<span>MIND</span></a>
 
     <nav class="nav" id="nav" aria-label="Hauptnavigation">
+      <a href="#concept">Concept</a>
       <a href="#training">Training</a>
+      <a href="#program">Program</a>
       <a href="#coach">Coach</a>
       <?php if ($gallery): ?><a href="#galerie">Galerie</a><?php endif ?>
-      <?php if ($events): ?><a href="#termine">Termine</a><?php endif ?>
-      <a href="#program">12 Week Program</a>
-      <a href="#kontakt">Kontakt</a>
-      <a class="btn btn--sm nav__cta" <?= $cta ?>>Secure your spot</a>
+      <a href="#faq">FAQ</a>
+      <a class="btn btn--sm nav__cta" <?= $cta ?>><?= h($c['hero']['cta']) ?></a>
     </nav>
 
     <div style="display:flex;gap:.75rem;align-items:center">
-      <a class="btn btn--sm hdr__cta" <?= $cta ?>>Secure your spot</a>
+      <a class="btn btn--sm hdr__cta" <?= $cta ?>><?= h($c['hero']['cta']) ?></a>
       <button class="burger" id="burger" aria-label="Menü öffnen" aria-controls="nav" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
@@ -510,26 +498,25 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 <main id="top">
 
 <!-- ══════════════  HERO  ══════════════ -->
-<section class="hero">
+<section class="hero<?= $heroPhoto ? ' hero--photo' : '' ?>">
+  <?php if ($heroPhoto): ?>
+  <div class="hero__bg"><img src="<?= h($heroPhoto) ?>" alt="" decoding="async" fetchpriority="high"></div>
+  <?php endif ?>
   <div class="shell">
     <div class="hero__grid">
-      <div>
-        <p class="eyebrow"><?= h($c['hero']['eyebrow']) ?></p>
-        <h1><span class="line"><?= h($c['hero']['line1']) ?></span><span class="line"><?= h($c['hero']['line2']) ?> <span class="gold-fill"><?= h($c['hero']['line2b']) ?></span></span></h1>
-        <p class="hero__sub">
-          <strong><?= h($c['hero']['lead']) ?></strong>
-          <?= nl2br(h($c['hero']['sub'])) ?>
-        </p>
-        <div class="hero__cta">
-          <a class="btn" <?= $cta ?>>Secure your spot</a>
-          <a class="btn btn--ghost" href="#fightfit">Was ist FightFit?</a>
-        </div>
+      <h1>
+        <span class="h1-brand"><?= h($c['hero']['brand']) ?> <em><?= h($c['hero']['brand2']) ?></em></span>
+        <span class="h1-claim"><?= h($c['hero']['claim']) ?></span>
+      </h1>
+      <p class="hero__pillars"><?= h($c['hero']['pillars']) ?></p>
+      <p class="hero__sub">
+        <strong><?= h($c['hero']['lead']) ?></strong>
+        <?= nl2br(h($c['hero']['sub'])) ?>
+      </p>
+      <div class="hero__cta">
+        <a class="btn" <?= $cta ?>><?= h($c['hero']['cta']) ?></a>
+        <a class="btn btn--ghost" href="#program"><?= h($c['hero']['cta2']) ?></a>
       </div>
-
-      <figure class="hero__visual rv">
-        <img src="assets/fightfit-mark.jpg" width="614" height="339"
-             alt="FIGHTFIT Logo — FF Monogramm" fetchpriority="high" decoding="async">
-      </figure>
     </div>
 
     <dl class="facts rv">
@@ -540,23 +527,23 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   </div>
 </section>
 
-<!-- ══════════════  WAS IST FIGHTFIT  ══════════════ -->
-<section class="about" id="fightfit">
+<!-- ══════════════  CONCEPT  ══════════════ -->
+<section class="about" id="concept">
   <div class="shell about__grid">
     <div class="rv">
-      <p class="eyebrow"><?= h($c['about']['eyebrow']) ?></p>
-      <h2><?= h($c['about']['h1']) ?><br><?= h($c['about']['h2']) ?><br><span class="gold-fill"><?= h($c['about']['h3']) ?></span></h2>
+      <p class="eyebrow"><?= h($c['concept']['eyebrow']) ?></p>
+      <h2><?= h($c['concept']['h1']) ?><br><?= h($c['concept']['h2']) ?><br><span class="gold-fill"><?= h($c['concept']['h3']) ?></span></h2>
     </div>
     <div class="about__body rv">
-      <?= paragraphs($c['about']['body']) ?>
+      <?= paragraphs($c['concept']['body']) ?>
       <div class="tags">
-        <?php foreach ($c['about']['tags'] as $t): ?><span class="tag"><?= h($t) ?></span><?php endforeach ?>
+        <?php foreach ($c['concept']['tags'] as $t): ?><span class="tag"><?= h($t) ?></span><?php endforeach ?>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ══════════════  DIE 5 BEREICHE  ══════════════ -->
+<!-- ══════════════  5 PILLARS  ══════════════ -->
 <section class="pillars" id="training">
   <div class="shell">
     <div class="pillars__head rv">
@@ -564,10 +551,8 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
         <p class="eyebrow">Die 5 Bereiche</p>
         <h2>Ein Training.<br><span class="gold-fill">Fünf Säulen.</span></h2>
       </div>
-      <p class="lede">
-        Jede Session kombiniert Technik, Athletik und Kopf — aufgebaut auf den fünf
-        Bereichen, die einen Fighter ausmachen.
-      </p>
+      <p class="lede">Jede Session kombiniert Technik, Athletik und Kopf — aufgebaut auf
+        den fünf Bereichen, die einen Fighter ausmachen.</p>
     </div>
 
     <?php $icons = [
@@ -612,72 +597,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   </div>
 </section>
 
-<!-- ══════════════  DEIN COACH  ══════════════ -->
-<!-- TODO vor dem Livegang: Name, Rolle, Bio, Qualifikationen und Zitat ersetzen.
-     Foto: assets/coach.jpg ablegen (Hochformat 4:5, mind. 800x1000px), dann den
-     Platzhalter-Block unten durch das auskommentierte <img> ersetzen. -->
-<section class="coach" id="coach">
-  <div class="shell coach__grid">
-    <figure class="portrait rv" style="margin:0">
-      <?php if ($c['coach']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['coach']['photo']))): ?>
-        <img src="assets/<?= h(basename($c['coach']['photo'])) ?>" alt="<?= h($c['coach']['name']) ?> — <?= h($c['coach']['role']) ?>" decoding="async">
-      <?php else: ?>
-        <div class="portrait__ph">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="3" y="5" width="18" height="15" rx="2"/>
-            <circle cx="12" cy="11.5" r="3.2"/>
-            <path d="M7.5 5 9 2.8h6L16.5 5"/>
-          </svg>
-          <b>Coach-Foto</b>
-          <span>Im Admin unter &laquo;Dein Coach&raquo; hochladen</span>
-        </div>
-      <?php endif ?>
-    </figure>
-
-    <div class="coach__body rv">
-      <p class="eyebrow">Dein Coach</p>
-      <h2><?= h($c['coach']['name']) ?: '<span class="todo">[Name im Admin eintragen]</span>' ?></h2>
-      <p class="coach__role"><?= h($c['coach']['role']) ?></p>
-      <?= $c['coach']['bio'] ? paragraphs($c['coach']['bio']) : '<p class="lede"><span class="todo">[Bio im Admin eintragen]</span></p>' ?>
-      <?php if ($c['coach']['creds']): ?>
-      <ul class="creds">
-        <?php foreach ($c['coach']['creds'] as $cr): ?>
-        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg><?= h($cr) ?></li>
-        <?php endforeach ?>
-      </ul>
-      <?php endif ?>
-      <?php if ($c['coach']['quote']): ?>
-      <blockquote class="coach__quote"><?= h($c['coach']['quote']) ?></blockquote>
-      <?php endif ?>
-    </div>
-  </div>
-</section>
-
-<!-- ══════════════  GALERIE  ══════════════ -->
-<?php if ($gallery): ?>
-<section class="gallery" id="galerie">
-  <div class="shell">
-    <div class="gallery__head rv">
-      <div>
-        <p class="eyebrow"><?= h($c['gallery']['eyebrow']) ?></p>
-        <h2><?= h($c['gallery']['title']) ?><br><span class="gold-fill"><?= h($c['gallery']['title_gold']) ?></span></h2>
-      </div>
-    </div>
-    <div class="shots rv">
-      <?php foreach ($gallery as $i => $g): ?>
-      <button class="shot" type="button" data-i="<?= $i ?>"
-              data-src="assets/gallery/<?= h(basename($g['file'])) ?>"
-              data-cap="<?= h($g['caption'] ?? '') ?>">
-        <img src="assets/gallery/<?= h(basename($g['file'])) ?>" loading="lazy" decoding="async"
-             alt="<?= h($g['caption'] ?: 'FIGHTFIT Training') ?>">
-      </button>
-      <?php endforeach ?>
-    </div>
-  </div>
-</section>
-<?php endif ?>
-
-<!-- ══════════════  HAUPTANGEBOT  ══════════════ -->
+<!-- ══════════════  12 WEEK PROGRAM  ══════════════ -->
 <section class="program" id="program">
   <div class="shell">
     <div class="offer rv">
@@ -712,31 +632,94 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
         <p class="eyebrow">Gesamtpreis</p>
         <p class="price"><sup>CHF</sup><?= h($c['program']['price']) ?><span class="gold">.–</span></p>
         <p class="price-note"><?= nl2br(h($c['program']['price_note'])) ?></p>
-        <a class="btn" <?= $cta ?>>Secure your spot</a>
+        <a class="btn" <?= $cta ?>><?= h($c['program']['cta']) ?></a>
       </aside>
     </div>
   </div>
 </section>
 
-<!-- ══════════════  FIGHTFIT OPEN  ══════════════ -->
-<section class="open" id="open">
+<!-- ══════════════  PROGRESSION  ══════════════ -->
+<section class="prog" id="progression">
   <div class="shell">
-    <div class="open__card rv">
+    <div class="prog__head rv">
       <div>
-        <p class="eyebrow"><?= h($c['open']['eyebrow']) ?></p>
-        <h2><?= h($c['open']['title']) ?> <span class="gold-fill"><?= h($c['open']['title_gold']) ?></span></h2>
-        <p class="lede"><?= nl2br(h($c['open']['lede'])) ?></p>
-        <p class="open__meta">
-          <?php foreach ($c['open']['tags'] as $t): ?><span><?= h($t) ?></span><?php endforeach ?>
-        </p>
+        <p class="eyebrow"><?= h($c['progression']['eyebrow']) ?></p>
+        <h2><?= h($c['progression']['title']) ?><br><span class="gold-fill"><?= h($c['progression']['title_gold']) ?></span></h2>
       </div>
-      <div>
-        <p class="open__time"><?= h($c['open']['day']) ?><br><?= h($c['open']['time']) ?><small><?= h($c['open']['note']) ?></small></p>
-        <a class="btn btn--ghost btn--sm" <?= $cta ?> style="margin-top:1.4rem">Drop-in anfragen</a>
+      <p class="lede"><?= nl2br(h($c['progression']['lede'])) ?></p>
+    </div>
+    <div class="weeks rv">
+      <?php foreach ($c['weeks'] as $i => $w): $last = $i === count($c['weeks']) - 1; ?>
+      <div class="week<?= $last ? ' week--last' : '' ?>">
+        <b>W<?= $i + 1 ?></b>
+        <span><?= h($w['title']) ?></span>
       </div>
+      <?php endforeach ?>
     </div>
   </div>
 </section>
+
+<!-- ══════════════  MEET YOUR COACH  ══════════════ -->
+<section class="coach" id="coach">
+  <div class="shell coach__grid">
+    <figure class="portrait rv" style="margin:0">
+      <?php if ($c['coach']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['coach']['photo']))): ?>
+        <img src="assets/<?= h(basename($c['coach']['photo'])) ?>" alt="<?= h($c['coach']['name']) ?> — <?= h($c['coach']['role']) ?>" decoding="async">
+      <?php else: ?>
+        <div class="portrait__ph">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="15" rx="2"/>
+            <circle cx="12" cy="11.5" r="3.2"/>
+            <path d="M7.5 5 9 2.8h6L16.5 5"/>
+          </svg>
+          <b>Foto von Jocelyn</b>
+          <span>Im Admin unter &laquo;Meet your Coach&raquo; hochladen</span>
+        </div>
+      <?php endif ?>
+    </figure>
+
+    <div class="coach__body rv">
+      <p class="eyebrow"><?= h($c['coach']['eyebrow']) ?></p>
+      <h2><?= h($c['coach']['name']) ?></h2>
+      <p class="coach__role"><?= h($c['coach']['role']) ?></p>
+      <?= paragraphs($c['coach']['bio']) ?>
+      <?php if ($c['coach']['creds']): ?>
+      <ul class="creds">
+        <?php foreach ($c['coach']['creds'] as $cr): ?>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg><?= h($cr) ?></li>
+        <?php endforeach ?>
+      </ul>
+      <?php endif ?>
+      <?php if ($c['coach']['quote']): ?>
+      <blockquote class="coach__quote"><?= h($c['coach']['quote']) ?></blockquote>
+      <?php endif ?>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  GALERIE  ══════════════ -->
+<?php if ($gallery): ?>
+<section class="gallery" id="galerie">
+  <div class="shell">
+    <div class="gallery__head rv">
+      <div>
+        <p class="eyebrow"><?= h($c['gallery']['eyebrow']) ?></p>
+        <h2><?= h($c['gallery']['title']) ?><br><span class="gold-fill"><?= h($c['gallery']['title_gold']) ?></span></h2>
+      </div>
+    </div>
+    <div class="shots rv">
+      <?php foreach ($gallery as $i => $g): ?>
+      <button class="shot" type="button" data-i="<?= $i ?>"
+              data-src="assets/gallery/<?= h(basename($g['file'])) ?>"
+              data-cap="<?= h($g['caption'] ?? '') ?>">
+        <img src="assets/gallery/<?= h(basename($g['file'])) ?>" loading="lazy" decoding="async"
+             alt="<?= h($g['caption'] ?: 'COMBAT MIND Training') ?>">
+      </button>
+      <?php endforeach ?>
+    </div>
+  </div>
+</section>
+<?php endif ?>
 
 <!-- ══════════════  TERMINE  ══════════════ -->
 <?php if ($events): ?>
@@ -770,18 +753,44 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 </section>
 <?php endif ?>
 
-<!-- ══════════════  CTA BAND  ══════════════ -->
-<section class="band" id="kontakt">
+<!-- ══════════════  FAQ  ══════════════ -->
+<section class="faq" id="faq">
+  <div class="shell faq__grid">
+    <div class="rv">
+      <p class="eyebrow"><?= h($c['faq']['eyebrow']) ?></p>
+      <h2><?= h($c['faq']['title']) ?><br><span class="gold-fill"><?= h($c['faq']['title_gold']) ?></span></h2>
+    </div>
+    <div class="qa rv">
+      <?php foreach ($c['faqs'] as $f): ?>
+      <details>
+        <summary><?= h($f['q']) ?></summary>
+        <p><?= nl2br(h($f['a'])) ?></p>
+      </details>
+      <?php endforeach ?>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  ANMELDUNG  ══════════════ -->
+<section class="band" id="anmeldung">
   <div class="shell band__in rv">
     <p class="eyebrow is-center"><?= h($c['band']['eyebrow']) ?></p>
     <h2><?= h($c['band']['h1']) ?><br><?= h($c['band']['h2']) ?> <span class="gold-fill"><?= h($c['band']['h2b']) ?></span></h2>
-    <p>
-      <?= nl2br(h($c['band']['text'])) ?>
-    </p>
+    <p><?= nl2br(h($c['band']['text'])) ?></p>
     <div style="display:flex;flex-wrap:wrap;gap:.9rem;justify-content:center">
-      <a class="btn" <?= $cta ?>>Secure your spot</a>
-      <a class="btn btn--ghost" href="mailto:<?= h($c['contact']['email']) ?>?subject=Frage%20zu%20FIGHTFIT">Frage stellen</a>
+      <?php if ($formUrl): ?>
+        <a class="btn" <?= $cta ?>><?= h($c['hero']['cta']) ?></a>
+      <?php else: ?>
+        <span class="tag" style="padding:.85rem 1.4rem">Anmeldeformular wird im Admin hinterlegt</span>
+      <?php endif ?>
+      <?php if ($c['contact']['email']): ?>
+        <a class="btn btn--ghost" href="mailto:<?= h($c['contact']['email']) ?>?subject=Frage%20zu%20COMBAT%20MIND">Frage stellen</a>
+      <?php endif ?>
     </div>
+    <p style="margin-top:1.6rem;font-size:.86rem">
+      Mit der Anmeldung akzeptierst du die <a href="agb.php" style="color:var(--gold-hi)">AGB</a>
+      und bestätigst, die <a href="datenschutz.php" style="color:var(--gold-hi)">Datenschutzerklärung</a> gelesen zu haben.
+    </p>
   </div>
 </section>
 
@@ -804,34 +813,39 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   <div class="shell">
     <div class="ft__grid">
       <div>
-        <p class="mark" style="font-size:1.5rem">FIGHT<span>FIT</span></p>
-        <p class="ft__claim">Train like a fighter.</p>
+        <p class="mark" style="font-size:1.5rem">COMBAT<span>MIND</span></p>
+        <p class="ft__claim"><?= h($c['hero']['claim']) ?></p>
         <p style="margin-top:1rem;max-width:34ch"><?= h($c['contact']['about']) ?></p>
       </div>
       <div>
         <h4>Training</h4>
         <ul>
           <li><a href="#program">12 Week Program</a></li>
-          <li><a href="#open">FightFit Open</a></li>
+          <li><a href="#progression">Progression</a></li>
           <li><a href="#training">Die 5 Bereiche</a></li>
-          <?php if ($gallery): ?><li><a href="#galerie">Galerie</a></li><?php endif ?>
-          <?php if ($events): ?><li><a href="#termine">Termine</a></li><?php endif ?>
-          <li><a href="#coach">Dein Coach</a></li>
-          <li><a href="#fightfit">Was ist FightFit</a></li>
+          <li><a href="#coach">Meet your Coach</a></li>
+          <li><a href="#faq">FAQ</a></li>
         </ul>
       </div>
       <div>
         <h4>Kontakt</h4>
         <ul>
-          <li><?= h($c['contact']['street']) ?><br><?= h($c['contact']['city']) ?></li>
-          <li><a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a></li>
-          <li><a href="https://fightfit-bs.ch">fightfit-bs.ch</a></li>
+          <li><?= h($c['contact']['owner']) ?></li>
+          <li><?= $c['contact']['address'] ? h($c['contact']['address']) . '<br>' : '' ?><?= h($c['contact']['city']) ?></li>
+          <?php if ($c['contact']['email']): ?>
+            <li><a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a></li>
+          <?php endif ?>
+        </ul>
+        <h4 style="margin-top:1.6rem">Rechtliches</h4>
+        <ul>
+          <li><a href="impressum.php">Impressum</a></li>
+          <li><a href="agb.php">AGB / Teilnahmebedingungen</a></li>
+          <li><a href="datenschutz.php">Datenschutzerklärung</a></li>
         </ul>
       </div>
     </div>
     <div class="ft__bar">
-      <span>&copy; <span id="yr">2026</span> FIGHTFIT — Alle Rechte vorbehalten.</span>
-      <span><a href="agb.html">AGB</a></span>
+      <span>&copy; <span id="yr">2026</span> COMBAT MIND — <?= h($c['contact']['owner']) ?>, <?= h($c['contact']['city']) ?></span>
       <span>You don't have to fight to train like a fighter.</span>
     </div>
   </div>
@@ -886,7 +900,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
       idx = (i + shots.length) % shots.length;
       const s = shots[idx];
       img.src = s.dataset.src;
-      img.alt = s.dataset.cap || "FIGHTFIT Training";
+      img.alt = s.dataset.cap || "COMBAT MIND Training";
       cap.textContent = s.dataset.cap || "";
     };
     const open = i => {
@@ -919,6 +933,8 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   document.getElementById("yr").textContent = new Date().getFullYear();
 })();
 </script>
+<?php if ($formId): ?>
 <script async src="https://tally.so/widgets/embed.js"></script>
+<?php endif ?>
 </body>
 </html>

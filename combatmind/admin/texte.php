@@ -38,12 +38,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Coach-Foto ist der einzige Upload auf dieser Seite.
-    if (!empty($_FILES['coach_photo']['name'])) {
-        $r = media_store($_FILES['coach_photo']);
+    // Zwei feste Bildplätze: Coach-Portrait und Hero-Hintergrund.
+    foreach (['coach_photo' => ['coach', 'coach.jpg'], 'hero_photo' => ['hero', 'hero.jpg']] as $field => [$sec, $name]) {
+        if (empty($_FILES[$field]['name'])) continue;
+        $r = media_store($_FILES[$field]);
         if (!$r['ok']) { flash($r['error'], 'err'); header('Location: texte.php'); exit; }
-        @rename(FF_GALLERY . '/' . $r['file'], FF_ROOT . '/assets/coach.jpg');
-        $out['coach']['photo'] = 'coach.jpg';
+        @rename(FF_GALLERY . '/' . $r['file'], FF_ROOT . '/assets/' . $name);
+        $out[$sec]['photo'] = $name;
     }
 
     $saved = json_write('content.json', $out);
@@ -99,8 +100,19 @@ admin_tabs('texte.php');
           </label>
         <?php endforeach ?>
 
+        <?php if ($sec === 'hero'): ?>
+          <label><span class="lbl">Hintergrundbild ersetzen</span>
+            <input type="file" name="hero_photo" accept="image/jpeg,image/png,image/webp">
+            <span class="hint">Querformat, mind. 1600px breit. Wird abgedunkelt hinter die Schrift gelegt. Ohne Bild bleibt der Hero schwarz.</span>
+          </label>
+          <?php if (!empty($c['hero']['photo']) && is_file(FF_ROOT . '/assets/' . basename($c['hero']['photo']))): ?>
+            <img src="../assets/<?= h(basename($c['hero']['photo'])) ?>?v=<?= @filemtime(FF_ROOT . '/assets/' . basename($c['hero']['photo'])) ?>"
+                 alt="Aktuelles Hero-Bild" style="max-width:260px;border-radius:8px;border:1px solid var(--line)">
+          <?php endif ?>
+        <?php endif ?>
+
         <?php if ($sec === 'coach'): ?>
-          <label><span class="lbl">Coach-Foto ersetzen</span>
+          <label><span class="lbl">Foto von Jocelyn ersetzen</span>
             <input type="file" name="coach_photo" accept="image/jpeg,image/png,image/webp">
             <span class="hint">Hochformat wirkt am besten. Wird automatisch verkleinert und als assets/coach.jpg gespeichert.</span>
           </label>

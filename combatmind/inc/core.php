@@ -1,6 +1,6 @@
 <?php
 /**
- * FIGHTFIT — Kern: Pfade, Speicher, Auth, CSRF.
+ * COMBAT MIND — Kern: Pfade, Speicher, Auth, CSRF.
  * Bewusst ohne Datenbank: JSON-Dateien reichen für diese Menge an Inhalt
  * und lassen sich per FTP sichern und zurückspielen.
  */
