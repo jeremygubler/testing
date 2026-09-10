@@ -1,6 +1,6 @@
 <?php
 require __DIR__ . '/inc/legal.php';
-legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT MIND 12 Week Program in Basel.');
+legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT MIND 12 Week Program in Basel.', 'agb.php');
 ?>
 <header class="doc">
   <div class="shell">

@@ -26,11 +26,20 @@ $heroPhoto = $c['hero']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['
 <meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230a0a0a'/><text x='16' y='23' font-family='sans-serif' font-size='16' font-weight='700' fill='%23c9a227' text-anchor='middle'>CM</text></svg>">
 
+<?php if (site_url()): ?><link rel="canonical" href="<?= h(site_url()) ?>"><?php endif ?>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="COMBAT MIND">
 <meta property="og:locale" content="de_CH">
+<?php if (site_url()): ?><meta property="og:url" content="<?= h(site_url()) ?>"><?php endif ?>
 <meta property="og:title" content="COMBAT MIND – Train like a fighter.">
 <meta property="og:description" content="Combat Fitness in Basel. Striking · Grappling · Strength · Conditioning · Mindset.">
+<?php
+// Social-Vorschaubild: nimmt assets/og.jpg, sonst das Hero-Bild. Ohne beides
+// wird kein og:image gesetzt — lieber keines als ein totes.
+$ogFile = is_file(__DIR__ . '/assets/og.jpg') ? 'assets/og.jpg' : $heroPhoto;
+if ($ogFile && site_url()): ?>
+<meta property="og:image" content="<?= h(site_url($ogFile)) ?>">
+<?php endif ?>
 <meta name="twitter:card" content="summary_large_image">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -468,6 +477,35 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .qa summary:hover{color:var(--gold-hi)}
 .qa p{margin:0;padding:0 1.4rem 1.35rem;color:var(--mute);font-size:.96rem;max-width:62ch}
 </style>
+
+<?php if (site_url()): ?>
+<script type="application/ld+json">
+<?= json_encode(array_filter([
+  '@context' => 'https://schema.org',
+  '@type'    => 'SportsActivityLocation',
+  'name'     => 'COMBAT MIND',
+  'slogan'   => 'Train like a fighter.',
+  'description' => 'Combat Fitness in Basel: Striking, Grappling, Strength, Conditioning und Mindset.',
+  'url'      => site_url(),
+  'email'    => $c['contact']['email'] ?: null,
+  'image'    => $ogFile ? site_url($ogFile) : null,
+  'address'  => array_filter([
+      '@type'           => 'PostalAddress',
+      'streetAddress'   => $c['contact']['address'] ?: null,
+      'addressLocality' => 'Basel',
+      'addressCountry'  => 'CH',
+  ]),
+  'makesOffer' => [[
+      '@type'        => 'Offer',
+      'name'         => 'COMBAT MIND — 12 Week Program',
+      'price'        => $c['program']['price'],
+      'priceCurrency'=> 'CHF',
+      'availability' => 'https://schema.org/LimitedAvailability',
+      'url'          => site_url('#program'),
+  ]],
+]), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
+</script>
+<?php endif ?>
 </head>
 <body>
 

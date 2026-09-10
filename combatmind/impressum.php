@@ -1,6 +1,6 @@
 <?php
 require __DIR__ . '/inc/legal.php';
-legal_head('Impressum', 'Impressum von COMBAT MIND, Combat Fitness in Basel.');
+legal_head('Impressum', 'Impressum von COMBAT MIND, Combat Fitness in Basel.', 'impressum.php');
 ?>
 <header class="doc">
   <div class="shell">

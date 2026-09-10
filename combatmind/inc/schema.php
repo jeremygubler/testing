@@ -144,6 +144,7 @@ function ff_schema(): array {
         ]],
 
         'contact' => ['label' => 'Kontakt & Footer', 'fields' => [
+            'site_url'=> ['text', 'Domain (mit https://, ohne Schrägstrich am Ende)', 'https://combat-mind.ch'],
             'owner'   => ['text', 'Inhaberin', 'Inhaberin Jocelyn Gubler'],
             'email'   => ['text', 'E-Mail', ''],
             'city'    => ['text', 'Ort', 'Basel, Schweiz'],

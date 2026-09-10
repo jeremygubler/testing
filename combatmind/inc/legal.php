@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/schema.php';
 
-function legal_head(string $title, string $desc = ''): void {
+function legal_head(string $title, string $desc = '', string $slug = ''): void {
     $c = ff_content();
     ?><!doctype html>
 <html lang="de">
@@ -13,6 +13,7 @@ function legal_head(string $title, string $desc = ''): void {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= h($title) ?> — COMBAT MIND</title>
 <?php if ($desc): ?><meta name="description" content="<?= h($desc) ?>"><?php endif ?>
+<?php if ($slug && site_url()): ?><link rel="canonical" href="<?= h(site_url($slug)) ?>"><?php endif ?>
 <meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230a0a0a'/><text x='16' y='23' font-family='sans-serif' font-size='16' font-weight='700' fill='%23c9a227' text-anchor='middle'>CM</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -19,6 +19,13 @@ function h(?string $s): string {
     return htmlspecialchars($s ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/** Absolute URL auf Basis der im Admin gesetzten Domain. Leer, wenn keine gesetzt. */
+function site_url(string $path = ''): string {
+    $base = rtrim((string)(ff_content()['contact']['site_url'] ?? ''), '/');
+    if ($base === '') return '';
+    return $base . ($path === '' ? '/' : '/' . ltrim($path, '/'));
+}
+
 /** Zeilenumbrüche aus dem Admin zu Absätzen machen (nach dem Escaping). */
 function paragraphs(?string $s): string {
     $out = '';

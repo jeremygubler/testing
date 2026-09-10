@@ -1,6 +1,6 @@
 <?php
 require __DIR__ . '/inc/legal.php';
-legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet — Anmeldung, Gesundheitsangaben, Zahlungen, Hosting.');
+legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet — Anmeldung, Gesundheitsangaben, Zahlungen, Hosting.', 'datenschutz.php');
 ?>
 <header class="doc">
   <div class="shell">

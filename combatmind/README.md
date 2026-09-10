@@ -9,7 +9,7 @@ also auch bei hosttech.
 Den gesamten Ordnerinhalt ins Web-Root des Hosters legen (`httpdocs`, `public_html`
 oder `www` — je nach Anbieter). Danach:
 
-1. `https://<deine-domain>/admin/` aufrufen
+1. `https://combat-mind.ch/admin/` aufrufen
 2. Passwort festlegen (mind. 10 Zeichen) — das passiert genau einmal
 3. Fertig. Unter «Texte», «Galerie» und «Termine» pflegst du ab jetzt alles selbst.
 
@@ -70,6 +70,8 @@ du ein neues Passwort setzen. Die Inhalte bleiben erhalten.
 ## Noch offen vor dem Livegang
 
 - COMBAT-MIND-Logo einsetzen (Hauptlogo, horizontale Version, CM-Emblem)
+- Social-Vorschaubild als `assets/og.jpg` ablegen (1200×630 px) — sonst wird
+  ersatzweise das Hero-Bild verwendet, und ohne beides gar keines gesetzt
 - Geschäftsadresse, E-Mail-Adresse und Rechtsform in den Admin eintragen
 - Tally-Formular neu aufsetzen und Link + Formular-ID im Admin hinterlegen
 - Tally-Redirect nach dem Absenden auf `danke.php` setzen
