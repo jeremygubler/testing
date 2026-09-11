@@ -22,7 +22,7 @@ $heroPhoto = $c['hero']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>COMBAT MIND Basel | Combat Fitness – Train Like a Fighter</title>
-<meta name="description" content="Combat Fitness in Basel: Striking, Grappling, Strength, Conditioning &amp; Mindset. 12 Week Program für Erwachsene – keine Kampfsporterfahrung nötig.">
+<meta name="description" content="Combat Fitness in Basel: Striking, Grappling, Strength, Conditioning &amp; Mindset. 12 Week Program ab 16 Jahren – keine Kampfsporterfahrung nötig.">
 <meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230a0a0a'/><text x='16' y='23' font-family='sans-serif' font-size='16' font-weight='700' fill='%23c9a227' text-anchor='middle'>CM</text></svg>">
 

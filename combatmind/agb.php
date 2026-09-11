@@ -30,7 +30,9 @@ legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT M
     werden in der Reihenfolge ihres Eingangs berücksichtigt.</p>
     <p>Die Anmeldung ist <strong>verbindlich</strong> und personengebunden. Eine Übertragung
     auf Dritte ist nur mit Zustimmung von COMBAT MIND möglich.</p>
-    <p>Die Teilnahme setzt ein Mindestalter von <strong>18 Jahren</strong> voraus.</p>
+    <p>Die Teilnahme setzt ein Mindestalter von <strong>16 Jahren</strong> voraus.
+    Teilnehmende unter 18 Jahren benötigen die schriftliche Einwilligung der
+    erziehungsberechtigten Person; diese ist vor der ersten Lektion vorzulegen.</p>
   </section>
 
   <section>

@@ -30,7 +30,7 @@ function ff_schema(): array {
             ['label' => 'Start',  'value' => '12. Okt 2026', 'note' => 'bis 28. Dezember'],
             ['label' => 'Rhythmus', 'value' => '1× pro Woche', 'note' => 'Montag, 12:00–13:00'],
             ['label' => 'Ort',    'value' => 'Basel',        'note' => 'Trainingsort folgt'],
-            ['label' => 'Plätze', 'value' => 'Max. 16',      'note' => 'für Erwachsene, 18+'],
+            ['label' => 'Plätze', 'value' => 'Max. 16',      'note' => 'ab 16 Jahren'],
         ]],
 
         'concept' => ['label' => 'Concept', 'fields' => [
@@ -58,7 +58,7 @@ function ff_schema(): array {
             'badge'      => ['text', 'Badge', 'Das Programm'],
             'title'      => ['text', 'Titel', '12 Week'],
             'title_gold' => ['text', 'Titel (gold)', 'Program'],
-            'lede'       => ['textarea', 'Einleitung', 'Zwölf Wochen, ein Training pro Woche, eine feste Gruppe. Für Erwachsene — geeignet für Einsteiger und sportliche Teilnehmer, mit oder ohne Kampfsporterfahrung.'],
+            'lede'       => ['textarea', 'Einleitung', 'Zwölf Wochen, ein Training pro Woche, eine feste Gruppe. Ab 16 Jahren — geeignet für Einsteiger und sportliche Teilnehmer, mit oder ohne Kampfsporterfahrung.'],
             'price'      => ['text', 'Preis (nur Zahl)', '299'],
             'price_note' => ['textarea', 'Hinweis beim Preis', "12 × 60 Minuten · alles inklusive.\nMaximal 16 Plätze."],
             'cta'        => ['text', 'Button', 'Secure my spot'],
@@ -118,7 +118,7 @@ function ff_schema(): array {
             ['q' => 'Wie fit muss ich sein?', 'a' => 'Das Training ist fordernd, Übungen können aber angepasst werden.'],
             ['q' => 'Was brauche ich?', 'a' => 'Bequeme Sportkleidung, Trinkflasche und saubere Hallenschuhe bzw. je nach Einheit barfuss. Weitere Ausrüstung wird vor dem Start kommuniziert.'],
             ['q' => 'Was passiert, wenn ich eine Einheit verpasse?', 'a' => 'Verpasste Einheiten werden grundsätzlich nicht rückerstattet oder gutgeschrieben. Details gemäss AGB.'],
-            ['q' => 'Wie alt muss ich sein?', 'a' => 'Für den ersten Durchgang: 18+.'],
+            ['q' => 'Wie alt muss ich sein?', 'a' => 'Ab 16 Jahren. Unter 18 brauchst du die schriftliche Einwilligung deiner Eltern oder erziehungsberechtigten Person.'],
             ['q' => 'Wie viele Plätze gibt es?', 'a' => 'Maximal 16.'],
         ]],
 
