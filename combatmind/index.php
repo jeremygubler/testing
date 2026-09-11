@@ -9,10 +9,17 @@ $events   = events_upcoming();
 $gallery  = gallery_items();
 $formUrl  = $c['contact']['form_url'];
 $formId   = $c['contact']['form_id'];
-// Solange kein Formular hinterlegt ist, zeigt der CTA auf den Anmelde-Abschnitt.
-$cta      = $formUrl
-    ? 'href="' . h($formUrl) . '"' . ($formId ? ' data-tally-open="' . h($formId) . '" data-tally-layout="modal" data-tally-width="720" data-tally-overlay="1" data-tally-auto-close="4000"' : '')
-    : 'href="#anmeldung"';
+
+// Ist der Kurs voll, führt jeder Anmelde-Button zur Warteliste statt in ein
+// geschlossenes Formular.
+$soldOut   = !empty($c['program']['sold_out']);
+$seatsLeft = trim((string)$c['program']['seats_left']);
+$seatsAll  = trim((string)$c['program']['seats_total']);
+$cta       = $soldOut
+    ? cta_attrs($c['program']['waitlist_url'], $c['program']['waitlist_id'])
+    : cta_attrs($formUrl, $formId);
+$ctaLabel  = $soldOut ? $c['program']['waitlist_cta'] : $c['hero']['cta'];
+$ctaLabelP = $soldOut ? $c['program']['waitlist_cta'] : $c['program']['cta'];
 $heroPhoto = $c['hero']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['hero']['photo']))
     ? 'assets/' . basename($c['hero']['photo']) : '';
 ?>
@@ -42,12 +49,97 @@ if ($ogFile && site_url()): ?>
 <?php endif ?>
 <meta name="twitter:card" content="summary_large_image">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script>document.documentElement.classList.add('js')</script>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,100..125,400..900;1,100..125,400..900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
+/* ─────────────────────────  SCHRIFTEN  ─────────────────────────
+   Lokal eingebunden statt über Google Fonts: keine Daten an Dritte beim
+   Seitenaufruf, ein Verbindungsaufbau weniger. unicode-range sorgt dafür,
+   dass der Browser nur lädt, was er wirklich braucht. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: italic;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-italic-latin-ext-526052.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: italic;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-italic-latin-33f250.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-latin-ext-c422bf.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-latin-b92029.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-ext-395290.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-567244.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-ext-395290.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-567244.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-ext-395290.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-567244.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 /* ─────────────────────────  TOKENS  ───────────────────────── */
 :root{
@@ -437,6 +529,21 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   *{animation-duration:.001ms!important;transition-duration:.001ms!important}
 }
 
+/* ─────────────────────────  PLÄTZE  ───────────────────────── */
+.seats{margin:0 0 1.5rem;padding:1rem 1.1rem;border-radius:10px;
+  background:rgba(201,162,39,.07);border:1px solid rgba(201,162,39,.28)}
+.seats b{display:block;font-family:var(--display);font-weight:800;font-stretch:110%;
+  text-transform:uppercase;letter-spacing:.06em;font-size:.92rem;color:var(--gold-hi);
+  font-variant-numeric:tabular-nums}
+.seats small{display:block;color:var(--mute);font-size:.85rem;margin-top:.2rem}
+.bar{display:block;height:4px;border-radius:99px;background:rgba(255,255,255,.1);
+  margin-top:.8rem;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--gold-grad)}
+.seats--out{background:rgba(255,255,255,.04);border-color:var(--line-strong)}
+.seats--out b{color:var(--white)}
+.badge--out{background:rgba(255,255,255,.1);color:var(--white);
+  box-shadow:inset 0 0 0 1px var(--line-strong)}
+
 /* ─────────────────────────  PROGRESSION  ───────────────────────── */
 .prog{border-top:1px solid var(--line);background:linear-gradient(180deg,var(--ink-2),var(--ink))}
 .prog__head{display:grid;gap:1.25rem;margin-bottom:clamp(2.25rem,4.5vw,3.25rem)}
@@ -522,11 +629,11 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
       <a href="#coach">Coach</a>
       <?php if ($gallery): ?><a href="#galerie">Galerie</a><?php endif ?>
       <a href="#faq">FAQ</a>
-      <a class="btn btn--sm nav__cta" <?= $cta ?>><?= h($c['hero']['cta']) ?></a>
+      <a class="btn btn--sm nav__cta" <?= $cta ?>><?= h($ctaLabel) ?></a>
     </nav>
 
     <div style="display:flex;gap:.75rem;align-items:center">
-      <a class="btn btn--sm hdr__cta" <?= $cta ?>><?= h($c['hero']['cta']) ?></a>
+      <a class="btn btn--sm hdr__cta" <?= $cta ?>><?= h($ctaLabel) ?></a>
       <button class="burger" id="burger" aria-label="Menü öffnen" aria-controls="nav" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
@@ -553,7 +660,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
         <?= nl2br(h($c['hero']['sub'])) ?>
       </p>
       <div class="hero__cta">
-        <a class="btn" <?= $cta ?>><?= h($c['hero']['cta']) ?></a>
+        <a class="btn" <?= $cta ?>><?= h($ctaLabel) ?></a>
         <a class="btn btn--ghost" href="#program"><?= h($c['hero']['cta2']) ?></a>
       </div>
     </div>
@@ -641,7 +748,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   <div class="shell">
     <div class="offer rv">
       <div class="offer__main">
-        <span class="badge"><?= h($c['program']['badge']) ?></span>
+        <span class="badge<?= $soldOut ? ' badge--out' : '' ?>"><?= $soldOut ? 'Ausgebucht' : h($c['program']['badge']) ?></span>
         <h2><?= h($c['program']['title']) ?><br><em class="gold-fill"><?= h($c['program']['title_gold']) ?></em></h2>
         <p class="lede"><?= nl2br(h($c['program']['lede'])) ?></p>
 
@@ -671,7 +778,24 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
         <p class="eyebrow">Gesamtpreis</p>
         <p class="price"><sup>CHF</sup><?= h($c['program']['price']) ?><span class="gold">.–</span></p>
         <p class="price-note"><?= nl2br(h($c['program']['price_note'])) ?></p>
-        <a class="btn" <?= $cta ?>><?= h($c['program']['cta']) ?></a>
+
+        <?php if ($soldOut): ?>
+          <p class="seats seats--out" style="margin-top:1.9rem">
+            <b>Ausgebucht</b>
+            <small><?= $seatsAll ? 'Alle ' . h($seatsAll) . ' Plätze sind vergeben. ' : '' ?>Trag dich auf der Warteliste ein — wir melden uns, sobald ein Platz frei wird.</small>
+          </p>
+        <?php elseif ($seatsLeft !== '' && $seatsAll !== '' && (int)$seatsAll > 0): ?>
+          <?php $taken = max(0, (int)$seatsAll - (int)$seatsLeft); ?>
+          <p class="seats" style="margin-top:1.9rem">
+            <b>Noch <?= (int)$seatsLeft ?> von <?= (int)$seatsAll ?> Plätzen frei</b>
+            <small><?= $taken ?> bereits vergeben.</small>
+            <span class="bar" role="img" aria-label="<?= $taken ?> von <?= (int)$seatsAll ?> Plätzen vergeben">
+              <i style="width:<?= round($taken / (int)$seatsAll * 100) ?>%"></i>
+            </span>
+          </p>
+        <?php endif ?>
+
+        <a class="btn" <?= $cta ?>><?= h($ctaLabelP) ?></a>
       </aside>
     </div>
   </div>
@@ -815,10 +939,11 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   <div class="shell band__in rv">
     <p class="eyebrow is-center"><?= h($c['band']['eyebrow']) ?></p>
     <h2><?= h($c['band']['h1']) ?><br><?= h($c['band']['h2']) ?> <span class="gold-fill"><?= h($c['band']['h2b']) ?></span></h2>
-    <p><?= nl2br(h($c['band']['text'])) ?></p>
+    <p><?php if ($soldOut): ?>Der aktuelle Durchgang ist ausgebucht. Trag dich auf der
+      Warteliste ein — wir melden uns, sobald ein Platz frei wird.<?php else: ?><?= nl2br(h($c['band']['text'])) ?><?php endif ?></p>
     <div style="display:flex;flex-wrap:wrap;gap:.9rem;justify-content:center">
       <?php if ($formUrl): ?>
-        <a class="btn" <?= $cta ?>><?= h($c['hero']['cta']) ?></a>
+        <a class="btn" <?= $cta ?>><?= h($ctaLabel) ?></a>
       <?php else: ?>
         <span class="tag" style="padding:.85rem 1.4rem">Anmeldeformular wird im Admin hinterlegt</span>
       <?php endif ?>
@@ -972,7 +1097,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   document.getElementById("yr").textContent = new Date().getFullYear();
 })();
 </script>
-<?php if ($formId): ?>
+<?php if ($formId || $c['program']['waitlist_id']): ?>
 <script async src="https://tally.so/widgets/embed.js"></script>
 <?php endif ?>
 </body>

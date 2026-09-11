@@ -1,7 +1,7 @@
 <?php
 /** Bestätigungsseite nach der Anmeldung. In Tally als Redirect-URL hinterlegen. */
 require __DIR__ . '/inc/legal.php';
-legal_head('Anmeldung eingegangen');
+legal_head('Anmeldung eingegangen', '', '', true);
 $c = ff_content();
 ?>
 <style>

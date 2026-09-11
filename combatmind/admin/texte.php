@@ -32,9 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($def['fields'] as $key => [$type, , ]) {
             if (!array_key_exists($key, $posted)) continue;
             $val = (string)$posted[$key];
-            $out[$sec][$key] = $type === 'list'
-                ? array_values(array_filter(array_map('trim', preg_split('/\r?\n/', $val)), 'strlen'))
-                : mb_substr(trim($val), 0, 4000);
+            $out[$sec][$key] = match ($type) {
+                'list' => array_values(array_filter(array_map('trim', preg_split('/\r?\n/', $val)), 'strlen')),
+                'bool' => (bool)(int)$val,
+                default => mb_substr(trim($val), 0, 4000),
+            };
         }
     }
 
@@ -90,7 +92,16 @@ admin_tabs('texte.php');
           $val = $c[$sec][$key] ?? '';
           if ($type === 'list') $val = implode("\n", (array)$val); ?>
           <label><span class="lbl"><?= h($label) ?></span>
-            <?php if ($type === 'textarea' || $type === 'list'): ?>
+            <?php if ($type === 'bool'): ?>
+              <?php /* Verstecktes Feld davor: ein nicht angehaktes Kästchen wird sonst
+                       gar nicht mitgeschickt und der Wert bliebe unverändert. */ ?>
+              <input type="hidden" name="c[<?= h($sec) ?>][<?= h($key) ?>]" value="0">
+              <label style="display:flex;gap:.6rem;align-items:center;margin:0">
+                <input type="checkbox" name="c[<?= h($sec) ?>][<?= h($key) ?>]" value="1"
+                       style="width:auto" <?= $val ? 'checked' : '' ?>>
+                <span style="color:var(--mute);font-size:.92rem">Ja</span>
+              </label>
+            <?php elseif ($type === 'textarea' || $type === 'list'): ?>
               <textarea name="c[<?= h($sec) ?>][<?= h($key) ?>]"><?= h((string)$val) ?></textarea>
               <?php if ($type === 'list'): ?><span class="hint">Eine Zeile = ein Eintrag.</span><?php endif ?>
               <?php if ($type === 'textarea'): ?><span class="hint">Leerzeile lässt einen neuen Absatz beginnen.</span><?php endif ?>

@@ -62,6 +62,12 @@ function ff_schema(): array {
             'price'      => ['text', 'Preis (nur Zahl)', '299'],
             'price_note' => ['textarea', 'Hinweis beim Preis', "12 × 60 Minuten · alles inklusive.\nMaximal 16 Plätze."],
             'cta'        => ['text', 'Button', 'Secure my spot'],
+            'seats_total'  => ['text', 'Plätze insgesamt', '16'],
+            'seats_left'   => ['text', 'Noch freie Plätze (leer = keine Anzeige)', ''],
+            'sold_out'     => ['bool', 'Kurs ist ausgebucht', ''],
+            'waitlist_cta' => ['text', 'Button-Text bei ausgebucht', 'Auf die Warteliste'],
+            'waitlist_url' => ['text', 'Warteliste — Formular-Link', ''],
+            'waitlist_id'  => ['text', 'Warteliste — Tally Formular-ID', ''],
             'checks'     => ['list', 'Häkchen-Liste (eine pro Zeile)',
                              "Keine Kampfsporterfahrung nötig.\nKein Sparring-Zwang.\nFeste Gruppe, persönliches Coaching, klarer Aufbau."],
         ]],
@@ -163,7 +169,11 @@ function ff_defaults(): array {
     foreach (ff_schema() as $sec => $def) {
         if (isset($def['repeater'])) { $out[$sec] = $def['default'] ?? []; continue; }
         foreach ($def['fields'] as $key => [$type, , $default]) {
-            $out[$sec][$key] = $type === 'list' ? array_values(array_filter(array_map('trim', explode("\n", $default)), 'strlen')) : $default;
+            $out[$sec][$key] = match ($type) {
+                'list' => array_values(array_filter(array_map('trim', explode("\n", $default)), 'strlen')),
+                'bool' => (bool)$default,
+                default => $default,
+            };
         }
     }
     return $out;

@@ -26,6 +26,19 @@ function site_url(string $path = ''): string {
     return $base . ($path === '' ? '/' : '/' . ltrim($path, '/'));
 }
 
+/**
+ * Attribute für einen Anmelde-Button. Ohne Formular-Link zeigt er auf den
+ * Anmelde-Abschnitt, statt ins Leere zu führen. Mit Tally-ID öffnet er ein
+ * Overlay, ohne ID die Formularseite.
+ */
+function cta_attrs(string $url, string $id = '', string $fallback = '#anmeldung'): string {
+    if ($url === '') return 'href="' . h($fallback) . '"';
+    return 'href="' . h($url) . '"' . ($id
+        ? ' data-tally-open="' . h($id) . '" data-tally-layout="modal" data-tally-width="720"'
+          . ' data-tally-overlay="1" data-tally-auto-close="4000"'
+        : '');
+}
+
 /** PLZ und Ort als eine Zeile, ohne führendes Leerzeichen wenn eines fehlt. */
 function zip_city(): string {
     $c = ff_content()['contact'];

@@ -75,9 +75,9 @@ legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet �
     <h2>Analyse und Tracking</h2>
     <p>Diese Website verwendet <strong>keine Analyse-Tools, keine Werbe-Pixel und keine
     Tracking-Cookies</strong>. Es findet keine Auswertung des Nutzungsverhaltens statt.</p>
-    <p>Externe Schriftarten werden von Google Fonts geladen; dabei wird die IP-Adresse an
-    Google übermittelt. <span class="todo">[Falls das vermieden werden soll: Schriften
-    lokal einbinden — sag Bescheid, das ist schnell gemacht.]</span></p>
+    <p>Die verwendeten Schriftarten liegen auf dem eigenen Server und werden nicht von
+    einem Drittanbieter nachgeladen. Beim Aufruf der Seite werden also keine Daten an
+    Google oder andere Dienste übermittelt.</p>
   </section>
 
   <section>

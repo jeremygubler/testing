@@ -25,6 +25,9 @@ Hostern standardmässig aktiv.
 
 ```
 index.php          Startseite — baut sich aus data/content.json.php auf
+404.php            Fehlerseite
+sitemap.php        Sitemap, erreichbar als /sitemap.xml
+.htaccess          HTTPS, Komprimierung, Caching, Sicherheits-Header
 danke.php          Bestätigungsseite nach der Anmeldung (Tally-Redirect)
 impressum.php      Impressum
 agb.php            AGB / Teilnahmebedingungen
@@ -33,6 +36,7 @@ admin/             Login, Texte, Galerie, Termine, Passwort ändern
 inc/               core (Speicher/Auth/CSRF), schema, media, events, legal
 data/              Inhalte als JSON. Nicht öffentlich abrufbar.
 assets/            Hero-Bild, Coach-Foto, Logo
+assets/fonts/      Schriften, lokal statt über Google Fonts
 assets/gallery/    hochgeladene Galeriebilder
 ```
 
@@ -72,9 +76,31 @@ du ein neues Passwort setzen. Die Inhalte bleiben erhalten.
 - COMBAT-MIND-Logo einsetzen (Hauptlogo, horizontale Version, CM-Emblem)
 - Social-Vorschaubild als `assets/og.jpg` ablegen (1200×630 px) — sonst wird
   ersatzweise das Hero-Bild verwendet, und ohne beides gar keines gesetzt
+- Wartelisten-Formular anlegen und im Admin unter «12 Week Program» hinterlegen
 - Geschäftsadresse, E-Mail-Adresse und Rechtsform in den Admin eintragen
 - Tally-Formular neu aufsetzen und Link + Formular-ID im Admin hinterlegen
 - Tally-Redirect nach dem Absenden auf `danke.php` setzen
 - AGB und Datenschutzerklärung durch die bestehenden Dokumente ersetzen
 - Echte Fotos von Jocelyn und aus dem Training hochladen
 - Stripe / TWINT Business einrichten, IBAN erst nach Konto-Eröffnung ergänzen
+
+## Plätze und Warteliste
+
+Unter «Texte → 12 Week Program» stehen drei zusammengehörige Felder:
+
+- **Noch freie Plätze** — leer lassen, dann erscheint keine Anzeige. Mit einer
+  Zahl zeigt die Programmkarte «Noch X von 16 Plätzen frei» samt Balken.
+- **Kurs ist ausgebucht** — dieses Häkchen schaltet die ganze Seite um: alle
+  Anmelde-Buttons führen zur Warteliste, das Badge wechselt auf «Ausgebucht»,
+  das Schlussbanner formuliert um.
+- **Warteliste** — Link und Tally-ID des Wartelisten-Formulars.
+
+## Serverkonfiguration
+
+Die `.htaccess` erzwingt HTTPS, komprimiert, setzt Cache- und Sicherheits-Header
+und leitet `/sitemap.xml` auf `sitemap.php`. Sie gilt nur auf Apache. Falls der
+Hoster auf nginx läuft, müssen die Regeln dort hinterlegt werden — sonst fehlen
+sie ersatzlos, die Seite funktioniert aber weiterhin.
+
+HSTS ist bewusst nicht gesetzt: Ein falsch konfigurierter HSTS-Header sperrt die
+Domain für Monate auf HTTPS fest. Sinnvoll erst, wenn das Zertifikat sicher steht.

@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/schema.php';
 
-function legal_head(string $title, string $desc = '', string $slug = ''): void {
+function legal_head(string $title, string $desc = '', string $slug = '', bool $noindex = false): void {
     $c = ff_content();
     ?><!doctype html>
 <html lang="de">
@@ -13,13 +13,99 @@ function legal_head(string $title, string $desc = '', string $slug = ''): void {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= h($title) ?> — COMBAT MIND</title>
 <?php if ($desc): ?><meta name="description" content="<?= h($desc) ?>"><?php endif ?>
+<?php if ($noindex): ?><meta name="robots" content="noindex, follow"><?php endif ?>
 <?php if ($slug && site_url()): ?><link rel="canonical" href="<?= h(site_url($slug)) ?>"><?php endif ?>
 <meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230a0a0a'/><text x='16' y='23' font-family='sans-serif' font-size='16' font-weight='700' fill='%23c9a227' text-anchor='middle'>CM</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,100..125,400..900;1,100..125,400..900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+/* ─────────────────────────  SCHRIFTEN  ─────────────────────────
+   Lokal eingebunden statt über Google Fonts: keine Daten an Dritte beim
+   Seitenaufruf, ein Verbindungsaufbau weniger. unicode-range sorgt dafür,
+   dass der Browser nur lädt, was er wirklich braucht. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: italic;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-italic-latin-ext-526052.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: italic;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-italic-latin-33f250.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-latin-ext-c422bf.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-latin-b92029.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-ext-395290.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-567244.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-ext-395290.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-567244.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-ext-395290.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-567244.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 :root{
   --ink:#050505; --ink-2:#0d0d0e; --line:rgba(255,255,255,.10);
   --white:#f7f7f5; --mute:#a2a2a0; --gold:#c9a227; --gold-hi:#f0d98a;
