@@ -26,6 +26,12 @@ function site_url(string $path = ''): string {
     return $base . ($path === '' ? '/' : '/' . ltrim($path, '/'));
 }
 
+/** PLZ und Ort als eine Zeile, ohne führendes Leerzeichen wenn eines fehlt. */
+function zip_city(): string {
+    $c = ff_content()['contact'];
+    return trim(($c['zip'] ?? '') . ' ' . ($c['city'] ?? ''));
+}
+
 /** Zeilenumbrüche aus dem Admin zu Absätzen machen (nach dem Escaping). */
 function paragraphs(?string $s): string {
     $out = '';

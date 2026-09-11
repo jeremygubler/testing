@@ -492,7 +492,8 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   'address'  => array_filter([
       '@type'           => 'PostalAddress',
       'streetAddress'   => $c['contact']['address'] ?: null,
-      'addressLocality' => 'Basel',
+      'postalCode'      => $c['contact']['zip'] ?: null,
+      'addressLocality' => $c['contact']['city'] ?: 'Basel',
       'addressCountry'  => 'CH',
   ]),
   'makesOffer' => [[
@@ -869,7 +870,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
         <h4>Kontakt</h4>
         <ul>
           <li><?= h($c['contact']['owner']) ?></li>
-          <li><?= $c['contact']['address'] ? h($c['contact']['address']) . '<br>' : '' ?><?= h($c['contact']['city']) ?></li>
+          <li><?= $c['contact']['address'] ? h($c['contact']['address']) . '<br>' : '' ?><?= h(zip_city()) ?></li>
           <?php if ($c['contact']['email']): ?>
             <li><a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a></li>
           <?php endif ?>

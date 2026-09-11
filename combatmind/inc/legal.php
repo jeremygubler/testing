@@ -116,7 +116,7 @@ function legal_address(): string {
     $todo = fn($s) => '<span class="todo">[' . $s . ']</span>';
     $out  = '<strong>COMBAT MIND</strong><br>' . h($c['contact']['owner']) . '<br>';
     $out .= ($c['contact']['address'] ? h($c['contact']['address']) : $todo('Strasse und Hausnummer')) . '<br>';
-    $out .= h($c['contact']['city']) . '<br>';
+    $out .= h(zip_city()) . '<br>';
     $out .= 'E-Mail: ' . ($c['contact']['email']
         ? '<a href="mailto:' . h($c['contact']['email']) . '">' . h($c['contact']['email']) . '</a>'
         : $todo('E-Mail-Adresse'));
