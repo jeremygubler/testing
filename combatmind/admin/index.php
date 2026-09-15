@@ -97,6 +97,12 @@ admin_tabs('index.php');
     <a class="btn btn--ghost" href="termine.php">Termine pflegen</a>
   </div>
   <div class="card">
+    <h3 style="margin:0 0 .5rem;font-size:1rem">Backup</h3>
+    <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
+      Alle Texte, Termine und Bilder als ZIP herunterladen. Ohne Passwort.</p>
+    <a class="btn btn--ghost" href="backup.php">Backup herunterladen</a>
+  </div>
+  <div class="card">
     <h3 style="margin:0 0 .5rem;font-size:1rem">Anmeldungen</h3>
     <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
       Die laufen über Tally, nicht über diese Seite.</p>

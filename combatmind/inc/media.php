@@ -10,6 +10,21 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/core.php';
 
+const FF_MAX_UPLOAD = 6 * 1024 * 1024;   // 6 MB
+const FF_MAX_EDGE   = 2000;              // px, längere Kante des Originals
+const FF_THUMB_EDGE = 800;               // px, längere Kante der Galerie-Kachel
+
+/** Dateiname der kleinen Fassung zu einem Galeriebild. */
+function thumb_name(string $file): string {
+    return preg_replace('/\.jpg$/', '-s.jpg', basename($file));
+}
+
+/** Kleine Fassung, falls vorhanden — sonst das Original. */
+function thumb_or_full(string $file): string {
+    $t = thumb_name($file);
+    return is_file(FF_GALLERY . '/' . $t) ? $t : basename($file);
+}
+
 function gallery_items(): array {
     $items = json_read('gallery.json');
     return array_values(array_filter($items, fn($i) => is_array($i) && !empty($i['file'])
@@ -69,10 +84,24 @@ function media_store(array $file): array {
     }
     $name = date('Ymd') . '-' . bin2hex(random_bytes(8)) . '.jpg';
     $ok = imagejpeg($dst, FF_GALLERY . '/' . $name, 82);
-    imagedestroy($dst);
-    if (!$ok) return ['ok' => false, 'error' => 'Das Bild konnte nicht gespeichert werden.'];
-
+    if (!$ok) { imagedestroy($dst); return ['ok' => false, 'error' => 'Das Bild konnte nicht gespeichert werden.']; }
     @chmod(FF_GALLERY . '/' . $name, 0644);
+
+    // Zusätzlich eine kleine Fassung: die Galerie zeigt Kacheln von rund 300px,
+    // dafür das volle Bild zu laden ist auf dem Handy pure Verschwendung.
+    if (max($nw, $nh) > FF_THUMB_EDGE) {
+        $ts = FF_THUMB_EDGE / max($nw, $nh);
+        $tw = max(1, (int)round($nw * $ts));
+        $th = max(1, (int)round($nh * $ts));
+        $thumb = imagecreatetruecolor($tw, $th);
+        imagecopyresampled($thumb, $dst, 0, 0, 0, 0, $tw, $th, $nw, $nh);
+        if (imagejpeg($thumb, FF_GALLERY . '/' . thumb_name($name), 78)) {
+            @chmod(FF_GALLERY . '/' . thumb_name($name), 0644);
+        }
+        imagedestroy($thumb);
+    }
+    imagedestroy($dst);
+
     return ['ok' => true, 'file' => $name, 'w' => $nw, 'h' => $nh];
 }
 
@@ -81,5 +110,6 @@ function media_delete(string $file): bool {
     $path = FF_GALLERY . '/' . $name;
     // Nur Dateien aus dem Galerie-Ordner, nie ein Pfad von aussen.
     if ($name === '' || !is_file($path) || dirname(realpath($path)) !== realpath(FF_GALLERY)) return false;
+    @unlink(FF_GALLERY . '/' . thumb_name($name));   // kleine Fassung mit entfernen
     return @unlink($path);
 }

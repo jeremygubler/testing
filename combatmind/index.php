@@ -214,6 +214,13 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .btn--ghost:hover{box-shadow:inset 0 0 0 1px var(--gold);color:var(--gold-hi);filter:none}
 .btn--sm{padding:.8rem 1.4rem;font-size:.74rem}
 
+/* Sprunglink: unsichtbar, bis er per Tab angesteuert wird */
+.skip{position:fixed;top:.6rem;left:.6rem;z-index:300;transform:translateY(-200%);
+  background:var(--gold);color:#0a0a0a;padding:.7rem 1.2rem;border-radius:4px;
+  font-family:var(--display);font-weight:700;font-size:.8rem;letter-spacing:.1em;
+  text-transform:uppercase;transition:transform .2s var(--ease)}
+.skip:focus{transform:translateY(0)}
+
 /* ─────────────────────────  HEADER  ───────────────────────── */
 .hdr{
   position:fixed;inset:0 0 auto;z-index:100;
@@ -617,6 +624,8 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 </head>
 <body>
 
+<a class="skip" href="#top">Direkt zum Inhalt</a>
+
 <!-- ══════════════  HEADER  ══════════════ -->
 <header class="hdr" id="hdr">
   <div class="hdr__in">
@@ -872,10 +881,16 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
     </div>
     <div class="shots rv">
       <?php foreach ($gallery as $i => $g): ?>
+      <?php $small = thumb_or_full($g['file']); ?>
       <button class="shot" type="button" data-i="<?= $i ?>"
               data-src="assets/gallery/<?= h(basename($g['file'])) ?>"
               data-cap="<?= h($g['caption'] ?? '') ?>">
-        <img src="assets/gallery/<?= h(basename($g['file'])) ?>" loading="lazy" decoding="async"
+        <img src="assets/gallery/<?= h($small) ?>"
+             <?php if ($small !== basename($g['file'])): ?>
+             srcset="assets/gallery/<?= h($small) ?> 800w, assets/gallery/<?= h(basename($g['file'])) ?> 2000w"
+             sizes="(min-width: 1200px) 295px, (min-width: 760px) 33vw, 50vw"
+             <?php endif ?>
+             loading="lazy" decoding="async"
              alt="<?= h($g['caption'] ?: 'COMBAT MIND Training') ?>">
       </button>
       <?php endforeach ?>
@@ -1074,6 +1089,15 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
       document.body.style.overflow = "hidden";
       lb.querySelector('[data-lb="close"]').focus();
     };
+    // Tab bleibt innerhalb des Overlays, solange es offen ist.
+    lb.addEventListener("keydown", e => {
+      if (e.key !== "Tab") return;
+      const focusable = [...lb.querySelectorAll("button")].filter(b => b.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
     const close = () => {
       lb.removeAttribute("data-open");
       document.body.style.overflow = "";

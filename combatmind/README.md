@@ -32,12 +32,12 @@ danke.php          Bestätigungsseite nach der Anmeldung (Tally-Redirect)
 impressum.php      Impressum
 agb.php            AGB / Teilnahmebedingungen
 datenschutz.php    Datenschutzerklärung
-admin/             Login, Texte, Galerie, Termine, Passwort ändern
+admin/             Login, Texte, Galerie, Termine, Backup, Passwort ändern
 inc/               core (Speicher/Auth/CSRF), schema, media, events, legal
 data/              Inhalte als JSON. Nicht öffentlich abrufbar.
 assets/            Hero-Bild, Coach-Foto, Logo
 assets/fonts/      Schriften, lokal statt über Google Fonts
-assets/gallery/    hochgeladene Galeriebilder
+assets/gallery/    hochgeladene Galeriebilder, je in voller und kleiner Fassung
 ```
 
 ## Inhalte ändern
@@ -63,8 +63,12 @@ keine leeren Sektionen.
 
 ## Backup
 
-`data/` und `assets/gallery/` per FTP sichern. Das sind alle Inhalte.
-Zum Zurückspielen einfach wieder hochladen.
+Im Admin unter «Übersicht → Backup herunterladen» gibt es alle Inhalte als ZIP:
+Texte, Termine, Galerie und Bilder. Das Admin-Passwort ist bewusst **nicht**
+enthalten — ein Backup wandert per Mail und Cloud herum.
+
+Zum Zurückspielen die Ordner `data/` und `assets/` aus dem ZIP per FTP ins
+Web-Root hochladen und bestehende Dateien überschreiben.
 
 ## Passwort vergessen
 
