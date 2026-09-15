@@ -1,0 +1,9 @@
+# Uploads sind Daten, niemals Programme.
+php_flag engine off
+<IfModule mod_mime.c>
+  RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+  RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+</IfModule>
+<FilesMatch "\.(?i:php|phtml|phar|cgi|pl|py|s?html)$">
+  Require all denied
+</FilesMatch>

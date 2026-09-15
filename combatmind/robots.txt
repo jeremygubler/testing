@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /inc/
+Disallow: /data/
+
+Sitemap: https://combat-mind.ch/sitemap.xml
