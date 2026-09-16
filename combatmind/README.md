@@ -6,10 +6,12 @@ Zielhosting: cyon (Apache, PHP 8, SSH) — dort greift auch die .htaccess.
 
 ## Hochladen
 
-Den gesamten Ordnerinhalt ins Web-Root legen — bei cyon ist das
-`/home/<benutzer>/public_html`. Danach:
+Den gesamten Ordnerinhalt in den Domain-Ordner legen. cyon legt je Domain einen
+eigenen an — hier `public_html/combat-mind.ch/`. Der Zielordner steht in my.cyon
+unter «Sicherheit → SSL-Zertifikate» in der Spalte «Zielordner». Danach:
 
-1. `https://combat-mind.ch/admin/` aufrufen
+1. `https://combat-mind.ch/admin/` aufrufen (erst wenn SSL aktiv ist — die
+   .htaccess erzwingt HTTPS)
 2. Passwort festlegen (mind. 10 Zeichen) — das passiert genau einmal
 3. Fertig. Unter «Texte», «Galerie» und «Termine» pflegst du ab jetzt alles selbst.
 
