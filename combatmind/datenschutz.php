@@ -20,7 +20,9 @@ legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet �
 
   <section>
     <h2>Hosting</h2>
-    <p>Die Website wird bei der <strong>hosttech GmbH</strong> in der Schweiz gehostet.
+    <p>Die Website wird bei der <strong>cyon GmbH</strong> in der Schweiz gehostet.
+    <span class="todo">[Genaue Firmenbezeichnung und Adresse aus dem cyon-Vertrag
+    übernehmen.]</span>
     Beim Aufruf der Seite werden technisch notwendige Serverdaten verarbeitet — IP-Adresse,
     Datum und Uhrzeit, aufgerufene Seite, Browsertyp. Diese Daten dienen dem sicheren
     Betrieb und werden nicht zur Identifikation einzelner Personen verwendet.</p>

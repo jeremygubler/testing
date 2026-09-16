@@ -1,13 +1,13 @@
 # COMBAT MIND — Website
 
 Combat Fitness in Basel. Statische Seite mit kleinem Admin — kein Framework,
-kein Build-Schritt, keine Datenbank. Läuft auf jedem Webhosting mit PHP 8,
-also auch bei hosttech.
+kein Build-Schritt, keine Datenbank. Läuft auf jedem Webhosting mit PHP 8.
+Zielhosting: cyon (Apache, PHP 8, SSH) — dort greift auch die .htaccess.
 
 ## Hochladen
 
-Den gesamten Ordnerinhalt ins Web-Root des Hosters legen (`httpdocs`, `public_html`
-oder `www` — je nach Anbieter). Danach:
+Den gesamten Ordnerinhalt ins Web-Root legen — bei cyon ist das
+`/home/<benutzer>/public_html`. Danach:
 
 1. `https://combat-mind.ch/admin/` aufrufen
 2. Passwort festlegen (mind. 10 Zeichen) — das passiert genau einmal
