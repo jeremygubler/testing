@@ -86,6 +86,8 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
   .grp .opt{display:flex;gap:.7rem;align-items:flex-start;margin-bottom:.7rem;color:var(--mute);font-size:.95rem}
   .grp .opt:last-child{margin-bottom:0}
   .grp .opt input{margin-top:.25rem;accent-color:var(--gold);width:18px;height:18px;flex:none}
+  #geburtsdatum{max-width:12rem;letter-spacing:.06em}
+  ::placeholder{color:#5c5c62}
   .err{display:block;color:#f0b4b4;font-size:.86rem;margin-top:.35rem}
   .banner{border:1px solid #5a2b2b;background:#2a1414;color:#f0b4b4;border-radius:10px;
     padding:1rem 1.2rem;margin-bottom:2rem}
@@ -130,8 +132,9 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
           <input id="telefon" type="tel" name="telefon" value="<?= $w('telefon') ?>" required autocomplete="tel"><?= $e('telefon') ?></div>
       </div>
 
-      <div class="fld"><label for="geburtsdatum">Geburtsdatum</label>
-        <input id="geburtsdatum" type="date" name="geburtsdatum" value="<?= $w('geburtsdatum') ?>" required>
+      <div class="fld"><label for="geburtsdatum">Geburtsdatum <span style="text-transform:none;letter-spacing:0">(TT.MM.JJJJ)</span></label>
+        <input id="geburtsdatum" type="text" name="geburtsdatum" value="<?= $w('geburtsdatum') ?>"
+               required inputmode="numeric" autocomplete="bday" placeholder="TT.MM.JJJJ" maxlength="10">
         <span class="fine" style="color:var(--mute);display:block" id="alter-echo">Teilnahme ab <?= FF_MIN_AGE ?> Jahren.</span><?= $e('geburtsdatum') ?></div>
 
       <!-- erscheint nur bei 16 oder 17 -->
@@ -179,8 +182,26 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
 <script>
 (() => {
   const geb = document.getElementById('geburtsdatum'), gv = document.getElementById('gv');
+
+  // Punkte beim Tippen selbst setzen, damit TT.MM.JJJJ von allein entsteht.
+  geb.addEventListener('input', () => {
+    const amEnde = geb.selectionStart === geb.value.length;
+    const z = geb.value.replace(/\D/g, '').slice(0, 8);
+    const teile = [z.slice(0, 2), z.slice(2, 4), z.slice(4, 8)].filter((t) => t !== '');
+    const neu = teile.join('.');
+    if (neu !== geb.value && amEnde) geb.value = neu;
+  });
+
+  const datum = (s) => {
+    const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(s.trim());
+    if (!m) return null;
+    const [, t, mo, j] = m.map(Number);
+    const d = new Date(j, mo - 1, t);
+    // Der 31. Februar würde sonst stillschweigend zum 3. März.
+    return d.getFullYear() === j && d.getMonth() === mo - 1 && d.getDate() === t ? d : null;
+  };
   const jahre = (s) => {
-    const d = new Date(s); if (isNaN(d)) return null;
+    const d = datum(s); if (!d) return null;
     const h = new Date(); let a = h.getFullYear() - d.getFullYear();
     const m = h.getMonth() - d.getMonth();
     if (m < 0 || (m === 0 && h.getDate() < d.getDate())) a--;
@@ -194,9 +215,8 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
     const a = jahre(geb.value);
     gv.hidden = !(a !== null && a >= 16 && a < 18);
     if (a === null || a < 0 || a > 120) { echo.textContent = standard; return; }
-    const d = new Date(geb.value);
     echo.textContent = 'Das ergibt ' + a + ' Jahre (geboren am '
-      + d.toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' }) + ').';
+      + datum(geb.value).toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' }) + ').';
   };
   geb.addEventListener('change', pruef); geb.addEventListener('input', pruef); pruef();
 

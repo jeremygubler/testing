@@ -103,13 +103,27 @@ ok('Sperrdatei enthält keine IP-Adressen',
     !preg_match('/192\.0\.2\.|198\.51\.100|203\.0\.113/', file_get_contents(data_path('throttle.json'))));
 
 echo "\nAnmeldung — Alter\n";
-$vor = fn(int $j) => (new DateTimeImmutable('today'))->modify("-$j years")->format('Y-m-d');
+$vor = fn(int $j) => (new DateTimeImmutable('today'))->modify("-$j years")->format('d.m.Y');
 eq('genau 16 heute',        signup_age($vor(16)), 16);
+eq('auch als ISO',          signup_age((new DateTimeImmutable('today'))->modify('-16 years')->format('Y-m-d')), 16);
 eq('30 Jahre',              signup_age($vor(30)), 30);
 eq('unbrauchbares Datum',   signup_age('irgendwas'), null);
-eq('31. Februar gibt es nicht', signup_age('2000-02-31'), null);
-eq('Datum in der Zukunft',  signup_age('2099-01-01'), null);
-eq('einen Tag vor dem 16.', signup_age((new DateTimeImmutable('today'))->modify('-16 years')->modify('+1 day')->format('Y-m-d')), 15);
+eq('31. Februar gibt es nicht', signup_age('31.02.2000'), null);
+eq('Datum in der Zukunft',  signup_age('01.01.2099'), null);
+eq('einen Tag vor dem 16.', signup_age((new DateTimeImmutable('today'))->modify('-16 years')->modify('+1 day')->format('d.m.Y')), 15);
+
+echo "\nAnmeldung — Datum lesen\n";
+eq('TT.MM.JJJJ',              signup_parse_date('10.03.1988'), '1988-03-10');
+eq('einstellige Zahlen',      signup_parse_date('1.3.1988'),   '1988-03-01');
+eq('Schrägstriche',           signup_parse_date('10/03/1988'), '1988-03-10');
+eq('ISO bleibt lesbar',       signup_parse_date('1988-03-10'), '1988-03-10');
+eq('Monat 13 abgelehnt',      signup_parse_date('03.13.1988'), null);
+eq('zweistelliges Jahr abgelehnt', signup_parse_date('10.03.88'), null);
+eq('31. Februar abgelehnt',   signup_parse_date('31.02.2000'), null);
+eq('Text abgelehnt',          signup_parse_date('irgendwas'), null);
+// Der Kern der Sache: Tag zuerst, nie der Monat.
+eq('03.10.1988 ist der 3. Oktober', signup_parse_date('03.10.1988'), '1988-10-03');
+eq('10.03.1988 ist der 10. März',   signup_parse_date('10.03.1988'), '1988-03-10');
 
 echo "\nAnmeldung — Regeln\n";
 $gut = ['vorname'=>'Anna','name'=>'Muster','email'=>'anna@example.ch','telefon'=>'076 527 74 93',
@@ -117,6 +131,8 @@ $gut = ['vorname'=>'Anna','name'=>'Muster','email'=>'anna@example.ch','telefon'=
 $r = signup_validate($gut);
 ok('vollständige Anmeldung geht durch', $r['ok'] === true, implode(' ', $r['errors']));
 eq('Alter wird mitgespeichert', $r['data']['alter'], 30);
+ok('Geburtsdatum wird als ISO abgelegt', (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $r['data']['geburtsdatum']),
+   $r['data']['geburtsdatum']);
 
 ok('ohne AGB-Haken abgelehnt',   !signup_validate(array_diff_key($gut, ['agb'=>0]))['ok']);
 ok('ohne Vorname abgelehnt',     !signup_validate(['vorname'=>''] + $gut)['ok']);

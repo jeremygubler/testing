@@ -130,7 +130,10 @@ try {
     await p3.click('button[type=submit]');
     await p3.waitForLoadState('networkidle');
   };
-  const jahrVor = (n) => { const d = new Date(); d.setFullYear(d.getFullYear() - n); return d.toISOString().slice(0, 10); };
+  const jahrVor = (n) => {
+    const d = new Date(); d.setFullYear(d.getFullYear() - n);
+    return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear();
+  };
 
   // Bedingtes Feld: erscheint bei 17, verschwindet bei 30.
   await p3.goto(B + '/anmeldung.php');
@@ -149,10 +152,14 @@ try {
   await p3.fill('input[name=geburtsdatum]', jahrVor(30));
 
   // Das zurückgespiegelte Alter macht ein vertauschtes Datum sichtbar.
-  await p3.fill('input[name=geburtsdatum]', '1988-03-10');
+  // Ziffern tippen, die Punkte muss das Feld selbst setzen.
+  await p3.fill('input[name=geburtsdatum]', '');
+  await p3.type('input[name=geburtsdatum]', '10031988');
+  ok('Punkte entstehen beim Tippen', await p3.inputValue('input[name=geburtsdatum]') === '10.03.1988',
+     await p3.inputValue('input[name=geburtsdatum]'));
   const echo = await p3.textContent('#alter-echo');
   ok('Alter wird zurückgespiegelt', /ergibt \d+ Jahre/.test(echo), echo);
-  ok('Datum wird ausgeschrieben', echo.includes('März'), echo);
+  ok('Tag zuerst gelesen, nicht der Monat', echo.includes('10. März 1988'), echo);
 
   ok('Gesundheitsfeld zunächst verborgen', !(await p3.locator('#ges').isVisible()));
   await p3.check('input[name=gesundheit][value=ja]');
