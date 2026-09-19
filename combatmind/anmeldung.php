@@ -83,9 +83,9 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
   .two{display:grid;gap:1.35rem}
   @media (min-width:600px){.two{grid-template-columns:1fr 1fr}}
   .grp{border:1px solid var(--line);border-radius:10px;padding:1.1rem 1.25rem;margin:0 0 1.35rem;background:var(--ink-2)}
-  .grp label{display:flex;gap:.7rem;align-items:flex-start;margin-bottom:.7rem;color:var(--mute);font-size:.95rem}
-  .grp label:last-child{margin-bottom:0}
-  .grp input{margin-top:.25rem;accent-color:var(--gold);width:18px;height:18px;flex:none}
+  .grp .opt{display:flex;gap:.7rem;align-items:flex-start;margin-bottom:.7rem;color:var(--mute);font-size:.95rem}
+  .grp .opt:last-child{margin-bottom:0}
+  .grp .opt input{margin-top:.25rem;accent-color:var(--gold);width:18px;height:18px;flex:none}
   .err{display:block;color:#f0b4b4;font-size:.86rem;margin-top:.35rem}
   .banner{border:1px solid #5a2b2b;background:#2a1414;color:#f0b4b4;border-radius:10px;
     padding:1rem 1.2rem;margin-bottom:2rem}
@@ -146,9 +146,9 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
 
       <fieldset class="grp">
         <legend>Gesundheit</legend>
-        <label><input type="radio" name="gesundheit" value="nein" <?= ($alt['gesundheit'] ?? '') === 'nein' ? 'checked' : '' ?>>
+        <label class="opt"><input type="radio" name="gesundheit" value="nein" <?= ($alt['gesundheit'] ?? '') === 'nein' ? 'checked' : '' ?>>
           <span>Mir sind keine gesundheitlichen Gründe bekannt, die gegen intensives Training sprechen.</span></label>
-        <label><input type="radio" name="gesundheit" value="ja" <?= ($alt['gesundheit'] ?? '') === 'ja' ? 'checked' : '' ?>>
+        <label class="opt"><input type="radio" name="gesundheit" value="ja" <?= ($alt['gesundheit'] ?? '') === 'ja' ? 'checked' : '' ?>>
           <span>Ich habe Verletzungen, Vorerkrankungen, Einschränkungen oder bin schwanger.</span></label>
         <?= $e('gesundheit') ?>
         <div class="fld" id="ges" style="margin:1rem 0 0">
@@ -162,11 +162,11 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
 
       <fieldset class="grp">
         <legend>Zustimmung</legend>
-        <label><input type="checkbox" name="agb" value="1" <?= !empty($alt['agb']) ? 'checked' : '' ?>>
+        <label class="opt"><input type="checkbox" name="agb" value="1" <?= !empty($alt['agb']) ? 'checked' : '' ?>>
           <span>Ich akzeptiere die <a href="agb.php">AGB</a> und habe die
             <a href="datenschutz.php">Datenschutzerklärung</a> gelesen.</span></label>
         <?= $e('agb') ?>
-        <label><input type="checkbox" name="fotos" value="1" <?= !empty($alt['fotos']) ? 'checked' : '' ?>>
+        <label class="opt"><input type="checkbox" name="fotos" value="1" <?= !empty($alt['fotos']) ? 'checked' : '' ?>>
           <span>Fotos von mir dürfen für die Kommunikation von COMBAT MIND verwendet werden.
             Freiwillig und jederzeit widerrufbar.</span></label>
       </fieldset>
@@ -188,6 +188,14 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
   };
   const pruef = () => { const a = jahre(geb.value); gv.hidden = !(a !== null && a >= 16 && a < 18); };
   geb.addEventListener('change', pruef); geb.addEventListener('input', pruef); pruef();
+
+  document.querySelectorAll('.err').forEach((meldung) => {
+    const feld = meldung.parentElement.querySelector('input, textarea');
+    if (!feld) return;
+    const weg = () => meldung.remove();
+    feld.addEventListener('input', weg, { once: true });
+    feld.addEventListener('change', weg, { once: true });
+  });
 
   const ges = document.getElementById('ges');
   const radios = document.querySelectorAll('input[name=gesundheit]');

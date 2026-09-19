@@ -138,6 +138,16 @@ try {
   ok('Einwilligungsfeld erscheint bei 17', await p3.locator('#gv').isVisible());
   await p3.fill('input[name=geburtsdatum]', jahrVor(30));
   ok('und verschwindet bei 30', !(await p3.locator('#gv').isVisible()));
+  // Die Häkchen-Grösse aus der Gruppe hatte einmal auch die Textfelder getroffen.
+  await p3.fill('input[name=geburtsdatum]', jahrVor(17));
+  const breit = async (sel) => (await p3.locator(sel).boundingBox()).width;
+  const voll = await breit('input[name=vorname]');
+  ok('Name der Einwilligung so breit wie andere Felder', await breit('input[name=gv_name]') > voll * 0.9,
+     `${await breit('input[name=gv_name]')}px statt ~${voll}px`);
+  ok('E-Mail der Einwilligung ebenso', await breit('input[name=gv_email]') > voll * 0.9);
+  ok('Häkchen bleiben klein', await breit('input[name=agb]') < 30);
+  await p3.fill('input[name=geburtsdatum]', jahrVor(30));
+
   ok('Gesundheitsfeld zunächst verborgen', !(await p3.locator('#ges').isVisible()));
   await p3.check('input[name=gesundheit][value=ja]');
   ok('erscheint bei «ja»', await p3.locator('#ges').isVisible());
