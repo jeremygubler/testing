@@ -26,17 +26,18 @@ $c = ff_content();
 
 <main class="done">
   <h1><em>You're in.</em></h1>
-  <p>Deine Anmeldung ist eingegangen. Dein Platz ist nach Bestätigung und fristgerechter
-  Zahlung definitiv reserviert. Alle weiteren Informationen erhältst du per E-Mail.</p>
+  <p>Deine Anmeldung ist eingegangen. Wir melden uns innert zwei Arbeitstagen
+  persönlich bei dir — mit allen Angaben und der Zahlungsinformation. Dein Platz
+  ist nach Bestätigung und fristgerechter Zahlung definitiv reserviert.</p>
 
   <ol class="steps">
-    <li><b>1</b><span><strong>Bestätigung</strong>Du bekommst eine E-Mail mit allen Angaben zu Start, Ort und Ablauf.</span></li>
+    <li><b>1</b><span><strong>Bestätigung</strong>Jocelyn schreibt dir persönlich — mit allen Angaben zu Start, Ort und Ablauf.</span></li>
     <li><b>2</b><span><strong>Zahlung</strong>Bezahle den Kursbeitrag über die von dir gewählte Zahlungsart innert der genannten Frist.</span></li>
     <li><b>3</b><span><strong>Platz definitiv</strong>Nach Zahlungseingang ist dein Platz fix reserviert. Dann sehen wir uns im Training.</span></li>
   </ol>
 
   <?php if ($c['contact']['email']): ?>
-    <p style="margin-top:2rem;font-size:.92rem">Keine E-Mail erhalten? Schreib an
+    <p style="margin-top:2rem;font-size:.92rem">Nach zwei Tagen noch nichts gehört? Schreib an
       <a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a>.</p>
   <?php endif ?>
 

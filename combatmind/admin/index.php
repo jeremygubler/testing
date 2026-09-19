@@ -64,8 +64,38 @@ if (!auth_check()) {
     <?php admin_foot(); exit;
 }
 
+/* ── Plätze: ein Klick je Anmeldung ──────────────────────────────────── */
+// Tally meldet jede Anmeldung per E-Mail, mehr gibt der freie Tarif nicht her.
+// Von Hand in die Textmaske zu steigen war zu umständlich, also wird die Zahl
+// hier direkt gesetzt — und bei null schaltet die Seite selbst auf ausgebucht.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['seats'])) {
+    csrf_check();
+    $prog    = ff_content()['program'];
+    $gesamt  = max(0, (int)$prog['seats_total']);
+    $frei    = $prog['seats_left'] === '' ? $gesamt : max(0, (int)$prog['seats_left']);
+    $neu     = max(0, min($gesamt, $frei + ($_POST['seats'] === 'plus' ? 1 : -1)));
+
+    // Nur die beiden Felder anfassen, alles andere bleibt, wie es gespeichert ist.
+    $saved = json_read('content.json');
+    $saved['program'] = ($saved['program'] ?? []) + [];
+    $saved['program']['seats_left'] = (string)$neu;
+    $saved['program']['sold_out']   = $neu === 0;
+
+    if (json_write('content.json', $saved)) {
+        flash($neu === 0
+            ? 'Letzter Platz vergeben — die Website zeigt jetzt «ausgebucht».'
+            : 'Noch ' . $neu . ' von ' . $gesamt . ' Plätzen frei.');
+    } else {
+        flash('Konnte nicht gespeichert werden.', 'err');
+    }
+    header('Location: index.php'); exit;
+}
+
 /* ── Übersicht ───────────────────────────────────────────────────────── */
 $c = ff_content();
+$gesamt  = max(0, (int)$c['program']['seats_total']);
+$gesetzt = $c['program']['seats_left'] !== '';
+$frei    = $gesetzt ? max(0, (int)$c['program']['seats_left']) : $gesamt;
 $upcoming = events_upcoming(3);
 $shots = gallery_items();
 admin_head('Übersicht');
@@ -106,9 +136,30 @@ admin_tabs('index.php');
     <a class="btn btn--ghost" href="backup.php">Backup verwalten</a>
   </div>
   <div class="card">
+    <h3 style="margin:0 0 .5rem;font-size:1rem">Plätze</h3>
+    <p style="margin:0 0 .35rem;font-size:1rem">
+      <strong style="color:var(--gold-hi);font-size:1.45rem"><?= $frei ?></strong>
+      <span style="color:var(--mute)">von <?= $gesamt ?> frei</span>
+      <?php if (!empty($c['program']['sold_out'])): ?>
+        <span style="color:#f0b4b4">— ausgebucht</span>
+      <?php endif ?>
+    </p>
+    <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
+      <?php if ($gesetzt): ?>Nach jeder Anmeldung einen Klick. Bei null schaltet die
+      Website von selbst auf ausgebucht.<?php else: ?>Die Anzeige auf der Website
+      erscheint, sobald du hier zum ersten Mal klickst.<?php endif ?></p>
+    <form method="post" style="display:flex;gap:.5rem;flex-wrap:wrap">
+      <?= csrf_field() ?>
+      <button class="btn" name="seats" value="minus" <?= $frei === 0 ? 'disabled' : '' ?>>
+        Ein Platz vergeben</button>
+      <button class="btn btn--ghost" name="seats" value="plus" <?= $frei >= $gesamt ? 'disabled' : '' ?>>
+        Rückgängig</button>
+    </form>
+  </div>
+  <div class="card">
     <h3 style="margin:0 0 .5rem;font-size:1rem">Anmeldungen</h3>
     <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
-      Die laufen über Tally, nicht über diese Seite.</p>
+      Die laufen über Tally. Die Benachrichtigung kommt an <?= h($c['contact']['email']) ?>.</p>
     <a class="btn btn--ghost" href="<?= h($c['contact']['form_url']) ?>" target="_blank" rel="noopener">Formular öffnen ↗</a>
   </div>
 </div>

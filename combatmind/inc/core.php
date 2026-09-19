@@ -54,9 +54,11 @@ function site_url(string $path = ''): string {
  */
 function cta_attrs(string $url, string $id = '', string $fallback = '#anmeldung'): string {
     if ($url === '') return 'href="' . h($fallback) . '"';
+    // Kein auto-close: Tally leitet nach dem Absenden auf danke.php weiter, und
+    // ein sich selbst schliessendes Fenster würde genau das verhindern.
     return 'href="' . h($url) . '"' . ($id
         ? ' data-tally-open="' . h($id) . '" data-tally-layout="modal" data-tally-width="720"'
-          . ' data-tally-overlay="1" data-tally-auto-close="4000"'
+          . ' data-tally-overlay="1"'
         : '');
 }
 

@@ -111,6 +111,30 @@ try {
   await page.waitForLoadState('networkidle');
   ok('eingetragene UID erscheint', (await body('/impressum.php')).includes('CHE-123.456.789'));
 
+  group('Platzzähler');
+  await page.goto(B + '/admin/index.php');
+  ok('Zählerstand auf der Übersicht', /6\s*<\/strong>/.test(await page.innerHTML('body')));
+  await page.click('button[name=seats][value=minus]');
+  await page.waitForLoadState('networkidle');
+  ok('ein Platz weniger', (await body('/index.php')).includes('Noch 5 von 16 Plätzen frei'));
+  await page.click('button[name=seats][value=plus]');
+  await page.waitForLoadState('networkidle');
+  ok('Rückgängig stellt wieder her', (await body('/index.php')).includes('Noch 6 von 16 Plätzen frei'));
+
+  // Bis auf null klicken: die Website muss von selbst auf ausgebucht gehen.
+  for (let i = 0; i < 6; i++) {
+    await page.click('button[name=seats][value=minus]');
+    await page.waitForLoadState('networkidle');
+  }
+  let hs = (await body('/index.php')).split('</style>')[1];
+  ok('bei null automatisch ausgebucht', hs.includes('badge--out'));
+  ok('Knopf bei null gesperrt', await page.locator('button[name=seats][value=minus][disabled]').count() === 1);
+  await page.click('button[name=seats][value=plus]');
+  await page.waitForLoadState('networkidle');
+  hs = (await body('/index.php')).split('</style>')[1];
+  ok('ein Platz zurück hebt ausgebucht auf', !hs.includes('badge--out'));
+  ok('andere Texte unberührt', (await body('/index.php')).includes('Eine Testfrage?'));
+
   group('Ausgebucht-Schalter');
   await page.goto(B + '/admin/texte.php');
   await page.check('input[type=checkbox][name="c[program][sold_out]"]');
