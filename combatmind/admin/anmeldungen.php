@@ -109,7 +109,11 @@ admin_tabs('anmeldungen.php');
       <dl>
         <dt>E-Mail</dt><dd><a href="mailto:<?= h($r['email'] ?? '') ?>"><?= h($r['email'] ?? '') ?></a></dd>
         <dt>Telefon</dt><dd><a href="tel:<?= h(phone_href((string)($r['telefon'] ?? ''))) ?>"><?= h($r['telefon'] ?? '') ?></a></dd>
-        <dt>Alter</dt><dd><?= h((string)($r['alter'] ?? '?')) ?> Jahre<?= !empty($r['gv_name']) ? ' — minderjährig' : '' ?></dd>
+        <?php $geb = (string)($r['geburtsdatum'] ?? ''); $jetzt = $geb !== '' ? signup_age($geb) : null; ?>
+        <dt>Geboren</dt>
+        <dd><?= $geb !== '' ? h(date('d.m.Y', strtotime($geb))) : '—' ?><?php
+            if ($jetzt !== null): ?> — heute <?= $jetzt ?> Jahre<?php endif ?><?php
+            if (!empty($r['gv_name'])): ?> · minderjährig bei der Anmeldung<?php endif ?></dd>
         <?php if (!empty($r['gv_name'])): ?>
           <dt>Erziehungsberechtigt</dt>
           <dd><?= h($r['gv_name']) ?> — <a href="mailto:<?= h($r['gv_email'] ?? '') ?>"><?= h($r['gv_email'] ?? '') ?></a></dd>

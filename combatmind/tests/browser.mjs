@@ -148,6 +148,12 @@ try {
   ok('Häkchen bleiben klein', await breit('input[name=agb]') < 30);
   await p3.fill('input[name=geburtsdatum]', jahrVor(30));
 
+  // Das zurückgespiegelte Alter macht ein vertauschtes Datum sichtbar.
+  await p3.fill('input[name=geburtsdatum]', '1988-03-10');
+  const echo = await p3.textContent('#alter-echo');
+  ok('Alter wird zurückgespiegelt', /ergibt \d+ Jahre/.test(echo), echo);
+  ok('Datum wird ausgeschrieben', echo.includes('März'), echo);
+
   ok('Gesundheitsfeld zunächst verborgen', !(await p3.locator('#ges').isVisible()));
   await p3.check('input[name=gesundheit][value=ja]');
   ok('erscheint bei «ja»', await p3.locator('#ges').isVisible());
@@ -164,6 +170,7 @@ try {
 
   await page.goto(B + '/admin/anmeldungen.php');
   ok('Anmeldung steht im Admin', (await page.textContent('body')).includes('Anna Muster'));
+  ok('Geburtsdatum steht im Admin', /Geboren/.test(await page.textContent('body')));
   ok('abgewiesene steht nicht drin', !(await page.textContent('body')).includes('Tim Jung'));
   const [csv] = await Promise.all([
     page.waitForEvent('download'),

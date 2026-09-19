@@ -132,7 +132,7 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
 
       <div class="fld"><label for="geburtsdatum">Geburtsdatum</label>
         <input id="geburtsdatum" type="date" name="geburtsdatum" value="<?= $w('geburtsdatum') ?>" required>
-        <span class="fine" style="color:var(--mute);display:block">Teilnahme ab <?= FF_MIN_AGE ?> Jahren.</span><?= $e('geburtsdatum') ?></div>
+        <span class="fine" style="color:var(--mute);display:block" id="alter-echo">Teilnahme ab <?= FF_MIN_AGE ?> Jahren.</span><?= $e('geburtsdatum') ?></div>
 
       <!-- erscheint nur bei 16 oder 17 -->
       <div class="grp" id="gv">
@@ -186,7 +186,18 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
     if (m < 0 || (m === 0 && h.getDate() < d.getDate())) a--;
     return a;
   };
-  const pruef = () => { const a = jahre(geb.value); gv.hidden = !(a !== null && a >= 16 && a < 18); };
+  // Das errechnete Alter sofort anzeigen: Wer Tag und Monat vertauscht — je nach
+  // Spracheinstellung des Browsers steht der Monat vorn — sieht es hier sofort.
+  const echo = document.getElementById('alter-echo');
+  const standard = echo.textContent;
+  const pruef = () => {
+    const a = jahre(geb.value);
+    gv.hidden = !(a !== null && a >= 16 && a < 18);
+    if (a === null || a < 0 || a > 120) { echo.textContent = standard; return; }
+    const d = new Date(geb.value);
+    echo.textContent = 'Das ergibt ' + a + ' Jahre (geboren am '
+      + d.toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' }) + ').';
+  };
   geb.addEventListener('change', pruef); geb.addEventListener('input', pruef); pruef();
 
   document.querySelectorAll('.err').forEach((meldung) => {
