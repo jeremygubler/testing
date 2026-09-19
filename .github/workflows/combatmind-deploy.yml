@@ -35,12 +35,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Secrets prüfen
+        run: |
+          fehlt=""
+          [ -z "${{ secrets.CYON_HOST }}" ]    && fehlt="$fehlt CYON_HOST"
+          [ -z "${{ secrets.CYON_USER }}" ]    && fehlt="$fehlt CYON_USER"
+          [ -z "${{ secrets.CYON_PATH }}" ]    && fehlt="$fehlt CYON_PATH"
+          [ -z "${{ secrets.CYON_SSH_KEY }}" ] && fehlt="$fehlt CYON_SSH_KEY"
+          if [ -n "$fehlt" ]; then
+            echo "::error::Diese Secrets fehlen im Repository:$fehlt"
+            echo "Einzutragen unter Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "Alle vier Secrets sind gesetzt."
+
       - name: SSH-Schlüssel einrichten
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.CYON_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "${{ secrets.CYON_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Verbindung prüfen
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "${{ secrets.CYON_USER }}@${{ secrets.CYON_HOST }}" \
+            "test -d '${{ secrets.CYON_PATH }}' && echo 'Zielordner erreichbar.'"
 
       - name: Übertragen
         env:
