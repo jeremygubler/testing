@@ -187,7 +187,7 @@ function ff_content(): array {
     $out = ff_defaults();
     foreach ($saved as $sec => $val) {
         if (!isset($out[$sec])) continue;
-        $out[$sec] = is_array($val) && !isset($out[$sec][0]) && !array_is_list($val)
+        $out[$sec] = is_array($val) && !isset($out[$sec][0]) && !is_list_array($val)
             ? array_merge($out[$sec], $val) : $val;
     }
     return $cache = $out;

@@ -14,6 +14,14 @@ const FF_MAX_EDGE   = 2000;              // px, längere Kante wird verkleinert
 const FF_LOGIN_TRIES = 6;
 const FF_LOCKOUT     = 900;              // 15 Minuten
 
+/**
+ * Wie array_is_list(), aber ohne PHP 8.1 vorauszusetzen — das war die einzige
+ * Stelle, die eine neuere Version verlangt hätte als der Rest des Codes.
+ */
+function is_list_array(array $a): bool {
+    return $a === [] || array_keys($a) === range(0, count($a) - 1);
+}
+
 /** HTML-Escaping. Jede Ausgabe von Benutzerinhalt läuft hierdurch. */
 function h(?string $s): string {
     return htmlspecialchars($s ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
