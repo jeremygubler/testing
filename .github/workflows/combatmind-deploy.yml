@@ -108,6 +108,22 @@ jobs:
             -e "ssh $SSH" \
             combatmind/ "$SSH_USER@$HOST:$DEST/"
 
+      - name: Fremde Dateien entfernen
+        if: ${{ !inputs.rollback && !inputs.dry_run }}
+        run: |
+          # Der erste Upload lief von Hand per FTP und hat mitgenommen, was nicht
+          # auf einen Webserver gehört. Der rsync oben schliesst diese Pfade nur
+          # aus — ausschliessen entfernt nichts, was schon da ist. Feste Liste,
+          # niemals ein Platzhalter.
+          ssh $SSH "$SSH_USER@$HOST" "
+            set -e
+            cd '$DEST'
+            for weg in README.md tests node_modules; do
+              if [ -e \"\$weg\" ]; then rm -rf -- \"\$weg\" && echo \"entfernt: \$weg\"; fi
+            done
+            echo 'Aufräumen abgeschlossen.'
+          "
+
       - name: Alte Sicherungen aufräumen
         if: ${{ !inputs.rollback && !inputs.dry_run }}
         continue-on-error: true
