@@ -41,6 +41,15 @@ ok('cta_attrs ohne Formular zeigt auf den Abschnitt', cta_attrs('', '') === 'hre
 ok('cta_attrs mit ID öffnet das Overlay', str_contains(cta_attrs('https://tally.so/r/X1', 'X1'), 'data-tally-open="X1"'));
 ok('cta_attrs ohne ID nur als Link', !str_contains(cta_attrs('https://tally.so/r/X1', ''), 'data-tally-open'));
 
+echo "\nTelefonnummer\n";
+eq('Schweizer Nummer wird international',  phone_href('076 527 74 93'), '+41765277493');
+eq('Trennzeichen sind egal',               phone_href('076-527.74.93'), '+41765277493');
+eq('bereits international bleibt gleich',  phone_href('+41 76 527 74 93'), '+41765277493');
+eq('00-Vorwahl wird zum Plus',             phone_href('0041765277493'), '+41765277493');
+eq('41 ohne Plus bekommt eines',           phone_href('41 76 527 74 93'), '+41765277493');
+eq('leere Nummer ergibt leeren Link',      phone_href(' '), '');
+eq('Nummer aus dem Admin wird genommen',   phone_href(), '+41765277493');
+
 echo "\nDatenablage\n";
 json_write('probe.json', ['geheim' => 'wert']);
 $raw = file_get_contents(data_path('probe.json'));

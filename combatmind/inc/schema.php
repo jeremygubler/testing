@@ -153,6 +153,7 @@ function ff_schema(): array {
             'site_url'=> ['text', 'Domain (mit https://, ohne Schrägstrich am Ende)', 'https://combat-mind.ch'],
             'owner'   => ['text', 'Inhaberin', 'Inhaberin Jocelyn Gubler'],
             'email'   => ['text', 'E-Mail', 'info@combat-mind.ch'],
+            'phone'   => ['text', 'Telefon', '076 527 74 93'],
             'address' => ['text', 'Strasse und Hausnummer', 'Blotzheimerstr. 68'],
             'zip'     => ['text', 'PLZ', '4054'],
             'city'    => ['text', 'Ort', 'Basel'],

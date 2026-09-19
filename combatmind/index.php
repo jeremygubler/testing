@@ -602,6 +602,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   'description' => 'Combat Fitness in Basel: Striking, Grappling, Strength, Conditioning und Mindset.',
   'url'      => site_url(),
   'email'    => $c['contact']['email'] ?: null,
+  'telephone'=> phone_href() ?: null,
   'image'    => $ogFile ? site_url($ogFile) : null,
   'address'  => array_filter([
       '@type'           => 'PostalAddress',
@@ -1013,6 +1014,9 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
           <li><?= $c['contact']['address'] ? h($c['contact']['address']) . '<br>' : '' ?><?= h(zip_city()) ?></li>
           <?php if ($c['contact']['email']): ?>
             <li><a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a></li>
+          <?php endif ?>
+          <?php if ($c['contact']['phone']): ?>
+            <li><a href="tel:<?= h(phone_href()) ?>"><?= h($c['contact']['phone']) ?></a></li>
           <?php endif ?>
         </ul>
         <h4 style="margin-top:1.6rem">Rechtliches</h4>

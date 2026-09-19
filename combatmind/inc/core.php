@@ -66,6 +66,23 @@ function zip_city(): string {
     return trim(($c['zip'] ?? '') . ' ' . ($c['city'] ?? ''));
 }
 
+/**
+ * Telefonnummer als tel:-Ziel in internationaler Form. Eine führende 0 wird zu
+ * +41, damit der Link auch aus dem Ausland wählt und Google die Nummer
+ * eindeutig zuordnen kann. Leere Eingabe ergibt einen leeren String.
+ */
+function phone_href(string $nr = ''): string {
+    if ($nr === '') $nr = (string)(ff_content()['contact']['phone'] ?? '');
+    $intl = str_starts_with(ltrim($nr), '+');
+    $d = preg_replace('/\D+/', '', $nr);
+    if ($d === '') return '';
+    if ($intl)                     return '+' . $d;
+    if (str_starts_with($d, '00')) return '+' . substr($d, 2);
+    if (str_starts_with($d, '0'))  return '+41' . substr($d, 1);
+    if (str_starts_with($d, '41')) return '+' . $d;
+    return '+41' . $d;
+}
+
 /** Zeilenumbrüche aus dem Admin zu Absätzen machen (nach dem Escaping). */
 function paragraphs(?string $s): string {
     $out = '';

@@ -206,5 +206,9 @@ function legal_address(): string {
     $out .= 'E-Mail: ' . ($c['contact']['email']
         ? '<a href="mailto:' . h($c['contact']['email']) . '">' . h($c['contact']['email']) . '</a>'
         : $todo('E-Mail-Adresse'));
+    if ($c['contact']['phone']) {
+        $out .= '<br>Telefon: <a href="tel:' . h(phone_href()) . '">'
+              . h($c['contact']['phone']) . '</a>';
+    }
     return $out;
 }
