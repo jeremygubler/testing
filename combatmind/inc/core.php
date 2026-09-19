@@ -6,13 +6,25 @@
  */
 declare(strict_types=1);
 
+/*
+ * Fehler werden protokolliert, aber nie ausgegeben. Eine PHP-Meldung im
+ * Browser verriete Dateipfade und Codezeilen — und ob sie erscheint, hinge
+ * sonst allein an der Serverkonfiguration.
+ */
+@ini_set('display_errors', '0');
+@ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
 const FF_ROOT      = __DIR__ . '/..';
 const FF_DATA      = FF_ROOT . '/data';
 const FF_GALLERY   = FF_ROOT . '/assets/gallery';
 const FF_MAX_UPLOAD = 6 * 1024 * 1024;   // 6 MB
 const FF_MAX_EDGE   = 2000;              // px, längere Kante wird verkleinert
-const FF_LOGIN_TRIES = 6;
-const FF_LOCKOUT     = 900;              // 15 Minuten
+const FF_LOGIN_TRIES   = 6;              // Fehlversuche je Gerät
+const FF_LOCKOUT       = 900;            // 15 Minuten Sperre für dieses Gerät
+const FF_GLOBAL_TRIES  = 30;             // Notbremse: Versuche aus allen Quellen
+const FF_GLOBAL_WINDOW = 3600;           // innerhalb einer Stunde
+const FF_KNOWN_DAYS    = 30;             // so lange gilt ein Gerät als bekannt
 
 /**
  * Wie array_is_list(), aber ohne PHP 8.1 vorauszusetzen — das war die einzige
@@ -148,35 +160,86 @@ function auth_set_password(string $pw): bool {
     ]);
 }
 
-/** Fehlversuche zählen und nach FF_LOGIN_TRIES für FF_LOCKOUT Sekunden sperren. */
-function auth_throttle_state(): array {
-    $t = json_read('throttle.json', ['fails' => 0, 'until' => 0]);
-    if (($t['until'] ?? 0) > time()) return $t;
-    if (($t['until'] ?? 0) !== 0) $t = ['fails' => 0, 'until' => 0];
+/**
+ * Sperrzustand. Gespeichert wird je Gerät ein Zähler, nie die IP-Adresse
+ * selbst: sie wird mit einem zufälligen Wert gehasht, der nur auf diesem
+ * Server liegt. Damit enthält die Datei keine Personendaten.
+ */
+function throttle_load(): array {
+    $t = json_read('throttle.json', []);
+    if (empty($t['salt'])) $t['salt'] = bin2hex(random_bytes(16));
+    foreach (['ips', 'known'] as $k) if (!isset($t[$k]) || !is_array($t[$k])) $t[$k] = [];
+    if (!isset($t['global']) || !is_array($t['global'])) $t['global'] = ['count' => 0, 'start' => 0];
+
+    // Aufräumen, sonst wächst die Datei mit jedem Besucher weiter.
+    $now = time();
+    $t['ips']   = array_filter($t['ips'],   fn($e) => ($e['seen'] ?? 0) > $now - FF_GLOBAL_WINDOW);
+    $t['known'] = array_filter($t['known'], fn($exp) => $exp > $now);
+    if (($t['global']['start'] ?? 0) < $now - FF_GLOBAL_WINDOW) $t['global'] = ['count' => 0, 'start' => $now];
     return $t;
 }
 
+/** Kennung dieses Geräts. REMOTE_ADDR bewusst ohne Proxy-Header — die kann
+ *  ein Angreifer frei setzen und die Sperre damit umgehen. */
+function client_key(array $t): string {
+    return substr(hash_hmac('sha256', (string)($_SERVER['REMOTE_ADDR'] ?? ''), $t['salt']), 0, 24);
+}
+
+/** Verbleibende Sperrzeit für dieses Gerät, in Sekunden. */
 function auth_locked_for(): int {
-    return max(0, (int)(auth_throttle_state()['until'] ?? 0) - time());
+    $t   = throttle_load();
+    $key = client_key($t);
+    $now = time();
+
+    $mine = max(0, (int)($t['ips'][$key]['until'] ?? 0) - $now);
+    if ($mine > 0) return $mine;
+
+    // Notbremse bei einem verteilten Angriff. Geräte, die sich hier schon
+    // erfolgreich angemeldet haben, sind ausgenommen — sonst würde genau
+    // dieser Schutz die Betreiberinnen aussperren.
+    if (isset($t['known'][$key])) return 0;
+    if (($t['global']['count'] ?? 0) >= FF_GLOBAL_TRIES) {
+        return max(0, (int)($t['global']['start'] ?? 0) + FF_GLOBAL_WINDOW - $now);
+    }
+    return 0;
+}
+
+function auth_note_failure(): void {
+    $t   = throttle_load();
+    $key = client_key($t);
+    $now = time();
+
+    $fails = (int)($t['ips'][$key]['fails'] ?? 0) + 1;
+    $t['ips'][$key] = [
+        'fails' => $fails,
+        'until' => $fails >= FF_LOGIN_TRIES ? $now + FF_LOCKOUT : 0,
+        'seen'  => $now,
+    ];
+    if (($t['global']['start'] ?? 0) === 0) $t['global']['start'] = $now;
+    $t['global']['count'] = (int)($t['global']['count'] ?? 0) + 1;
+    json_write('throttle.json', $t);
+}
+
+function auth_note_success(): void {
+    $t   = throttle_load();
+    $key = client_key($t);
+    unset($t['ips'][$key]);
+    $t['known'][$key] = time() + FF_KNOWN_DAYS * 86400;
+    json_write('throttle.json', $t);
 }
 
 function auth_login(string $pw): bool {
     if (auth_locked_for() > 0) return false;
     $hash = auth_config()['hash'] ?? '';
     if ($hash !== '' && password_verify($pw, $hash)) {
-        json_write('throttle.json', ['fails' => 0, 'until' => 0]);
+        auth_note_success();
         session_boot();
         session_regenerate_id(true);
         $_SESSION['ff_user'] = true;
         $_SESSION['ff_seen'] = time();
         return true;
     }
-    $t = auth_throttle_state();
-    $fails = (int)($t['fails'] ?? 0) + 1;
-    json_write('throttle.json', [
-        'fails' => $fails,
-        'until' => $fails >= FF_LOGIN_TRIES ? time() + FF_LOCKOUT : 0,
-    ]);
+    auth_note_failure();
     return false;
 }
 

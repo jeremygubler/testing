@@ -42,10 +42,13 @@ if (!auth_check()) {
     $wait = auth_locked_for();
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csrf_check();
-        if ($wait > 0)                      $err = 'Zu viele Fehlversuche.';
-        elseif (auth_login((string)($_POST['pw'] ?? ''))) { header('Location: index.php'); exit; }
-        else { $err = 'Falsches Passwort.'; $wait = auth_locked_for(); }
+        if ($wait === 0 && auth_login((string)($_POST['pw'] ?? ''))) { header('Location: index.php'); exit; }
+        $wait = auth_locked_for();
+        if ($wait === 0) $err = 'Falsches Passwort.';
     }
+    // Auch ohne Absendeversuch erklären, warum das Feld gesperrt ist — sonst
+    // steht man vor einem grauen Formular ohne Grund.
+    if ($wait > 0) $err = 'Zu viele Fehlversuche.';
     admin_head('Anmelden', false);
     ?>
     <h1>Anmelden</h1>
