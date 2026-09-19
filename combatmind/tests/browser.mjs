@@ -92,7 +92,7 @@ try {
   ok('Speichern bestätigt', await page.locator('.flash.ok').isVisible());
 
   let h = await body('/index.php');
-  ok('Anmelde-Overlay ist scharf', h.includes('data-tally-open="TESTID"'));
+  ok('Buttons zeigen aufs eigene Formular', h.includes('href="anmeldung.php"'));
   ok('Platzanzeige erscheint', h.includes('Noch 6 von 16 Plätzen frei'));
   ok('geänderte FAQ sichtbar', h.includes('Eine Testfrage?'));
   ok('unberührte Standardtexte stehen noch', h.includes('>299<') && h.includes('Jocelyn'));
@@ -111,7 +111,71 @@ try {
   await page.waitForLoadState('networkidle');
   ok('eingetragene UID erscheint', (await body('/impressum.php')).includes('CHE-123.456.789'));
 
+  group('Anmeldung');
+  await ctx.request.post(B + '/admin/index.php');   // Sitzung wachhalten
+  let a = await body('/anmeldung.php');
+  ok('Anmeldeseite erreichbar', a.includes('Anmeldung absenden'));
+  ok('Buttons führen aufs eigene Formular', (await body('/index.php')).includes('href="anmeldung.php"'));
+  ok('ohne Tally kein fremdes Skript', !(await body('/index.php')).includes('tally.so/widgets'));
+
+  const p3 = await ctx.newPage();
+  const füllen = async (werte) => {
+    await p3.goto(B + '/anmeldung.php');
+    await p3.evaluate(() => { document.querySelector('input[name=ts]').value = String(Math.floor(Date.now()/1000) - 30); });
+    for (const [k, v] of Object.entries(werte)) {
+      if (k === 'gesundheit') await p3.check(`input[name=gesundheit][value="${v}"]`);
+      else if (k === 'agb' || k === 'fotos') { if (v) await p3.check(`input[name=${k}]`); }
+      else await p3.fill(`input[name=${k}], textarea[name=${k}]`, v);
+    }
+    await p3.click('button[type=submit]');
+    await p3.waitForLoadState('networkidle');
+  };
+  const jahrVor = (n) => { const d = new Date(); d.setFullYear(d.getFullYear() - n); return d.toISOString().slice(0, 10); };
+
+  // Bedingtes Feld: erscheint bei 17, verschwindet bei 30.
+  await p3.goto(B + '/anmeldung.php');
+  await p3.fill('input[name=geburtsdatum]', jahrVor(17));
+  ok('Einwilligungsfeld erscheint bei 17', await p3.locator('#gv').isVisible());
+  await p3.fill('input[name=geburtsdatum]', jahrVor(30));
+  ok('und verschwindet bei 30', !(await p3.locator('#gv').isVisible()));
+  ok('Gesundheitsfeld zunächst verborgen', !(await p3.locator('#ges').isVisible()));
+  await p3.check('input[name=gesundheit][value=ja]');
+  ok('erscheint bei «ja»', await p3.locator('#ges').isVisible());
+
+  await füllen({ vorname: 'Anna', name: 'Muster', email: 'anna@example.ch',
+                 telefon: '076 527 74 93', geburtsdatum: jahrVor(30), gesundheit: 'nein', agb: true });
+  ok('Anmeldung landet auf der Dankesseite', p3.url().endsWith('/danke.php'));
+  ok('Platz wurde abgezogen', (await body('/index.php')).includes('Noch 5 von 16 Plätzen frei'));
+
+  await füllen({ vorname: 'Tim', name: 'Jung', email: 'tim@example.ch',
+                 telefon: '076 527 74 93', geburtsdatum: jahrVor(17), gesundheit: 'nein', agb: true });
+  ok('minderjährig ohne Einwilligung abgewiesen', p3.url().includes('anmeldung.php'));
+  ok('Grund wird genannt', (await p3.textContent('body')).includes('erziehungsberechtigten Person fehlt'));
+
+  await page.goto(B + '/admin/anmeldungen.php');
+  ok('Anmeldung steht im Admin', (await page.textContent('body')).includes('Anna Muster'));
+  ok('abgewiesene steht nicht drin', !(await page.textContent('body')).includes('Tim Jung'));
+  const [csv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.goto(B + '/admin/anmeldungen.php?csv=1').catch(() => {}),
+  ]);
+  const inhalt = execSync(`cat "${await csv.path()}"`).toString();
+  ok('CSV enthält die Anmeldung', inhalt.includes('anna@example.ch'));
+
+  const [zip2] = await Promise.all([
+    page.waitForEvent('download'),
+    page.goto(B + '/admin/backup.php?download=1').catch(() => {}),
+  ]);
+  const inh = execSync(`unzip -Z1 "${await zip2.path()}"`).toString();
+  ok('Backup enthält keine Personendaten', !inh.includes('signups'));
+  await p3.close();
+
   group('Platzzähler');
+  // Auf einen bekannten Stand setzen — vorherige Gruppen haben Plätze verbraucht.
+  await page.goto(B + '/admin/texte.php');
+  await page.fill('input[name="c[program][seats_left]"]', '6');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
   await page.goto(B + '/admin/index.php');
   ok('Zählerstand auf der Übersicht', /6\s*<\/strong>/.test(await page.innerHTML('body')));
   await page.click('button[name=seats][value=minus]');
@@ -122,7 +186,9 @@ try {
   ok('Rückgängig stellt wieder her', (await body('/index.php')).includes('Noch 6 von 16 Plätzen frei'));
 
   // Bis auf null klicken: die Website muss von selbst auf ausgebucht gehen.
-  for (let i = 0; i < 6; i++) {
+  // Abbruch über den gesperrten Knopf statt über eine feste Zahl.
+  for (let i = 0; i < 25; i++) {
+    if (await page.locator('button[name=seats][value=minus][disabled]').count()) break;
     await page.click('button[name=seats][value=minus]');
     await page.waitForLoadState('networkidle');
   }
@@ -150,7 +216,23 @@ try {
   await page.click('button[type=submit]');
   await page.waitForLoadState('networkidle');
   h = (await body('/index.php')).split('</style>')[1];
-  ok('Zurückschalten stellt alles wieder her', h.includes('TESTID') && !h.includes('badge--out'));
+  ok('Zurückschalten stellt alles wieder her',
+     h.includes('href="anmeldung.php"') && !h.includes('badge--out'));
+
+  group('Tally als Alternative');
+  await page.goto(B + '/admin/texte.php');
+  await page.uncheck('input[type=checkbox][name="c[signup][own]"]');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+  h = await body('/index.php');
+  ok('Overlay ist scharf', h.includes('data-tally-open="TESTID"'));
+  ok('Tally-Skript wird geladen', h.includes('tally.so/widgets'));
+  ok('eigenes Formular nicht verlinkt', !h.includes('href="anmeldung.php"'));
+  await page.goto(B + '/admin/texte.php');
+  await page.check('input[type=checkbox][name="c[signup][own]"]');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+  ok('Umschalten zurück wirkt', (await body('/index.php')).includes('href="anmeldung.php"'));
 
   group('Galerie');
   await page.goto(B + '/admin/galerie.php');

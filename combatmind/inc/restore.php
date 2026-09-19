@@ -25,8 +25,9 @@ function restore_target(string $entry): ?array {
     if (str_starts_with($entry, '/') || str_contains($entry, '..')) return null;
 
     if (preg_match('#^data/([a-z0-9_-]{1,40})\.json\.php$#', $entry, $m)) {
-        // Passwort und Sperrliste kommen niemals aus einer hochgeladenen Datei.
-        if ($m[1] === 'auth' || $m[1] === 'throttle') return null;
+        // Passwort, Sperrliste und die echten Anmeldungen kommen niemals aus
+        // einer hochgeladenen Datei.
+        if (in_array($m[1], ['auth', 'throttle', 'signups', 'signup_rate'], true)) return null;
         return ['kind' => 'json', 'name' => $m[1] . '.json'];
     }
     if (preg_match('#^assets/gallery/([A-Za-z0-9][A-Za-z0-9._-]{0,59}\.jpg)$#', $entry, $m)) {

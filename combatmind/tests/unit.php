@@ -17,6 +17,7 @@ require __DIR__ . '/../inc/schema.php';
 require __DIR__ . '/../inc/media.php';
 require __DIR__ . '/../inc/events.php';
 require __DIR__ . '/../inc/restore.php';
+require __DIR__ . '/../inc/signup.php';
 
 $pass = 0; $fail = 0;
 function ok(string $name, bool $cond, string $detail = ''): void {
@@ -100,6 +101,72 @@ ok('Notbremse sperrt unbekannte Geräte', $als('203.0.113.77', 'auth_locked_for'
 ok('bekanntes Gerät bleibt ausgenommen', $als('198.51.100.9', 'auth_locked_for') === 0);
 ok('Sperrdatei enthält keine IP-Adressen',
     !preg_match('/192\.0\.2\.|198\.51\.100|203\.0\.113/', file_get_contents(data_path('throttle.json'))));
+
+echo "\nAnmeldung — Alter\n";
+$vor = fn(int $j) => (new DateTimeImmutable('today'))->modify("-$j years")->format('Y-m-d');
+eq('genau 16 heute',        signup_age($vor(16)), 16);
+eq('30 Jahre',              signup_age($vor(30)), 30);
+eq('unbrauchbares Datum',   signup_age('irgendwas'), null);
+eq('31. Februar gibt es nicht', signup_age('2000-02-31'), null);
+eq('Datum in der Zukunft',  signup_age('2099-01-01'), null);
+eq('einen Tag vor dem 16.', signup_age((new DateTimeImmutable('today'))->modify('-16 years')->modify('+1 day')->format('Y-m-d')), 15);
+
+echo "\nAnmeldung — Regeln\n";
+$gut = ['vorname'=>'Anna','name'=>'Muster','email'=>'anna@example.ch','telefon'=>'076 527 74 93',
+        'geburtsdatum'=>$vor(30),'gesundheit'=>'nein','agb'=>'1'];
+$r = signup_validate($gut);
+ok('vollständige Anmeldung geht durch', $r['ok'] === true, implode(' ', $r['errors']));
+eq('Alter wird mitgespeichert', $r['data']['alter'], 30);
+
+ok('ohne AGB-Haken abgelehnt',   !signup_validate(array_diff_key($gut, ['agb'=>0]))['ok']);
+ok('ohne Vorname abgelehnt',     !signup_validate(['vorname'=>''] + $gut)['ok']);
+ok('krumme E-Mail abgelehnt',    !signup_validate(['email'=>'keine-adresse'] + $gut)['ok']);
+ok('kurze Telefonnummer abgelehnt', !signup_validate(['telefon'=>'123'] + $gut)['ok']);
+ok('unter 16 abgelehnt',         !signup_validate(['geburtsdatum'=>$vor(15)] + $gut)['ok']);
+// Mit 16 ist man zugelassen — und braucht laut AGB die Einwilligung. Die
+// Ablehnung darf also nicht am Alter hängen.
+$r16 = signup_validate(['geburtsdatum'=>$vor(16)] + $gut);
+ok('16 scheitert nicht am Alter', !isset($r16['errors']['geburtsdatum']));
+ok('16 braucht die Einwilligung', isset($r16['errors']['gv_name']));
+
+// Bedingung 1: 16 und 17 brauchen die Einwilligung, Erwachsene nicht.
+$jung = ['geburtsdatum'=>$vor(17)] + $gut;
+$rj = signup_validate($jung);
+ok('minderjährig ohne Einwilligung abgelehnt', !$rj['ok'] && isset($rj['errors']['gv_name']));
+$rj2 = signup_validate(['gv_name'=>'Maria Muster','gv_email'=>'maria@example.ch'] + $jung);
+ok('minderjährig mit Einwilligung geht durch', $rj2['ok']);
+eq('Einwilligung wird gespeichert', $rj2['data']['gv_email'], 'maria@example.ch');
+$re = signup_validate(['gv_name'=>'Unnötig','gv_email'=>'x@example.ch'] + $gut);
+eq('bei Erwachsenen wird sie verworfen', $re['data']['gv_name'], '');
+
+// Bedingung 2: «ja» verlangt eine Beschreibung, «nein» verwirft sie.
+$rg = signup_validate(['gesundheit'=>'ja'] + $gut);
+ok('«ja» ohne Text abgelehnt', !$rg['ok'] && isset($rg['errors']['gesundheit_text']));
+$rg2 = signup_validate(['gesundheit'=>'ja','gesundheit_text'=>'Knie operiert'] + $gut);
+ok('«ja» mit Text geht durch', $rg2['ok']);
+eq('Text kommt mit', $rg2['data']['gesundheit_text'], 'Knie operiert');
+$rg3 = signup_validate(['gesundheit'=>'nein','gesundheit_text'=>'wird verworfen'] + $gut);
+eq('bei «nein» kein Text gespeichert', $rg3['data']['gesundheit_text'], '');
+ok('erfundene Antwort abgelehnt', !signup_validate(['gesundheit'=>'vielleicht'] + $gut)['ok']);
+
+echo "\nAnmeldung — Skripte abwehren\n";
+ok('gefüllter Honigtopf fliegt raus', !signup_looks_human(['website'=>'http://spam','ts'=>time()-60]));
+ok('sofort abgeschickt fliegt raus',  !signup_looks_human(['ts'=>time()]));
+ok('ohne Zeitstempel fliegt raus',    !signup_looks_human([]));
+ok('in Ruhe ausgefüllt geht durch',    signup_looks_human(['ts'=>time()-45,'website'=>'']));
+
+echo "\nAnmeldung — Ablage\n";
+json_write('content.json', ['program'=>['seats_total'=>'16','seats_left'=>'2']]);
+ff_content(true);
+signup_store(signup_validate($gut)['data']);
+eq('ein Platz weniger', ff_content(true)['program']['seats_left'], '1');
+signup_store(signup_validate(['email'=>'zwei@example.ch'] + $gut)['data']);
+eq('bei null ausgebucht', ff_content(true)['program']['seats_left'], '0');
+ok('Schalter springt um', ff_content()['program']['sold_out'] === true);
+eq('beide Anmeldungen liegen vor', count(signup_all()), 2);
+ok('neueste zuerst', signup_all()[0]['email'] === 'zwei@example.ch');
+ok('Sperrliste enthält keine IP', !str_contains((string)@file_get_contents(data_path('signup_rate.json')), '127.0.0'));
+ok('Anmeldungen sind vom Einspielen ausgenommen', restore_target('data/signups.json.php') === null);
 
 echo "\nBackup einspielen — was hinein darf\n";
 eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');

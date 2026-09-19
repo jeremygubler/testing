@@ -15,9 +15,12 @@ $formId   = $c['contact']['form_id'];
 $soldOut   = !empty($c['program']['sold_out']);
 $seatsLeft = trim((string)$c['program']['seats_left']);
 $seatsAll  = trim((string)$c['program']['seats_total']);
+$ownForm   = !empty($c['signup']['own']);
 $cta       = $soldOut
     ? cta_attrs($c['program']['waitlist_url'], $c['program']['waitlist_id'])
-    : cta_attrs($formUrl, $formId);
+    : ($ownForm ? 'href="anmeldung.php"' : cta_attrs($formUrl, $formId));
+// Ohne eigenes Formular und ohne Tally-Link zeigt kein Knopf ins Leere.
+$ctaReady  = $ownForm || $formUrl !== '' || $soldOut;
 $ctaLabel  = $soldOut ? $c['program']['waitlist_cta'] : $c['hero']['cta'];
 $ctaLabelP = $soldOut ? $c['program']['waitlist_cta'] : $c['program']['cta'];
 $heroPhoto = $c['hero']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['hero']['photo']))
@@ -958,7 +961,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
     <p><?php if ($soldOut): ?>Der aktuelle Durchgang ist ausgebucht. Trag dich auf der
       Warteliste ein — wir melden uns, sobald ein Platz frei wird.<?php else: ?><?= nl2br(h($c['band']['text'])) ?><?php endif ?></p>
     <div style="display:flex;flex-wrap:wrap;gap:.9rem;justify-content:center">
-      <?php if ($formUrl): ?>
+      <?php if ($ctaReady): ?>
         <a class="btn" <?= $cta ?>><?= h($ctaLabel) ?></a>
       <?php else: ?>
         <span class="tag" style="padding:.85rem 1.4rem">Anmeldeformular wird im Admin hinterlegt</span>
@@ -1129,7 +1132,9 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 })();
 </script>
 <?php if ($formId || $c['program']['waitlist_id']): ?>
+<?php if (!$ownForm || $soldOut): ?>
 <script async src="https://tally.so/widgets/embed.js"></script>
+<?php endif ?>
 <?php endif ?>
 </body>
 </html>

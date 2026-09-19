@@ -29,7 +29,10 @@ if (isset($_GET['download'])) {
     $count = 0;
     foreach (glob(FF_DATA . '/*.json.php') ?: [] as $f) {
         // Passwort-Hash bleibt draussen: ein Backup wandert per Mail und Cloud herum.
-        if (basename($f) === 'auth.json.php' || basename($f) === 'throttle.json.php') continue;
+        // Anmeldungen bleiben draussen: Dieses ZIP soll bedenkenlos per Mail
+        // und in der Cloud liegen dürfen, Personendaten dürfen das nicht.
+        if (in_array(basename($f), ['auth.json.php', 'throttle.json.php',
+                                    'signups.json.php', 'signup_rate.json.php'], true)) continue;
         $zip->addFile($f, 'data/' . basename($f));
         $count++;
     }

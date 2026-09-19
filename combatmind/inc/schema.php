@@ -163,6 +163,15 @@ function ff_schema(): array {
             'form_id' => ['text', 'Tally Formular-ID', ''],
         ]],
 
+        'signup' => ['label' => 'Anmeldung', 'fields' => [
+            'own'   => ['bool', 'Eigenes Anmeldeformular verwenden (statt Tally)', '1'],
+            'from'  => ['text', 'Absenderadresse der E-Mails (Konto bei cyon)', 'noreply@combat-mind.ch'],
+            'intro' => ['textarea', 'Text über dem Formular',
+                        "Zwölf Wochen, eine feste Gruppe, maximal 16 Plätze. Füll das Formular aus — wir melden uns innert zwei Arbeitstagen persönlich bei dir mit allen Angaben und der Zahlungsinformation."],
+            'reply' => ['textarea', 'Bestätigungsmail an die anmeldende Person ({vorname} wird ersetzt)',
+                        "Hallo {vorname}\n\ndanke für deine Anmeldung zum COMBAT MIND 12 Week Program.\n\nWir haben sie erhalten und melden uns innert zwei Arbeitstagen persönlich bei dir — mit allen Angaben zu Start, Ort und Ablauf sowie der Zahlungsinformation. Dein Platz ist nach Bestätigung und fristgerechter Zahlung definitiv reserviert.\n\nBis bald\nJocelyn\nCOMBAT MIND"],
+        ]],
+
         'legal' => ['label' => 'Rechtstexte', 'fields' => [
             'stand'   => ['text', 'Stand (erscheint auf AGB und Datenschutz)', '19. September 2026'],
             'min_gr'  => ['text', 'Mindestteilnehmerzahl', '6'],

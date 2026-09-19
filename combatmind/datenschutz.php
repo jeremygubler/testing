@@ -29,19 +29,35 @@ legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet �
 
   <section>
     <h2>Anmeldeformular</h2>
-    <p>Die Anmeldung läuft über <strong>Tally</strong> (Tally BV, Belgien). Dabei werden
-    die von dir eingegebenen Daten an Tally übermittelt und dort gespeichert:</p>
+    <?php /* Der Abschnitt folgt der tatsächlich eingestellten Anmeldung: Was hier
+             steht, muss beschreiben, wohin die Daten wirklich fliessen. */ ?>
+    <?php if (!empty(ff_content()['signup']['own'])): ?>
+      <p>Die Anmeldung läuft <strong>direkt über diese Website</strong>. Deine Angaben
+      werden auf dem Schweizer Server gespeichert, auf dem auch die Website liegt — es
+      ist kein Formulardienst und kein anderer Anbieter beteiligt. Erfasst werden:</p>
+    <?php else: ?>
+      <p>Die Anmeldung läuft über <strong>Tally</strong> (Tally BV, Belgien). Dabei werden
+      die von dir eingegebenen Daten an Tally übermittelt und dort gespeichert:</p>
+    <?php endif ?>
     <ul>
       <li>Vorname, Nachname, Geburtsdatum</li>
-      <li>E-Mail-Adresse und Mobilnummer</li>
-      <li>Notfallkontakt (Name und Telefonnummer)</li>
-      <li>Angaben zur Trainingserfahrung</li>
-      <li>gewählte Zahlungsart</li>
+      <li>E-Mail-Adresse und Telefonnummer</li>
+      <li>bei Minderjährigen Name und E-Mail der erziehungsberechtigten Person</li>
+      <li>freiwillige Angaben zu gesundheitlichen Einschränkungen</li>
       <li>erteilte Einwilligungen</li>
+      <li>eine freiwillige Nachricht</li>
     </ul>
     <p>Diese Daten werden ausschliesslich zur Abwicklung deiner Anmeldung und zur
     Durchführung des Trainings verwendet. Sie werden nicht verkauft und nicht für
     Werbung Dritter genutzt.</p>
+    <?php if (!empty(ff_content()['signup']['own'])): ?>
+      <p>Zur Bestätigung deiner Anmeldung erhältst du eine E-Mail; bei Minderjährigen geht
+      eine Kopie an die erziehungsberechtigte Person. Der Versand läuft über den
+      Mailserver des oben genannten Hosters.</p>
+      <p>Nach Abschluss des Kurses werden die Anmeldedaten gelöscht, soweit keine
+      gesetzliche Aufbewahrungspflicht besteht. Du kannst jederzeit per E-Mail Auskunft
+      oder Löschung verlangen.</p>
+    <?php endif ?>
   </section>
 
   <section>

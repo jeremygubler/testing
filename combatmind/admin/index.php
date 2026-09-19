@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_layout.php';
 require_once __DIR__ . '/../inc/media.php';
 require_once __DIR__ . '/../inc/events.php';
+require_once __DIR__ . '/../inc/signup.php';
 
 /* ── Ersteinrichtung: Passwort setzen, solange keines existiert ───────── */
 if (!auth_is_setup()) {
@@ -97,6 +98,8 @@ $gesamt  = max(0, (int)$c['program']['seats_total']);
 $gesetzt = $c['program']['seats_left'] !== '';
 $frei    = $gesetzt ? max(0, (int)$c['program']['seats_left']) : $gesamt;
 $upcoming = events_upcoming(3);
+$anm      = signup_all();
+$neu      = count(array_filter($anm, fn($r) => ($r['status'] ?? 'neu') === 'neu'));
 $shots = gallery_items();
 admin_head('Übersicht');
 admin_tabs('index.php');
@@ -158,9 +161,16 @@ admin_tabs('index.php');
   </div>
   <div class="card">
     <h3 style="margin:0 0 .5rem;font-size:1rem">Anmeldungen</h3>
-    <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
-      Die laufen über Tally. Die Benachrichtigung kommt an <?= h($c['contact']['email']) ?>.</p>
-    <a class="btn btn--ghost" href="<?= h($c['contact']['form_url']) ?>" target="_blank" rel="noopener">Formular öffnen ↗</a>
+    <?php if (!empty($c['signup']['own'])): ?>
+      <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
+        <?= $anm ? '<strong style="color:var(--white)">' . count($anm) . '</strong> eingegangen, davon '
+                 . $neu . ' unbearbeitet.' : 'Noch keine eingegangen.' ?></p>
+      <a class="btn btn--ghost" href="anmeldungen.php">Anmeldungen ansehen</a>
+    <?php else: ?>
+      <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
+        Die laufen über Tally. Die Benachrichtigung kommt an <?= h($c['contact']['email']) ?>.</p>
+      <a class="btn btn--ghost" href="<?= h($c['contact']['form_url']) ?>" target="_blank" rel="noopener">Formular öffnen ↗</a>
+    <?php endif ?>
   </div>
 </div>
 <?php admin_foot();
