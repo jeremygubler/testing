@@ -166,6 +166,8 @@ function ff_schema(): array {
         'legal' => ['label' => 'Rechtstexte', 'fields' => [
             'stand'   => ['text', 'Stand (erscheint auf AGB und Datenschutz)', '19. September 2026'],
             'min_gr'  => ['text', 'Mindestteilnehmerzahl', '6'],
+            'rechtsform' => ['text', 'Rechtsform', 'Einzelunternehmen'],
+            'uid'        => ['text', 'UID/MWST-Nummer (leer lassen, solange keine vorhanden)', ''],
         ]],
     ];
 }

@@ -97,6 +97,20 @@ try {
   ok('geänderte FAQ sichtbar', h.includes('Eine Testfrage?'));
   ok('unberührte Standardtexte stehen noch', h.includes('>299<') && h.includes('Jocelyn'));
 
+  group('Rechtsseiten');
+  let imp = await body('/impressum.php');
+  ok('Rechtsform steht im Impressum', imp.includes('Einzelunternehmen'));
+  ok('ohne UID keine halbe Zeile', !imp.includes('UID/MWST'));
+  const recht = imp + (await body('/agb.php')) + (await body('/datenschutz.php'));
+  ok('keine offenen Platzhalter mehr', !recht.includes('class="todo"'));
+  ok('Stornofristen stehen in den AGB', recht.includes('Mehr als 14 Tage vor Kursstart'));
+  ok('Telefon auf den Rechtsseiten', recht.includes('tel:+41765277493'));
+  await page.goto(B + '/admin/texte.php');
+  await page.fill('input[name="c[legal][uid]"]', 'CHE-123.456.789');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+  ok('eingetragene UID erscheint', (await body('/impressum.php')).includes('CHE-123.456.789'));
+
   group('Ausgebucht-Schalter');
   await page.goto(B + '/admin/texte.php');
   await page.check('input[type=checkbox][name="c[program][sold_out]"]');
