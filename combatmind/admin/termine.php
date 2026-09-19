@@ -7,8 +7,13 @@ auth_require();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
+    // Der Löschen-Knopf schickt die Zeilennummer mit. Gespeichert wird dabei
+    // alles andere ganz normal mit — so geht keine nebenbei getippte Änderung
+    // verloren.
+    $weg  = isset($_POST['remove']) ? (string)$_POST['remove'] : null;
     $rows = [];
-    foreach ((array)($_POST['ev'] ?? []) as $r) {
+    foreach ((array)($_POST['ev'] ?? []) as $k => $r) {
+        if ($weg !== null && (string)$k === $weg) continue;
         if (!is_array($r)) continue;
         $date = trim((string)($r['date'] ?? ''));
         $title = mb_substr(trim((string)($r['title'] ?? '')), 0, 160);
@@ -25,7 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
     }
     $saved = events_save($rows);
-    flash($saved ? 'Termine gespeichert.' : 'Speichern fehlgeschlagen.', $saved ? 'ok' : 'err');
+    flash($saved ? ($weg !== null ? 'Termin gelöscht.' : 'Termine gespeichert.') : 'Speichern fehlgeschlagen.',
+          $saved ? 'ok' : 'err');
     header('Location: termine.php'); exit;
 }
 
@@ -36,8 +42,9 @@ admin_tabs('termine.php');
 ?>
 <h1>Termine</h1>
 <p class="sub">Erscheinen als Liste auf der Startseite — die nächsten sechs, chronologisch.
-Vergangene Termine verschwinden automatisch, du musst nichts löschen.
-Eine Zeile ohne Datum oder Titel wird beim Speichern verworfen.</p>
+Vergangene Termine verschwinden dort von selbst; löschen musst du sie nur, wenn du
+sie auch hier nicht mehr sehen willst. Änderungen werden erst mit
+«Termine speichern» übernommen.</p>
 
 <form method="post">
   <?= csrf_field() ?>
@@ -52,8 +59,16 @@ Eine Zeile ohne Datum oder Titel wird beim Speichern verworfen.</p>
           <input type="text" name="ev[<?= $i ?>][title]" value="<?= h($r['title']) ?>"></label>
         <label><span class="lbl">Notiz</span>
           <input type="text" name="ev[<?= $i ?>][note]" value="<?= h((string)($r['note'] ?? '')) ?>" placeholder="optional"></label>
-        <span style="color:<?= $r['date'] < $today ? '#77777f' : 'var(--gold)' ?>;font-size:.78rem;white-space:nowrap">
-          <?= $r['date'] < $today ? 'vorbei' : 'kommt' ?></span>
+        <span style="display:flex;gap:.7rem;align-items:center;white-space:nowrap">
+          <span style="color:<?= $r['date'] < $today ? '#77777f' : 'var(--gold)' ?>;font-size:.78rem">
+            <?php /* Ausgeschrieben, damit ein im Kalender verklickter Monat auffällt. */ ?>
+            <?= h(event_weekday($r['date']) . ', ' . event_day($r['date']) . '. '
+                  . event_month($r['date']) . ' ' . event_year($r['date'])) ?><br>
+            <?= $r['date'] < $today ? 'vorbei' : 'kommt' ?></span>
+          <button class="btn btn--danger" type="submit" name="remove" value="<?= $i ?>"
+                  style="padding:.45rem .8rem;font-size:.82rem"
+                  onclick="return confirm('Termin «<?= h(addslashes($r['title'])) ?>» löschen?')">Löschen</button>
+        </span>
       </div>
     <?php $i++; endforeach ?>
   </div>
@@ -75,7 +90,11 @@ Eine Zeile ohne Datum oder Titel wird beim Speichern verworfen.</p>
       <label><span class="lbl">Zeit</span><input type="text" name="ev[${n}][time]" placeholder="12:00–13:00"></label>
       <label><span class="lbl">Titel</span><input type="text" name="ev[${n}][title]"></label>
       <label><span class="lbl">Notiz</span><input type="text" name="ev[${n}][note]" placeholder="optional"></label>
-      <span style="color:var(--gold);font-size:.78rem">neu</span>`;
+      <span style="display:flex;gap:.7rem;align-items:center;white-space:nowrap">
+        <span style="color:var(--gold);font-size:.78rem">neu</span>
+        <button class="btn btn--danger" type="button" style="padding:.45rem .8rem;font-size:.82rem"
+                onclick="this.closest('.row').remove()">Entfernen</button>
+      </span>`;
     document.getElementById("rows").appendChild(row);
     row.querySelector("input").focus();
     n++;

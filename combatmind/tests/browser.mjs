@@ -294,6 +294,22 @@ try {
   h = await body('/index.php');
   ok('kommender Termin steht auf der Seite', h.includes('Kommt bald'));
   ok('vergangener Termin ausgeblendet', !h.includes('Lange vorbei'));
+  ok('Datum wird ausgeschrieben angezeigt',
+     /\b(Mo|Di|Mi|Do|Fr|Sa|So), \d{1,2}\. \w{3} \d{4}/.test(await page.textContent('body')));
+
+  // Löschen: ein Knopf je Zeile, der Rest bleibt stehen.
+  ok('zwei Zeilen vorhanden', await page.locator('.row').count() === 2);
+  page.once('dialog', (d) => d.accept());
+  await page.locator('button[name=remove]').first().click();
+  await page.waitForLoadState('networkidle');
+  ok('Löschen wird bestätigt', await page.locator('.flash.ok').isVisible());
+  ok('eine Zeile weniger', await page.locator('.row').count() === 1);
+  // Die Titel stehen in Eingabefeldern — deren Inhalt steht nicht im Text der Seite.
+  const titel = await page.locator('input[name$="[title]"]').evaluateAll(
+    (els) => els.map((e) => e.value));
+  ok('der richtige Termin ist weg', !titel.includes('Lange vorbei'), titel.join(', '));
+  ok('der andere steht noch', titel.includes('Kommt bald'), titel.join(', '));
+  ok('und weiterhin auf der Website', (await body('/index.php')).includes('Kommt bald'));
 
   group('Backup');
   const [zip] = await Promise.all([
