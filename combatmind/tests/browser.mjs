@@ -105,6 +105,8 @@ try {
   ok('keine offenen Platzhalter mehr', !recht.includes('class="todo"'));
   ok('Stornofristen stehen in den AGB', recht.includes('Mehr als 14 Tage vor Kursstart'));
   ok('Telefon auf den Rechtsseiten', recht.includes('tel:+41765277493'));
+  ok('kein Kartenzahlungs-Anbieter mehr genannt', !/Stripe|Kreditkarte|Apple Pay/i.test(recht));
+  ok('Zahlungswege stehen da', recht.includes('TWINT') && recht.includes('Banküberweisung'));
   await page.goto(B + '/admin/texte.php');
   await page.fill('input[name="c[legal][uid]"]', 'CHE-123.456.789');
   await page.click('button[type=submit]');

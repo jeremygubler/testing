@@ -43,8 +43,9 @@ legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT M
     für 12 × 60 Minuten. Alle Beträge verstehen sich in Schweizer Franken.</p>
     <p>COMBAT MIND ist nicht mehrwertsteuerpflichtig. Es wird keine MWST erhoben oder
     ausgewiesen.</p>
-    <p>Zur Auswahl stehen TWINT, Kredit- und Debitkarte (Stripe), Apple Pay und Google Pay
-    soweit verfügbar, sowie Banküberweisung.</p>
+    <p>Bezahlt wird per <strong>TWINT</strong> oder <strong>Banküberweisung</strong>. Die
+    Zahlungsangaben erhältst du zusammen mit der Anmeldebestätigung. Eine Kartenzahlung
+    wird nicht angeboten.</p>
     <p>Der Kursbeitrag ist <strong>innert 10 Tagen nach der Anmeldebestätigung</strong> zu
     bezahlen, spätestens jedoch vor der ersten Lektion.
     Der Platz gilt erst nach Bestätigung und fristgerechtem Zahlungseingang als definitiv

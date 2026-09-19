@@ -72,12 +72,12 @@ legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet �
 
   <section>
     <h2>Zahlungen</h2>
-    <p>Für die Bezahlung stehen TWINT, Kredit- und Debitkarte über <strong>Stripe</strong>
-    sowie Banküberweisung zur Verfügung. Zahlungsdaten wie Kartennummern werden
-    ausschliesslich beim jeweiligen Zahlungsdienstleister eingegeben und verarbeitet —
-    COMBAT MIND erhält und speichert keine Kartendaten.</p>
-    <p>Bei einer Banküberweisung werden die üblichen Zahlungsangaben über die
-    beteiligten Banken abgewickelt.</p>
+    <p>Bezahlt wird per TWINT oder Banküberweisung. <strong>Über diese Website werden
+    keine Zahlungsdaten erfasst</strong> — es ist kein Zahlungsdienstleister
+    eingebunden, und es gibt hier kein Bezahlfeld.</p>
+    <p>Die Zahlung selbst wickeln die beteiligten Banken beziehungsweise TWINT ab. Bei
+    COMBAT MIND ist ersichtlich, von wem eine Zahlung eingegangen ist — das ist zur
+    Zuordnung deiner Anmeldung nötig und ergibt sich aus der Zahlung selbst.</p>
   </section>
 
   <section>

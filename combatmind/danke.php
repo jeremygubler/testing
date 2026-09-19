@@ -32,7 +32,7 @@ $c = ff_content();
 
   <ol class="steps">
     <li><b>1</b><span><strong>Bestätigung</strong>Jocelyn schreibt dir persönlich — mit allen Angaben zu Start, Ort und Ablauf.</span></li>
-    <li><b>2</b><span><strong>Zahlung</strong>Bezahle den Kursbeitrag über die von dir gewählte Zahlungsart innert der genannten Frist.</span></li>
+    <li><b>2</b><span><strong>Zahlung</strong>Mit der Bestätigung kommen die Angaben für TWINT oder Banküberweisung. Bezahle innert der genannten Frist.</span></li>
     <li><b>3</b><span><strong>Platz definitiv</strong>Nach Zahlungseingang ist dein Platz fix reserviert. Dann sehen wir uns im Training.</span></li>
   </ol>
 
