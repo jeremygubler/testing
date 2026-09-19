@@ -29,7 +29,7 @@ function ff_schema(): array {
         ], 'default' => [
             ['label' => 'Start',  'value' => '12. Okt 2026', 'note' => 'bis 28. Dezember'],
             ['label' => 'Rhythmus', 'value' => '1× pro Woche', 'note' => 'Montag, 12:00–13:00'],
-            ['label' => 'Ort',    'value' => 'Basel',        'note' => 'Trainingsort folgt'],
+            ['label' => 'Ort',    'value' => 'Basel',        'note' => 'Blotzheimerstr. 68'],
             ['label' => 'Plätze', 'value' => 'Max. 16',      'note' => 'ab 16 Jahren'],
         ]],
 
