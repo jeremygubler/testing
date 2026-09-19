@@ -16,6 +16,7 @@ require __DIR__ . '/../inc/core.php';
 require __DIR__ . '/../inc/schema.php';
 require __DIR__ . '/../inc/media.php';
 require __DIR__ . '/../inc/events.php';
+require __DIR__ . '/../inc/restore.php';
 
 $pass = 0; $fail = 0;
 function ok(string $name, bool $cond, string $detail = ''): void {
@@ -100,11 +101,87 @@ ok('bekanntes Gerät bleibt ausgenommen', $als('198.51.100.9', 'auth_locked_for'
 ok('Sperrdatei enthält keine IP-Adressen',
     !preg_match('/192\.0\.2\.|198\.51\.100|203\.0\.113/', file_get_contents(data_path('throttle.json'))));
 
+echo "\nBackup einspielen — was hinein darf\n";
+eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');
+ok('Galeriebild erlaubt',      restore_target('assets/gallery/20260919-ab12.jpg') !== null);
+ok('Coachbild erlaubt',        restore_target('assets/coach.jpg') !== null);
+ok('Passwortdatei abgelehnt',  restore_target('data/auth.json.php') === null);
+ok('Sperrliste abgelehnt',     restore_target('data/throttle.json.php') === null);
+ok('Pfadwechsel abgelehnt',    restore_target('data/../../../etc/passwd') === null);
+ok('absoluter Pfad abgelehnt', restore_target('/etc/passwd') === null);
+ok('Programmcode abgelehnt',   restore_target('index.php') === null);
+ok('PHP im Bildordner abgelehnt', restore_target('assets/gallery/hintertuer.php') === null);
+ok('Doppelendung abgelehnt',   restore_target('assets/gallery/bild.jpg.php') === null);
+ok('Backslash abgelehnt',      restore_target('data\\content.json.php') === null);
+ok('Nullbyte abgelehnt',       restore_target("data/content.json.php\0.txt") === null);
+
+echo "\nBackup einspielen — der Durchlauf\n";
+// Ein Archiv bauen, wie der Download es erzeugt, plus drei Einträge, die ein
+// Angreifer hineinschmuggeln würde.
+$bild = imagecreatetruecolor(400, 300);
+imagefill($bild, 0, 0, imagecolorallocate($bild, 30, 30, 30));
+ob_start(); imagejpeg($bild, null, 80); $jpeg = (string)ob_get_clean();
+imagedestroy($bild);
+
+$zipDatei = $tmp . '/backup.zip';
+$z = new ZipArchive();
+$z->open($zipDatei, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+$z->addFromString('data/content.json.php', FF_GUARD . json_encode(['hero' => ['claim' => 'AUS DEM BACKUP']]));
+$z->addFromString('data/events.json.php',  FF_GUARD . json_encode([['date' => '2030-01-01', 'title' => 'Aus dem Backup']]));
+$z->addFromString('assets/gallery/20260919-wiederher.jpg', $jpeg);
+$z->addFromString('LIESMICH.txt', 'Hinweis');
+$z->addFromString('data/auth.json.php', FF_GUARD . json_encode(['hash' => 'uebernommen']));
+$z->addFromString('../../../tmp/ausbruch.txt', 'entwischt');
+$z->addFromString('assets/gallery/hintertuer.php', '<?php echo "PWNED";');
+$z->close();
+
+// Ausgangslage, die überschrieben werden soll
+json_write('content.json', ['hero' => ['claim' => 'ALTER STAND']]);
+json_write('auth.json', ['hash' => 'mein-echter-hash']);
+
+$b = restore_apply($zipDatei);
+ok('Einspielen gemeldet als erfolgreich', $b['ok'] === true);
+eq('zwei Textdateien übernommen', $b['texte'], 2);
+eq('ein Bild übernommen',         $b['bilder'], 1);
+eq('drei Einträge übergangen',    $b['uebergangen'], 3);
+eq('Text kommt aus dem Backup',   ff_content()['hero']['claim'], 'AUS DEM BACKUP');
+eq('Passwort unangetastet',       json_read('auth.json')['hash'], 'mein-echter-hash');
+ok('Bild liegt im Galerieordner', is_file(FF_GALLERY . '/20260919-wiederher.jpg'));
+ok('keine PHP-Datei geschrieben', !is_file(FF_GALLERY . '/hintertuer.php'));
+ok('nichts ausserhalb gelandet',  !is_file('/tmp/ausbruch.txt'));
+ok('vorheriger Stand beiseitegelegt', is_file(FF_DATA . '/vorher/content.json.php'));
+ok('Sicherung enthält den alten Text',
+    str_contains((string)file_get_contents(FF_DATA . '/vorher/content.json.php'), 'ALTER STAND'));
+
+// Ein Archiv ohne passenden Inhalt darf nichts anfassen und sagt das auch.
+$leer = $tmp . '/fremd.zip';
+$z = new ZipArchive(); $z->open($leer, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+$z->addFromString('urlaub/strand.png', 'nicht unseres'); $z->close();
+$b2 = restore_apply($leer);
+ok('fremdes Archiv wird abgewiesen', $b2['ok'] === false && $b2['fehler'] !== []);
+eq('Text dabei unverändert', ff_content(true)['hero']['claim'], 'AUS DEM BACKUP');
+
+// Ein als ZIP getarnter Text bleibt wirkungslos.
+file_put_contents($tmp . '/kaputt.zip', 'das ist kein ZIP');
+ok('unlesbares Archiv abgewiesen', restore_apply($tmp . '/kaputt.zip')['ok'] === false);
+
+// Ein Eintrag mit .jpg-Namen, der kein Bild ist, wird nicht geschrieben.
+$fake = $tmp . '/fake.zip';
+$z = new ZipArchive(); $z->open($fake, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+$z->addFromString('assets/gallery/20260919-getarnt.jpg', '<?php echo "PWNED";'); $z->close();
+$b3 = restore_apply($fake);
+eq('getarntes Bild nicht übernommen', $b3['bilder'], 0);
+ok('getarnte Datei nicht abgelegt', !is_file(FF_GALLERY . '/20260919-getarnt.jpg'));
+ok('kein halbfertiger Rest im Ordner', glob(FF_GALLERY . '/.restore-*') === []);
+
 echo "\nAusgaben absichern\n";
 eq('HTML wird maskiert', h('<script>"x"'), '&lt;script&gt;&quot;x&quot;');
 ok('Absätze aus Leerzeilen', substr_count(paragraphs("eins\n\nzwei"), '<p class="lede">') === 2);
 
 // Aufräumen
+array_map('unlink', glob($tmp . '/data/vorher/*') ?: []);
+@rmdir($tmp . '/data/vorher');
+array_map('unlink', glob($tmp . '/*.zip') ?: []);
 array_map('unlink', glob($tmp . '/data/*') ?: []);
 array_map('unlink', glob($tmp . '/assets/gallery/*') ?: []);
 @rmdir($tmp . '/data'); @rmdir($tmp . '/assets/gallery'); @rmdir($tmp . '/assets'); @rmdir($tmp);

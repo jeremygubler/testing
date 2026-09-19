@@ -102,8 +102,8 @@ admin_tabs('index.php');
   <div class="card">
     <h3 style="margin:0 0 .5rem;font-size:1rem">Backup</h3>
     <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
-      Alle Texte, Termine und Bilder als ZIP herunterladen. Ohne Passwort.</p>
-    <a class="btn btn--ghost" href="backup.php">Backup herunterladen</a>
+      Alle Texte, Termine und Bilder als ZIP sichern — und im Notfall zurückholen.</p>
+    <a class="btn btn--ghost" href="backup.php">Backup verwalten</a>
   </div>
   <div class="card">
     <h3 style="margin:0 0 .5rem;font-size:1rem">Anmeldungen</h3>

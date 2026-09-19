@@ -154,12 +154,36 @@ try {
   group('Backup');
   const [zip] = await Promise.all([
     page.waitForEvent('download'),
-    page.goto(B + '/admin/backup.php').catch(() => {}),
+    page.goto(B + '/admin/backup.php?download=1').catch(() => {}),
   ]);
-  const list = execSync(`unzip -Z1 "${await zip.path()}"`).toString();
+  const zipPath = await zip.path();
+  const list = execSync(`unzip -Z1 "${zipPath}"`).toString();
   ok('Backup enthält Inhalte', list.includes('data/content.json.php'));
   ok('Backup enthält Bilder', list.includes('assets/gallery/'));
   ok('Backup enthält kein Passwort', !list.includes('auth.json'));
+
+  group('Backup einspielen');
+  // Erst den Inhalt verfälschen und ein Bild löschen, dann das Backup zurückholen.
+  await page.goto(B + '/admin/texte.php');
+  await page.fill('input[name="c[faqs][0][q]"]', 'ÜBERSCHRIEBEN');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+  ok('Stand vor dem Einspielen verfälscht', (await body('/index.php')).includes('ÜBERSCHRIEBEN'));
+  const weg = readdirSync(join(work, 'assets/gallery')).find((f) => f.endsWith('.jpg') && !f.endsWith('-s.jpg'));
+  rmSync(join(work, 'assets/gallery', weg));
+
+  await page.goto(B + '/admin/backup.php');
+  page.once('dialog', (d) => d.accept());
+  await page.setInputFiles('input[name=backup]', zipPath);
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+  ok('Einspielen bestätigt', await page.locator('.flash.ok').isVisible(),
+     await page.textContent('.flash').catch(() => ''));
+  h = await body('/index.php');
+  ok('alter Textstand ist zurück', h.includes('Eine Testfrage?') && !h.includes('ÜBERSCHRIEBEN'));
+  ok('gelöschtes Bild wieder da', readdirSync(join(work, 'assets/gallery')).includes(weg));
+  ok('weiterhin angemeldet', (await status('/admin/texte.php')) === 200);
+  ok('Sicherung des alten Stands angelegt', readdirSync(join(work, 'data')).includes('vorher'));
 
   group('Absicherung');
   const noToken = await ctx.request.post(B + '/admin/termine.php', { form: { ev: '' } });

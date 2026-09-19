@@ -89,7 +89,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.55}
 
 function admin_tabs(string $current): void {
     $tabs = ['index.php' => 'Übersicht', 'texte.php' => 'Texte', 'galerie.php' => 'Galerie',
-             'termine.php' => 'Termine', 'passwort.php' => 'Passwort'];
+             'termine.php' => 'Termine', 'backup.php' => 'Backup', 'passwort.php' => 'Passwort'];
     echo '<nav class="tabs">';
     foreach ($tabs as $file => $label) {
         $cur = $file === $current ? ' aria-current="page"' : '';

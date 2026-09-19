@@ -15,7 +15,7 @@ declare(strict_types=1);
 @ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
-const FF_ROOT = __DIR__ . '/..';
+defined('FF_ROOT')    || define('FF_ROOT', __DIR__ . '/..');
 
 // Als define statt const, damit Tests die Ablage auf ein temporäres
 // Verzeichnis umlenken können und echte Inhalte nie anfassen.
