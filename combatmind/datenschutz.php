@@ -54,6 +54,10 @@ legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet �
       <p>Zur Bestätigung deiner Anmeldung erhältst du eine E-Mail; bei Minderjährigen geht
       eine Kopie an die erziehungsberechtigte Person. Der Versand läuft über den
       Mailserver des oben genannten Hosters.</p>
+      <p>Ist der Kurs ausgebucht, kannst du dich stattdessen auf die <strong>Warteliste</strong>
+      setzen. Dafür werden nur Name, E-Mail-Adresse und auf Wunsch die Telefonnummer
+      gespeichert — keine Gesundheitsangaben und kein Geburtsdatum. Der Eintrag dient
+      einzig der Benachrichtigung und wird gelöscht, sobald er sich erledigt hat.</p>
       <p>Nach Abschluss des Kurses werden die Anmeldedaten gelöscht, soweit keine
       gesetzliche Aufbewahrungspflicht besteht. Du kannst jederzeit per E-Mail Auskunft
       oder Löschung verlangen.</p>

@@ -170,6 +170,10 @@ function ff_schema(): array {
                         "Zwölf Wochen, eine feste Gruppe, maximal 16 Plätze. Füll das Formular aus — wir melden uns innert zwei Arbeitstagen persönlich bei dir mit allen Angaben und der Zahlungsinformation."],
             'reply' => ['textarea', 'Bestätigungsmail an die anmeldende Person ({vorname} wird ersetzt)',
                         "Hallo {vorname}\n\ndanke für deine Anmeldung zum COMBAT MIND 12 Week Program.\n\nWir haben sie erhalten und melden uns innert zwei Arbeitstagen persönlich bei dir — mit allen Angaben zu Start, Ort und Ablauf sowie der Zahlungsinformation. Dein Platz ist nach Bestätigung und fristgerechter Zahlung definitiv reserviert.\n\nBis bald\nJocelyn\nCOMBAT MIND"],
+            'wl_intro' => ['textarea', 'Text über der Warteliste',
+                        "Der aktuelle Durchgang ist ausgebucht. Trag dich ein, dann meldest du dich nicht umsonst: Wird ein Platz frei oder startet der nächste Durchgang, hörst du als Erste davon — vor allen anderen."],
+            'wl_reply' => ['textarea', 'Bestätigung für die Warteliste ({vorname} wird ersetzt)',
+                        "Hallo {vorname}\n\ndu stehst auf der Warteliste für das COMBAT MIND 12 Week Program.\n\nWird ein Platz frei oder startet der nächste Durchgang, melden wir uns bei dir — in der Reihenfolge der Eintragungen. Du musst nichts weiter tun.\n\nBis bald\nJocelyn\nCOMBAT MIND"],
         ]],
 
         'legal' => ['label' => 'Rechtstexte', 'fields' => [

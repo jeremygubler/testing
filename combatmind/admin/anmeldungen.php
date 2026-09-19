@@ -8,9 +8,11 @@
 declare(strict_types=1);
 require_once __DIR__ . '/_layout.php';
 require_once __DIR__ . '/../inc/signup.php';
+require_once __DIR__ . '/../inc/mailer.php';
 auth_require();
 
-$rows = signup_all();
+$rows  = signup_all();
+$warte = waitlist_all();
 
 /* ── CSV für Excel & Co. ────────────────────────────────────────────────── */
 if (isset($_GET['csv'])) {
@@ -20,7 +22,7 @@ if (isset($_GET['csv'])) {
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF");                       // damit Excel Umlaute erkennt
     fputcsv($out, ['Datum', 'Vorname', 'Name', 'E-Mail', 'Telefon', 'Geburtsdatum', 'Alter',
-                   'Erziehungsberechtigt', 'Gesundheit', 'Fotos', 'Nachricht', 'Status'], ';');
+                   'Erziehungsberechtigt', 'Gesundheit', 'Fotos', 'Nachricht', 'Status'], ';', '"', '');
     foreach ($rows as $r) {
         fputcsv($out, [
             date('d.m.Y H:i', (int)($r['ts'] ?? 0)),
@@ -30,7 +32,7 @@ if (isset($_GET['csv'])) {
             ($r['gesundheit'] ?? '') === 'ja' ? $r['gesundheit_text'] : 'keine',
             !empty($r['fotos']) ? 'ja' : 'nein',
             $r['nachricht'] ?? '', $r['status'] ?? '',
-        ], ';');
+        ], ';', '"', '');
     }
     fclose($out);
     exit;
@@ -42,7 +44,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id  = (string)($_POST['id'] ?? '');
     $tat = (string)($_POST['action'] ?? '');
 
-    if ($tat === 'delete') {
+    if ($tat === 'wl_delete') {
+        $neu = array_values(array_filter($warte, fn($r) => ($r['id'] ?? '') !== $id));
+        waitlist_save($neu);
+        flash(count($neu) === count($warte) ? 'Eintrag nicht gefunden.' : 'Von der Warteliste entfernt.',
+              count($neu) === count($warte) ? 'err' : 'ok');
+    } elseif ($tat === 'resend') {
+        // Kommt bei jemandem die Bestätigung nicht an, war das bisher eine
+        // Sackgasse — man konnte sie nur von Hand abtippen.
+        $wer = null;
+        foreach ($rows as $r) if (($r['id'] ?? '') === $id) $wer = $r;
+        if ($wer === null) {
+            flash('Eintrag nicht gefunden.', 'err');
+        } else {
+            $text = str_replace('{vorname}', (string)$wer['vorname'],
+                                (string)ff_content()['signup']['reply']);
+            $ok = mail_send((string)$wer['email'], 'Deine Anmeldung bei COMBAT MIND', $text);
+            flash($ok ? 'Bestätigung erneut an ' . $wer['email'] . ' gesendet.'
+                      : 'Der Versand hat nicht geklappt.', $ok ? 'ok' : 'err');
+        }
+    } elseif ($tat === 'delete') {
         $neu = array_values(array_filter($rows, fn($r) => ($r['id'] ?? '') !== $id));
         flash(count($neu) === count($rows) ? 'Eintrag nicht gefunden.' : 'Anmeldung gelöscht.',
               count($neu) === count($rows) ? 'err' : 'ok');
@@ -138,11 +159,51 @@ admin_tabs('anmeldungen.php');
           </select>
           <noscript><button class="btn btn--ghost" type="submit">Setzen</button></noscript>
         </form>
+        <form method="post">
+          <?= csrf_field() ?>
+          <input type="hidden" name="action" value="resend">
+          <input type="hidden" name="id" value="<?= h($r['id'] ?? '') ?>">
+          <button class="btn btn--ghost" type="submit">Bestätigung erneut senden</button>
+        </form>
         <form method="post" onsubmit="return confirm('Diese Anmeldung endgültig löschen?')">
           <?= csrf_field() ?>
           <input type="hidden" name="action" value="delete">
           <input type="hidden" name="id" value="<?= h($r['id'] ?? '') ?>">
           <button class="btn btn--danger" type="submit">Löschen</button>
+        </form>
+      </div>
+    </div>
+  <?php endforeach ?>
+<?php endif ?>
+
+<h2>Warteliste<?= $warte ? ' — ' . count($warte) : '' ?></h2>
+<?php if (!$warte): ?>
+  <div class="empty">Niemand auf der Warteliste. Der Eintrag erscheint, sobald der Kurs
+    als ausgebucht markiert ist und sich jemand einträgt.</div>
+<?php else: ?>
+  <p class="sub" style="margin-bottom:1rem">In der Reihenfolge der Eintragung — die
+    ältesten zuerst anfragen.</p>
+  <?php foreach (array_reverse($warte) as $n => $r): ?>
+    <div class="an">
+      <div class="an__top">
+        <span class="an__name"><?= $n + 1 ?>. <?= h(signup_name($r)) ?></span>
+        <span class="an__when"><?= h(date('d.m.Y H:i', (int)($r['ts'] ?? 0))) ?></span>
+      </div>
+      <dl>
+        <dt>E-Mail</dt><dd><a href="mailto:<?= h($r['email'] ?? '') ?>"><?= h($r['email'] ?? '') ?></a></dd>
+        <?php if (!empty($r['telefon'])): ?>
+          <dt>Telefon</dt><dd><a href="tel:<?= h(phone_href((string)$r['telefon'])) ?>"><?= h($r['telefon']) ?></a></dd>
+        <?php endif ?>
+        <?php if (!empty($r['nachricht'])): ?>
+          <dt>Nachricht</dt><dd><?= nl2br(h($r['nachricht'])) ?></dd>
+        <?php endif ?>
+      </dl>
+      <div class="an__act">
+        <form method="post" onsubmit="return confirm('Von der Warteliste entfernen?')">
+          <?= csrf_field() ?>
+          <input type="hidden" name="action" value="wl_delete">
+          <input type="hidden" name="id" value="<?= h($r['id'] ?? '') ?>">
+          <button class="btn btn--danger" type="submit">Entfernen</button>
         </form>
       </div>
     </div>

@@ -100,6 +100,7 @@ $frei    = $gesetzt ? max(0, (int)$c['program']['seats_left']) : $gesamt;
 $upcoming = events_upcoming(3);
 $anm      = signup_all();
 $neu      = count(array_filter($anm, fn($r) => ($r['status'] ?? 'neu') === 'neu'));
+$wl       = count(waitlist_all());
 $shots = gallery_items();
 admin_head('Übersicht');
 admin_tabs('index.php');
@@ -164,7 +165,8 @@ admin_tabs('index.php');
     <?php if (!empty($c['signup']['own'])): ?>
       <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
         <?= $anm ? '<strong style="color:var(--white)">' . count($anm) . '</strong> eingegangen, davon '
-                 . $neu . ' unbearbeitet.' : 'Noch keine eingegangen.' ?></p>
+                 . $neu . ' unbearbeitet.' : 'Noch keine eingegangen.' ?>
+        <?= $wl ? $wl . ' auf der Warteliste.' : '' ?></p>
       <a class="btn btn--ghost" href="anmeldungen.php">Anmeldungen ansehen</a>
     <?php else: ?>
       <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">

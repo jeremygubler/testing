@@ -6,7 +6,7 @@
  */
 import { chromium } from 'playwright';
 import { spawn, execSync } from 'node:child_process';
-import { mkdtempSync, rmSync, cpSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, readdirSync, writeFileSync, openSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,7 +33,11 @@ for (const dir of ['data', 'assets/gallery']) {
 }
 execSync(`php ${join(work, 'tests/fixtures.php')} ${work}`);
 
-const php = spawn('php', ['-S', `127.0.0.1:${PORT}`, '-t', work], { cwd: work, stdio: 'ignore' });
+// Das Protokoll des PHP-Servers mitschreiben: Warnungen erscheinen nicht auf
+// der Seite (display_errors ist aus), landen aber hier.
+const logPfad = join(work, 'php-server.log');
+const logFd = openSync(logPfad, 'a');
+const php = spawn('php', ['-S', `127.0.0.1:${PORT}`, '-t', work], { cwd: work, stdio: ['ignore', logFd, logFd] });
 const stop = () => { php.kill(); rmSync(work, { recursive: true, force: true }); };
 process.on('exit', stop);
 await new Promise((r) => setTimeout(r, 1500));
@@ -188,12 +192,66 @@ try {
   const inhalt = execSync(`cat "${await csv.path()}"`).toString();
   ok('CSV enthält die Anmeldung', inhalt.includes('anna@example.ch'));
 
+  // Bestätigung erneut senden — der Versand scheitert im Test mangels
+  // Mailserver, gemeldet werden muss es trotzdem.
+  await page.click('button:has-text("Bestätigung erneut senden")');
+  await page.waitForLoadState('networkidle');
+  ok('Erneut senden gibt Rückmeldung', await page.locator('.flash').isVisible());
+
   const [zip2] = await Promise.all([
     page.waitForEvent('download'),
     page.goto(B + '/admin/backup.php?download=1').catch(() => {}),
   ]);
   const inh = execSync(`unzip -Z1 "${await zip2.path()}"`).toString();
-  ok('Backup enthält keine Personendaten', !inh.includes('signups'));
+  ok('Backup enthält keine Personendaten', !inh.includes('signups') && !inh.includes('waitlist'));
+
+  group('Doppelklick und Dubletten');
+  // Erst der Server: dieselbe Person ein zweites Mal.
+  await füllen({ vorname: 'Anna', name: 'Muster', email: 'anna@example.ch',
+                 telefon: '076 527 74 93', geburtsdatum: jahrVor(30), gesundheit: 'nein', agb: true });
+  ok('zweite gleiche Anmeldung abgewiesen', p3.url().includes('anmeldung.php'));
+  ok('mit verständlicher Begründung',
+     (await p3.textContent('body')).includes('bereits eine Anmeldung'));
+  ok('Platzstand unverändert', (await body('/index.php')).includes('Noch 5 von 16 Plätzen frei'));
+
+  // Und der Knopf sperrt sich nach dem ersten Klick.
+  await p3.goto(B + '/anmeldung.php');
+  await p3.evaluate(() => {
+    const f = document.querySelector('form[method=post]');
+    f.addEventListener('submit', (e) => e.preventDefault(), { capture: true });
+    f.requestSubmit();
+  });
+  await p3.waitForFunction(() => document.querySelector('button[type=submit]').disabled);
+  ok('Absende-Knopf sperrt sich', await p3.locator('button[type=submit]').isDisabled());
+
+  group('Warteliste');
+  await page.goto(B + '/admin/texte.php');
+  await page.check('input[type=checkbox][name="c[program][sold_out]"]');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+
+  await p3.goto(B + '/anmeldung.php');
+  ok('ausgebucht zeigt ein Formular statt einer Sackgasse',
+     await p3.locator('button:has-text("Auf die Warteliste")').count() === 1);
+  ok('kein Geburtsdatum auf der Warteliste', await p3.locator('#geburtsdatum').count() === 0);
+  await p3.evaluate(() => { document.querySelector('input[name=ts]').value = String(Math.floor(Date.now()/1000) - 30); });
+  await p3.fill('input[name=vorname]', 'Wanda');
+  await p3.fill('input[name=name]', 'Wartend');
+  await p3.fill('input[name=email]', 'wanda@example.ch');
+  await p3.click('button[type=submit]');
+  await p3.waitForLoadState('networkidle');
+  ok('landet auf der Dankesseite', p3.url().includes('danke.php'));
+  ok('eigener Text für die Warteliste', (await p3.textContent('body')).includes('Du stehst drauf'));
+  ok('Platzstand bleibt bei null', (await body('/index.php')).includes('Ausgebucht')
+     || !(await body('/index.php')).includes('Plätzen frei'));
+
+  await page.goto(B + '/admin/anmeldungen.php');
+  ok('Warteliste steht im Admin', (await page.textContent('body')).includes('Wanda Wartend'));
+
+  await page.goto(B + '/admin/texte.php');
+  await page.uncheck('input[type=checkbox][name="c[program][sold_out]"]');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
   await p3.close();
 
   group('Platzzähler');
@@ -362,6 +420,14 @@ try {
   await page.goto(B + '/admin/index.php');
   ok('nach 6 Fehlversuchen gesperrt', await page.locator('input[name=pw][disabled]').count() === 1);
   ok('Grund wird ohne Absenden erklärt', /Zu viele Fehlversuche/.test(await page.textContent('body')));
+
+  group('Serverprotokoll');
+  // Ganz zum Schluss, damit jede vorher besuchte Seite eingeflossen ist.
+  const protokoll = readFileSync(logPfad, 'utf8')
+    .split('\n')
+    .filter((z) => /PHP (Warning|Notice|Deprecated|Fatal|Parse error)/i.test(z));
+  ok('keine PHP-Meldungen im Serverprotokoll', protokoll.length === 0,
+     protokoll.slice(0, 3).join(' | '));
 
   group('Darstellung');
   const ext = new Set();

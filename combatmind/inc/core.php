@@ -132,6 +132,25 @@ function json_write(string $file, array $data): bool {
     return true;
 }
 
+/**
+ * Sperre für Lesen-Ändern-Schreiben.
+ *
+ * json_write schreibt zwar in einem Zug, aber zwischen dem Lesen eines Werts
+ * und dem Zurückschreiben liegt eine Lücke. Zwei Anmeldungen in derselben
+ * Sekunde läsen sonst denselben Platzstand und zögen nur einen Platz ab.
+ */
+function data_lock(string $name) {
+    if (!is_dir(FF_DATA) && !@mkdir(FF_DATA, 0775, true)) return null;
+    $fh = @fopen(FF_DATA . '/.lock-' . preg_replace('/[^a-z0-9_-]/', '', $name), 'c');
+    if (!$fh) return null;
+    if (!flock($fh, LOCK_EX)) { fclose($fh); return null; }
+    return $fh;
+}
+
+function data_unlock($fh): void {
+    if (is_resource($fh)) { flock($fh, LOCK_UN); fclose($fh); }
+}
+
 /* ── Session ──────────────────────────────────────────────────────────── */
 
 function session_boot(): void {

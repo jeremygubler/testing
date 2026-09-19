@@ -159,6 +159,24 @@ function signup_rate_hit(): void {
     json_write('signup_rate.json', ['salt' => $salt, 'hits' => $hits]);
 }
 
+/**
+ * Liegt dieselbe Person schon vor?
+ *
+ * Verglichen wird E-Mail *und* Name, nicht die E-Mail allein: Ein Elternteil
+ * darf zwei Kinder über dieselbe Adresse anmelden. Abgefangen wird damit der
+ * häufige Fall — zweimal auf «Absenden» geklickt.
+ */
+function signup_exists(string $email, string $vorname, string $name, ?array $rows = null): bool {
+    $schl = fn($e, $v, $n) => mb_strtolower(trim($e)) . '|' . mb_strtolower(trim($v) . ' ' . trim($n));
+    $ich  = $schl($email, $vorname, $name);
+    foreach ($rows ?? signup_all() as $r) {
+        if ($schl((string)($r['email'] ?? ''), (string)($r['vorname'] ?? ''), (string)($r['name'] ?? '')) === $ich) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function signup_all(): array {
     $rows = array_values(array_filter(json_read('signups.json'), 'is_array'));
     usort($rows, fn($a, $b) => (int)($b['ts'] ?? 0) <=> (int)($a['ts'] ?? 0));
@@ -167,24 +185,91 @@ function signup_all(): array {
 
 function signup_save(array $rows): bool { return json_write('signups.json', array_values($rows)); }
 
-/** Anmeldung ablegen und einen Platz abziehen. */
-function signup_store(array $data): bool {
-    $rows = signup_all();
-    array_unshift($rows, $data);
-    if (!signup_save($rows)) return false;
+/**
+ * Anmeldung ablegen und einen Platz abziehen.
+ *
+ * Alles unter einer Sperre: Prüfen, Anhängen und Abziehen gehören zusammen.
+ * Liefert 'doppelt', wenn dieselbe Person schon eingetragen ist.
+ */
+function signup_store(array $data): string {
+    $sperre = data_lock('signups');
+    try {
+        $rows = signup_all();
+        if (signup_exists((string)$data['email'], (string)$data['vorname'], (string)$data['name'], $rows)) {
+            return 'doppelt';
+        }
+        array_unshift($rows, $data);
+        if (!signup_save($rows)) return 'fehler';
 
-    $saved  = json_read('content.json');
-    $prog   = ff_content()['program'];
-    $gesamt = max(0, (int)$prog['seats_total']);
-    $frei   = $prog['seats_left'] === '' ? $gesamt : max(0, (int)$prog['seats_left']);
-    $neu    = max(0, $frei - 1);
+        $saved  = json_read('content.json');
+        $prog   = ff_content(true)['program'];
+        $gesamt = max(0, (int)$prog['seats_total']);
+        $frei   = $prog['seats_left'] === '' ? $gesamt : max(0, (int)$prog['seats_left']);
+        $neu    = max(0, $frei - 1);
 
-    $saved['program'] = ($saved['program'] ?? []) + [];
-    $saved['program']['seats_left'] = (string)$neu;
-    $saved['program']['sold_out']   = $neu === 0;
-    json_write('content.json', $saved);
-    ff_content(true);
-    return true;
+        $saved['program'] = ($saved['program'] ?? []) + [];
+        $saved['program']['seats_left'] = (string)$neu;
+        $saved['program']['sold_out']   = $neu === 0;
+        json_write('content.json', $saved);
+        ff_content(true);
+        return 'ok';
+    } finally {
+        data_unlock($sperre);
+    }
+}
+
+/* ── Warteliste ─────────────────────────────────────────────────────────
+   Ist der Kurs voll, wäre die Anmeldeseite sonst eine Sackgasse. Gefragt wird
+   nur das Nötigste: Wer auf einer Warteliste steht, hat noch keinen Vertrag,
+   also braucht es weder Geburtsdatum noch Gesundheitsangaben. */
+
+function waitlist_all(): array {
+    $rows = array_values(array_filter(json_read('waitlist.json'), 'is_array'));
+    usort($rows, fn($a, $b) => (int)($b['ts'] ?? 0) <=> (int)($a['ts'] ?? 0));
+    return $rows;
+}
+
+function waitlist_save(array $rows): bool { return json_write('waitlist.json', array_values($rows)); }
+
+function waitlist_validate(array $p): array {
+    $f = [];
+    $v = fn(string $k) => trim((string)($p[$k] ?? ''));
+    foreach (['vorname' => 'Vorname', 'name' => 'Name'] as $k => $label) {
+        if ($v($k) === '')            $f[$k] = $label . ' fehlt.';
+        elseif (mb_strlen($v($k)) > 80) $f[$k] = $label . ' ist zu lang.';
+    }
+    $email = $v('email');
+    if ($email === '')                                  $f['email'] = 'E-Mail-Adresse fehlt.';
+    elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) $f['email'] = 'Diese E-Mail-Adresse stimmt nicht.';
+
+    $tel = $v('telefon');
+    if ($tel !== '' && strlen(preg_replace('/\D+/', '', $tel)) < 9) {
+        $f['telefon'] = 'Diese Nummer sieht unvollständig aus.';
+    }
+    if ($f !== []) return ['ok' => false, 'errors' => $f];
+
+    return ['ok' => true, 'errors' => [], 'data' => [
+        'id'        => date('Ymd-His') . '-' . bin2hex(random_bytes(3)),
+        'ts'        => time(),
+        'vorname'   => $v('vorname'),
+        'name'      => $v('name'),
+        'email'     => $email,
+        'telefon'   => $tel,
+        'nachricht' => mb_substr($v('nachricht'), 0, 1000),
+    ]];
+}
+
+function waitlist_store(array $data): string {
+    $sperre = data_lock('waitlist');
+    try {
+        $rows = waitlist_all();
+        $schl = fn($r) => mb_strtolower(trim((string)($r['email'] ?? '')));
+        foreach ($rows as $r) if ($schl($r) === mb_strtolower($data['email'])) return 'doppelt';
+        array_unshift($rows, $data);
+        return waitlist_save($rows) ? 'ok' : 'fehler';
+    } finally {
+        data_unlock($sperre);
+    }
 }
 
 function signup_name(array $r): string {

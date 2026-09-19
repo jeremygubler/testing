@@ -31,8 +31,8 @@ if (isset($_GET['download'])) {
         // Passwort-Hash bleibt draussen: ein Backup wandert per Mail und Cloud herum.
         // Anmeldungen bleiben draussen: Dieses ZIP soll bedenkenlos per Mail
         // und in der Cloud liegen dürfen, Personendaten dürfen das nicht.
-        if (in_array(basename($f), ['auth.json.php', 'throttle.json.php',
-                                    'signups.json.php', 'signup_rate.json.php'], true)) continue;
+        if (in_array(basename($f), ['auth.json.php', 'throttle.json.php', 'signups.json.php',
+                                    'waitlist.json.php', 'signup_rate.json.php'], true)) continue;
         $zip->addFile($f, 'data/' . basename($f));
         $count++;
     }

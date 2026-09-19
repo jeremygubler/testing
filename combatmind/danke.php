@@ -3,6 +3,7 @@
 require __DIR__ . '/inc/legal.php';
 legal_head('Anmeldung eingegangen', '', '', true);
 $c = ff_content();
+$warte = isset($_GET['w']);
 ?>
 <style>
   main.done{width:var(--shell);margin-inline:auto;padding:clamp(4rem,12vh,8rem) 0 clamp(3rem,7vw,5rem);text-align:center}
@@ -25,6 +26,18 @@ $c = ff_content();
 </style>
 
 <main class="done">
+<?php if ($warte): ?>
+  <h1><em>Du stehst drauf.</em></h1>
+  <p>Dein Eintrag auf der Warteliste ist da. Wird ein Platz frei oder startet der
+  nächste Durchgang, melden wir uns bei dir — in der Reihenfolge der Eintragungen.
+  Du musst nichts weiter tun.</p>
+
+  <ol class="steps">
+    <li><b>1</b><span><strong>Wir merken dich vor</strong>Dein Eintrag ist gespeichert, eine Bestätigung ist unterwegs.</span></li>
+    <li><b>2</b><span><strong>Wir melden uns</strong>Sobald ein Platz frei wird oder der nächste Kurs steht — vor allen anderen.</span></li>
+    <li><b>3</b><span><strong>Dann erst die Anmeldung</strong>Du entscheidest in dem Moment, ob es dir passt. Der Eintrag verpflichtet zu nichts.</span></li>
+  </ol>
+<?php else: ?>
   <h1><em>You're in.</em></h1>
   <p>Deine Anmeldung ist eingegangen. Wir melden uns innert zwei Arbeitstagen
   persönlich bei dir — mit allen Angaben und der Zahlungsinformation. Dein Platz
@@ -35,9 +48,12 @@ $c = ff_content();
     <li><b>2</b><span><strong>Zahlung</strong>Mit der Bestätigung kommen die Angaben für TWINT oder Banküberweisung. Bezahle innert der genannten Frist.</span></li>
     <li><b>3</b><span><strong>Platz definitiv</strong>Nach Zahlungseingang ist dein Platz fix reserviert. Dann sehen wir uns im Training.</span></li>
   </ol>
+<?php endif ?>
 
   <?php if ($c['contact']['email']): ?>
-    <p style="margin-top:2rem;font-size:.92rem">Nach zwei Tagen noch nichts gehört? Schreib an
+    <p style="margin-top:2rem;font-size:.92rem"><?= $warte
+      ? 'Keine Bestätigung bekommen? Schreib an'
+      : 'Nach zwei Tagen noch nichts gehört? Schreib an' ?>
       <a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a>.</p>
   <?php endif ?>
 

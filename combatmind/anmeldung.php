@@ -16,7 +16,40 @@ $soldOut = !empty($c['program']['sold_out']);
 $fehler  = [];
 $alt     = [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$soldOut) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut) {
+    $alt = $_POST;
+    if (!signup_looks_human($_POST)) {
+        $fehler['_'] = 'Das Formular wurde zu schnell abgeschickt. Versuch es bitte noch einmal.';
+    } else {
+        $p = waitlist_validate($_POST);
+        if (!$p['ok']) {
+            $fehler = $p['errors'];
+        } else {
+            $d = $p['data'];
+            $stand = waitlist_store($d);
+            if ($stand === 'doppelt') {
+                $fehler['_'] = 'Mit dieser Adresse stehst du bereits auf der Warteliste.';
+            } elseif ($stand !== 'ok') {
+                $fehler['_'] = 'Speichern fehlgeschlagen. Melde dich bitte direkt per E-Mail.';
+            } else {
+                $an = trim((string)$c['contact']['email']);
+                if ($an !== '') {
+                    mail_send($an, 'Warteliste: ' . signup_name($d), implode("\n", [
+                        'Neuer Eintrag auf der Warteliste', '',
+                        'Name:    ' . signup_name($d),
+                        'E-Mail:  ' . $d['email'],
+                        'Telefon: ' . ($d['telefon'] !== '' ? $d['telefon'] : '—'),
+                        $d['nachricht'] !== '' ? "\nNachricht: " . $d['nachricht'] : '',
+                        '', 'Im Admin: ' . site_url('admin/anmeldungen.php'),
+                    ]), $d['email']);
+                }
+                mail_send($d['email'], 'Du stehst auf der Warteliste',
+                    str_replace('{vorname}', $d['vorname'], (string)$c['signup']['wl_reply']));
+                header('Location: danke.php?w=1'); exit;
+            }
+        }
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $alt = $_POST;
     if (!signup_looks_human($_POST)) {
         $fehler['_'] = 'Das Formular wurde zu schnell abgeschickt. Versuch es bitte noch einmal.';
@@ -30,7 +63,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$soldOut) {
             $d = $p['data'];
             // Erst ablegen, dann versenden: Eine Anmeldung darf nie an einer
             // klemmenden Mail scheitern.
-            if (!signup_store($d)) {
+            $stand = signup_store($d);
+            if ($stand === 'doppelt') {
+                $fehler['_'] = 'Mit diesen Angaben liegt bereits eine Anmeldung vor. '
+                    . 'Hast du versehentlich zweimal gesendet, ist alles in Ordnung — '
+                    . 'wir melden uns. Sonst schreib uns kurz.';
+            } elseif ($stand !== 'ok') {
                 $fehler['_'] = 'Speichern fehlgeschlagen. Melde dich bitte direkt per E-Mail.';
             } else {
                 signup_rate_hit();
@@ -103,9 +141,36 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
   <h1>Anmeldung</h1>
 
   <?php if ($soldOut): ?>
-    <div class="banner">Der aktuelle Durchgang ist ausgebucht. Schreib an
-      <a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a>,
-      wir nehmen dich auf die Warteliste.</div>
+    <?php if (isset($fehler['_'])): ?><div class="banner"><?= h($fehler['_']) ?></div><?php endif ?>
+    <?php if ($fehler && !isset($fehler['_'])): ?>
+      <div class="banner">Bitte schau dir die markierten Felder noch einmal an.</div>
+    <?php endif ?>
+    <p><?= nl2br(h($c['signup']['wl_intro'])) ?></p>
+
+    <form method="post" novalidate>
+      <div class="hp" aria-hidden="true">
+        <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+      </div>
+      <input type="hidden" name="ts" value="<?= time() ?>">
+      <div class="two">
+        <div class="fld"><label for="wv">Vorname</label>
+          <input id="wv" type="text" name="vorname" value="<?= $w('vorname') ?>" required autocomplete="given-name"><?= $e('vorname') ?></div>
+        <div class="fld"><label for="wn">Name</label>
+          <input id="wn" type="text" name="name" value="<?= $w('name') ?>" required autocomplete="family-name"><?= $e('name') ?></div>
+      </div>
+      <div class="two">
+        <div class="fld"><label for="we">E-Mail</label>
+          <input id="we" type="email" name="email" value="<?= $w('email') ?>" required autocomplete="email"><?= $e('email') ?></div>
+        <div class="fld"><label for="wt">Telefon (freiwillig)</label>
+          <input id="wt" type="tel" name="telefon" value="<?= $w('telefon') ?>" autocomplete="tel"><?= $e('telefon') ?></div>
+      </div>
+      <div class="fld"><label for="wm">Nachricht (freiwillig)</label>
+        <textarea id="wm" name="nachricht"><?= $w('nachricht') ?></textarea></div>
+      <p class="fine" style="color:var(--mute)">Wir speichern deine Angaben nur, um dich zu
+        benachrichtigen, und löschen sie, sobald sich der Eintrag erledigt hat. Näheres in der
+        <a href="datenschutz.php">Datenschutzerklärung</a>.</p>
+      <button class="send" type="submit">Auf die Warteliste</button>
+    </form>
   <?php else: ?>
     <?php if (isset($fehler['_'])): ?><div class="banner"><?= h($fehler['_']) ?></div><?php endif ?>
     <?php if ($fehler && !isset($fehler['_'])): ?>
@@ -181,7 +246,17 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
 
 <script>
 (() => {
+  // Gilt für beide Formulare: Nach dem ersten Klick ist Schluss.
+  document.querySelectorAll('form[method=post]').forEach((f) => {
+    f.addEventListener('submit', () => {
+      const knopf = f.querySelector('button[type=submit]');
+      if (!knopf) return;
+      setTimeout(() => { knopf.disabled = true; knopf.textContent = 'Wird gesendet …'; }, 0);
+    });
+  });
+
   const geb = document.getElementById('geburtsdatum'), gv = document.getElementById('gv');
+  if (!geb) return;                       // Warteliste: die Felder unten gibt es nicht
 
   // Punkte beim Tippen selbst setzen, damit TT.MM.JJJJ von allein entsteht.
   geb.addEventListener('input', () => {
@@ -228,6 +303,9 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
     feld.addEventListener('change', weg, { once: true });
   });
 
+  // Zweimal klicken erzeugte sonst zwei Anmeldungen — und zog zwei Plätze ab.
+  // Der Server weist Dubletten ohnehin ab; hier geht es darum, dass niemand
+  // erst gar nicht in die Verlegenheit kommt.
   const ges = document.getElementById('ges');
   const radios = document.querySelectorAll('input[name=gesundheit]');
   const pruef2 = () => { ges.hidden = !document.querySelector('input[name=gesundheit][value=ja]').checked; };

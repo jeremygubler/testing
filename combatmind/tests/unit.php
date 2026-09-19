@@ -184,6 +184,34 @@ ok('neueste zuerst', signup_all()[0]['email'] === 'zwei@example.ch');
 ok('Sperrliste enthält keine IP', !str_contains((string)@file_get_contents(data_path('signup_rate.json')), '127.0.0'));
 ok('Anmeldungen sind vom Einspielen ausgenommen', restore_target('data/signups.json.php') === null);
 
+echo "\nAnmeldung — Dubletten und Warteliste\n";
+json_write('content.json', ['program'=>['seats_total'=>'16','seats_left'=>'10']]);
+json_write('signups.json', []);
+ff_content(true);
+$d1 = signup_validate($gut)['data'];
+eq('erste Anmeldung geht durch', signup_store($d1), 'ok');
+eq('dieselbe noch einmal wird abgewiesen', signup_store(signup_validate($gut)['data']), 'doppelt');
+eq('und kostet keinen zweiten Platz', ff_content(true)['program']['seats_left'], '9');
+eq('nur ein Eintrag gespeichert', count(signup_all()), 1);
+
+// Dieselbe Adresse, andere Person: ein Elternteil meldet zwei Kinder an.
+$zweit = signup_validate(['vorname'=>'Ben','name'=>'Muster'] + $gut)['data'];
+eq('zweites Kind über dieselbe Adresse geht', signup_store($zweit), 'ok');
+eq('zwei Einträge', count(signup_all()), 2);
+
+ok('Erkennung ist unabhängig von Gross- und Kleinschreibung',
+   signup_exists('ANNA@EXAMPLE.CH', 'anna', 'MUSTER'));
+ok('fremde Person wird nicht verwechselt', !signup_exists('anna@example.ch', 'Clara', 'Muster'));
+
+$wl = waitlist_validate(['vorname'=>'Wanda','name'=>'Wartend','email'=>'wanda@example.ch']);
+ok('Warteliste braucht kein Geburtsdatum', $wl['ok'] === true, implode(' ', $wl['errors']));
+eq('Eintrag angelegt',            waitlist_store($wl['data']), 'ok');
+eq('derselbe noch einmal',        waitlist_store(waitlist_validate(['vorname'=>'Wanda','name'=>'Wartend','email'=>'wanda@example.ch'])['data']), 'doppelt');
+eq('ein Eintrag auf der Liste',   count(waitlist_all()), 1);
+eq('Warteliste zieht keinen Platz ab', ff_content(true)['program']['seats_left'], '8');
+ok('Warteliste ohne E-Mail abgelehnt', !waitlist_validate(['vorname'=>'X','name'=>'Y'])['ok']);
+ok('Warteliste ist vom Einspielen ausgenommen', restore_target('data/waitlist.json.php') === null);
+
 echo "\nBackup einspielen — was hinein darf\n";
 eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');
 ok('Galeriebild erlaubt',      restore_target('assets/gallery/20260919-ab12.jpg') !== null);
