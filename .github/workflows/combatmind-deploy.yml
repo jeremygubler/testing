@@ -4,13 +4,19 @@ name: COMBAT MIND Deploy
 # fehlerhafter Code erreicht die Live-Seite also nicht.
 #
 # Benötigte Secrets (Repository → Settings → Secrets → Actions):
-#   CYON_HOST     z.B. jimocavu.cyon.site
+#   CYON_HOST     z.B. s139.cyon.net
 #   CYON_USER     dein cyon-Benutzername
 #   CYON_SSH_KEY  privater SSH-Schlüssel (der öffentliche liegt bei cyon)
 #   CYON_PATH     z.B. /home/jimocavu/public_html/combat-mind.ch
 #
-# Beim ersten Mal von Hand starten und «Probelauf» angehakt lassen: dann wird
-# nur angezeigt, was übertragen würde.
+# Jeder Deploy legt die ersetzten Dateien vorher in ~/.combat-mind-backups/<Zeitstempel>
+# ab — ausserhalb des Web-Ordners, also nicht über den Browser erreichbar. Die
+# fünf jüngsten Stände bleiben erhalten.
+#
+# Zurückrollen: Actions → COMBAT MIND Deploy → Run workflow → «Letzten Deploy
+# rückgängig machen» ankreuzen und «Probelauf» abwählen. Das stellt genau die
+# Dateien wieder her, die der letzte Deploy verändert hat. Der Weg nach vorne ist
+# immer ein neuer Push — der Code liegt in Git, verloren geht nichts.
 
 on:
   push:
@@ -21,26 +27,40 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Probelauf — nur anzeigen, nichts übertragen"
+        description: "Probelauf — nur anzeigen, nichts verändern"
         type: boolean
         default: true
+      rollback:
+        description: "Letzten Deploy rückgängig machen"
+        type: boolean
+        default: false
 
 jobs:
   test:
+    # Beim Zurückrollen zählt Tempo, nicht die Testsuite — der alte Stand war
+    # schon einmal grün.
+    if: ${{ !inputs.rollback }}
     uses: ./.github/workflows/combatmind-ci.yml
 
   deploy:
     needs: test
+    # Ein Rollback läuft auch bei roten oder übersprungenen Tests. Genau dann
+    # wird es gebraucht.
+    if: ${{ !cancelled() && (inputs.rollback || needs.test.result == 'success') }}
     runs-on: ubuntu-latest
+    env:
+      HOST: ${{ secrets.CYON_HOST }}
+      SSH_USER: ${{ secrets.CYON_USER }}
+      DEST: ${{ secrets.CYON_PATH }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Secrets prüfen
         run: |
           fehlt=""
-          [ -z "${{ secrets.CYON_HOST }}" ]    && fehlt="$fehlt CYON_HOST"
-          [ -z "${{ secrets.CYON_USER }}" ]    && fehlt="$fehlt CYON_USER"
-          [ -z "${{ secrets.CYON_PATH }}" ]    && fehlt="$fehlt CYON_PATH"
+          [ -z "$HOST" ]     && fehlt="$fehlt CYON_HOST"
+          [ -z "$SSH_USER" ] && fehlt="$fehlt CYON_USER"
+          [ -z "$DEST" ]     && fehlt="$fehlt CYON_PATH"
           [ -z "${{ secrets.CYON_SSH_KEY }}" ] && fehlt="$fehlt CYON_SSH_KEY"
           if [ -n "$fehlt" ]; then
             echo "::error::Diese Secrets fehlen im Repository:$fehlt"
@@ -54,20 +74,30 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.CYON_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.CYON_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Verbindung prüfen
         run: |
+          echo "SSH=-i $HOME/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes" >> "$GITHUB_ENV"
+          heim=$(ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
+                   "$SSH_USER@$HOST" 'echo $HOME')
+          [ -n "$heim" ] || { echo "::error::Heimverzeichnis nicht ermittelbar."; exit 1; }
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "${{ secrets.CYON_USER }}@${{ secrets.CYON_HOST }}" \
-            "test -d '${{ secrets.CYON_PATH }}' && echo 'Zielordner erreichbar.'"
+            "$SSH_USER@$HOST" "test -d '$DEST'" \
+            || { echo "::error::Zielordner $DEST existiert nicht."; exit 1; }
+          echo "BACKUPS=$heim/.combat-mind-backups" >> "$GITHUB_ENV"
+          echo "Zielordner erreichbar. Sicherungen liegen in $heim/.combat-mind-backups"
 
       - name: Übertragen
+        if: ${{ !inputs.rollback }}
         env:
           DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
+          stempel=$(date -u +%Y-%m-%d_%H-%M-%S)
+          echo "STEMPEL=$stempel" >> "$GITHUB_ENV"
           rsync -rlz --itemize-changes $DRY \
             --chmod=D755,F644 \
+            --backup --backup-dir="$BACKUPS/$stempel" \
             --exclude 'data/*.json.php' \
             --exclude 'assets/gallery/*.jpg' \
             --exclude 'assets/coach.jpg' \
@@ -75,9 +105,69 @@ jobs:
             --exclude 'assets/og.jpg' \
             --exclude 'tests/' \
             --exclude 'README.md' \
-            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes" \
-            combatmind/ \
-            "${{ secrets.CYON_USER }}@${{ secrets.CYON_HOST }}:${{ secrets.CYON_PATH }}/"
+            -e "ssh $SSH" \
+            combatmind/ "$SSH_USER@$HOST:$DEST/"
+
+      - name: Alte Sicherungen aufräumen
+        if: ${{ !inputs.rollback && !inputs.dry_run }}
+        continue-on-error: true
+        run: |
+          # Die fünf jüngsten Stände behalten. Zeitstempel sortieren sich von
+          # selbst, weil sie mit dem Jahr beginnen.
+          ssh $SSH "$SSH_USER@$HOST" "
+            cd '$BACKUPS' 2>/dev/null || exit 0
+            ls -1d */ 2>/dev/null | sort | head -n -5 | tr -d '/' | while read -r alt; do
+              [ -n \"\$alt\" ] && rm -rf -- \"\$alt\" && echo \"entfernt: \$alt\"
+            done
+          "
+
+      - name: Zurückrollen
+        if: ${{ inputs.rollback }}
+        run: |
+          letzte=$(ssh $SSH "$SSH_USER@$HOST" "ls -1d '$BACKUPS'/*/ 2>/dev/null | sort | tail -1")
+          if [ -z "$letzte" ]; then
+            echo "::error::Keine Sicherung vorhanden — es gab noch keinen Deploy, der Dateien ersetzt hat."
+            exit 1
+          fi
+          echo "Sicherung: $letzte"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Probelauf — diese Dateien würden wiederhergestellt:"
+            ssh $SSH "$SSH_USER@$HOST" "cd '$letzte' && find . -type f | sed 's|^\./||' | sort"
+            echo "PROBE=ja" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          ssh $SSH "$SSH_USER@$HOST" "
+            set -e
+            cp -a '$letzte.' '$DEST/'
+            find '$DEST' -type d -exec chmod 755 {} +
+            find '$DEST' -type f -exec chmod 644 {} +
+            rm -rf -- '$letzte'
+          "
+          echo "WIEDERHERGESTELLT=$letzte" >> "$GITHUB_ENV"
+          echo "Wiederhergestellt. Die Sicherung wurde verbraucht — ein erneutes"
+          echo "Zurückrollen greift auf den Stand davor."
+
+      - name: Zusammenfassung
+        if: always()
+        run: |
+          {
+            echo "## COMBAT MIND Deploy"
+            if [ "${{ inputs.rollback }}" = "true" ]; then
+              if [ "$PROBE" = "ja" ]; then
+                echo "Probelauf eines Rollbacks — nichts verändert."
+              elif [ -n "$WIEDERHERGESTELLT" ]; then
+                echo "**Zurückgerollt** auf \`$WIEDERHERGESTELLT\`."
+                echo "Nach vorne geht es über einen neuen Push."
+              else
+                echo "Rollback nicht durchgelaufen."
+              fi
+            elif [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "Probelauf — nichts übertragen."
+            else
+              echo "Übertragen. Vorheriger Stand gesichert als \`$STEMPEL\`."
+              echo "Zum Zurückrollen: Run workflow → «Letzten Deploy rückgängig machen»."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Aufräumen
         if: always()
