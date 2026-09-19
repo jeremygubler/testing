@@ -180,8 +180,9 @@ function ff_defaults(): array {
 }
 
 /** Gespeicherten Inhalt über die Standardwerte legen. */
-function ff_content(): array {
+function ff_content(bool $reset = false): array {
     static $cache = null;
+    if ($reset) $cache = null;
     if ($cache !== null) return $cache;
     $saved = json_read('content.json');
     $out = ff_defaults();

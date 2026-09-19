@@ -15,11 +15,12 @@ declare(strict_types=1);
 @ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
-const FF_ROOT      = __DIR__ . '/..';
-const FF_DATA      = FF_ROOT . '/data';
-const FF_GALLERY   = FF_ROOT . '/assets/gallery';
-const FF_MAX_UPLOAD = 6 * 1024 * 1024;   // 6 MB
-const FF_MAX_EDGE   = 2000;              // px, längere Kante wird verkleinert
+const FF_ROOT = __DIR__ . '/..';
+
+// Als define statt const, damit Tests die Ablage auf ein temporäres
+// Verzeichnis umlenken können und echte Inhalte nie anfassen.
+defined('FF_DATA')    || define('FF_DATA', FF_ROOT . '/data');
+defined('FF_GALLERY') || define('FF_GALLERY', FF_ROOT . '/assets/gallery');
 const FF_LOGIN_TRIES   = 6;              // Fehlversuche je Gerät
 const FF_LOCKOUT       = 900;            // 15 Minuten Sperre für dieses Gerät
 const FF_GLOBAL_TRIES  = 30;             // Notbremse: Versuche aus allen Quellen
@@ -267,7 +268,7 @@ function auth_require(): void {
 
 /* ── Flash-Meldungen ──────────────────────────────────────────────────── */
 
-function flash(string $msg = null, string $type = 'ok'): ?array {
+function flash(?string $msg = null, string $type = 'ok'): ?array {
     session_boot();
     if ($msg !== null) { $_SESSION['flash'] = ['msg' => $msg, 'type' => $type]; return null; }
     $f = $_SESSION['flash'] ?? null;

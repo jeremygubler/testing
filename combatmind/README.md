@@ -77,6 +77,30 @@ Web-Root hochladen und bestehende Dateien überschreiben.
 `data/auth.json.php` per FTP löschen. Beim nächsten Aufruf von `/admin/` kannst
 du ein neues Passwort setzen. Die Inhalte bleiben erhalten.
 
+## Tests
+
+```bash
+cd tests && npm install && npx playwright install chromium
+php unit.php      # Logik, ohne Browser — 29 Prüfungen
+node browser.mjs  # Ende zu Ende gegen einen echten PHP-Server — 48 Prüfungen
+```
+
+Die Browser-Tests kopieren die Seite in ein temporäres Verzeichnis und starten
+dort einen eigenen Server. Echte Inhalte in `data/` und `assets/gallery/`
+werden dabei nie angefasst.
+
+Beides läuft auch in GitHub Actions bei jeder Änderung an `combatmind/`.
+
+## Deployment
+
+`.github/workflows/combatmind-deploy.yml` lädt die Seite per rsync zu cyon,
+aber erst wenn die Tests grün sind. Dafür vier Secrets im Repository
+hinterlegen: `CYON_HOST`, `CYON_USER`, `CYON_SSH_KEY`, `CYON_PATH`.
+
+Der Upload setzt die Berechtigungen selbst korrekt (Ordner 755, Dateien 644)
+und lässt `data/` und die hochgeladenen Bilder unberührt — gepflegte Inhalte
+können also nicht überschrieben werden.
+
 ## Noch offen vor dem Livegang
 
 - COMBAT-MIND-Logo einsetzen (Hauptlogo, horizontale Version, CM-Emblem)

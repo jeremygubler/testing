@@ -1,0 +1,64 @@
+name: COMBAT MIND Deploy
+
+# Lädt die Website per rsync zu cyon. Läuft erst, wenn die Tests grün sind —
+# fehlerhafter Code erreicht die Live-Seite also nicht.
+#
+# Benötigte Secrets (Repository → Settings → Secrets → Actions):
+#   CYON_HOST     z.B. jimocavu.cyon.site
+#   CYON_USER     dein cyon-Benutzername
+#   CYON_SSH_KEY  privater SSH-Schlüssel (der öffentliche liegt bei cyon)
+#   CYON_PATH     z.B. /home/jimocavu/public_html/combat-mind.ch
+#
+# Beim ersten Mal von Hand starten und «Probelauf» angehakt lassen: dann wird
+# nur angezeigt, was übertragen würde.
+
+on:
+  push:
+    branches:
+      - claude/fightfit-homepage-mnaoks
+    paths:
+      - "combatmind/**"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Probelauf — nur anzeigen, nichts übertragen"
+        type: boolean
+        default: true
+
+jobs:
+  test:
+    uses: ./.github/workflows/combatmind-ci.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH-Schlüssel einrichten
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.CYON_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.CYON_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Übertragen
+        env:
+          DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          rsync -rlz --itemize-changes $DRY \
+            --chmod=D755,F644 \
+            --exclude 'data/*.json.php' \
+            --exclude 'assets/gallery/*.jpg' \
+            --exclude 'assets/coach.jpg' \
+            --exclude 'assets/hero.jpg' \
+            --exclude 'assets/og.jpg' \
+            --exclude 'tests/' \
+            --exclude 'README.md' \
+            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes" \
+            combatmind/ \
+            "${{ secrets.CYON_USER }}@${{ secrets.CYON_HOST }}:${{ secrets.CYON_PATH }}/"
+
+      - name: Aufräumen
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519
