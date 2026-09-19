@@ -1,11 +1,12 @@
 <?php
 require __DIR__ . '/inc/legal.php';
+$c = ff_content();
 legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT MIND 12 Week Program in Basel.', 'agb.php');
 ?>
 <header class="doc">
   <div class="shell">
     <h1>AGB &amp; Teilnahme&shy;bedingungen</h1>
-    <p class="stand">Stand: <span class="todo">[Datum einsetzen]</span></p>
+    <p class="stand">Stand: <?= h($c['legal']['stand']) ?></p>
   </div>
 </header>
 
@@ -26,7 +27,8 @@ legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT M
     <h2>Anmeldung und Vertragsabschluss</h2>
     <p>Die Anmeldung erfolgt über das Anmeldeformular auf dieser Website. Der Vertrag kommt
     mit der Anmeldebestätigung per E-Mail zustande.</p>
-    <p>Die Teilnehmerzahl ist auf <strong>16 Personen</strong> beschränkt. Anmeldungen
+    <p>Die Teilnehmerzahl ist auf <strong><?= h($c['program']['seats_total']) ?> Personen</strong>
+    beschränkt. Anmeldungen
     werden in der Reihenfolge ihres Eingangs berücksichtigt.</p>
     <p>Die Anmeldung ist <strong>verbindlich</strong> und personengebunden. Eine Übertragung
     auf Dritte ist nur mit Zustimmung von COMBAT MIND möglich.</p>
@@ -37,22 +39,34 @@ legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT M
 
   <section>
     <h2>Preis und Zahlung</h2>
-    <p>Der Preis für das 12 WEEK PROGRAM beträgt <strong>CHF 299.–</strong> für
-    12 × 60 Minuten. Die Preise verstehen sich
-    <span class="todo">[inkl. / exkl.]</span> MWST.</p>
+    <p>Der Preis für das 12 WEEK PROGRAM beträgt <strong>CHF <?= h($c['program']['price']) ?>.–</strong>
+    für 12 × 60 Minuten. Alle Beträge verstehen sich in Schweizer Franken.</p>
+    <p>COMBAT MIND ist nicht mehrwertsteuerpflichtig. Es wird keine MWST erhoben oder
+    ausgewiesen.</p>
     <p>Zur Auswahl stehen TWINT, Kredit- und Debitkarte (Stripe), Apple Pay und Google Pay
     soweit verfügbar, sowie Banküberweisung.</p>
-    <p>Der Kursbeitrag ist <span class="todo">[Zahlungsfrist festlegen, z.B. innert 10 Tagen
-    nach Anmeldebestätigung, spätestens jedoch vor der ersten Lektion]</span> zu bezahlen.
+    <p>Der Kursbeitrag ist <strong>innert 10 Tagen nach der Anmeldebestätigung</strong> zu
+    bezahlen, spätestens jedoch vor der ersten Lektion.
     Der Platz gilt erst nach Bestätigung und fristgerechtem Zahlungseingang als definitiv
     reserviert. Bei ausbleibender Zahlung kann der Platz neu vergeben werden.</p>
   </section>
 
   <section>
     <h2>Rücktritt und Stornierung</h2>
-    <p><span class="todo">[Verbindliche Stornoregelung festlegen — dieser Punkt ist der
-    häufigste Streitpunkt. Übliche Staffelung: kostenlose Stornierung bis 14 Tage vor
-    Kursstart, danach 50 % des Kursbeitrags, ab Kursbeginn keine Rückerstattung.]</span></p>
+    <p>Eine Stornierung ist in Textform an
+    <?= $c['contact']['email'] ? '<a href="mailto:' . h($c['contact']['email']) . '">'
+        . h($c['contact']['email']) . '</a>' : 'COMBAT MIND' ?> zu richten. Massgebend für
+    die Berechnung der Fristen ist der Eingang bei COMBAT MIND.</p>
+    <ul>
+      <li><strong>Mehr als 14 Tage vor Kursstart:</strong> kostenfrei. Ein bereits bezahlter
+      Betrag wird vollständig zurückerstattet.</li>
+      <li><strong>14 bis 3 Tage vor Kursstart:</strong> 50 % des Kursbeitrags sind geschuldet.</li>
+      <li><strong>Weniger als 3 Tage vor Kursstart oder nach Kursbeginn:</strong> der volle
+      Kursbeitrag ist geschuldet, eine Rückerstattung erfolgt nicht.</li>
+    </ul>
+    <p>Wer eine Ersatzperson stellt, welche die Teilnahmebedingungen erfüllt und von
+    COMBAT MIND bestätigt wird, wird unabhängig vom Zeitpunkt kostenfrei aus dem Vertrag
+    entlassen.</p>
     <p>Verpasste Einheiten werden grundsätzlich <strong>nicht rückerstattet oder
     gutgeschrieben</strong> und können nicht nachgeholt werden.</p>
     <p>Bei längerer Verhinderung aus gesundheitlichen Gründen — nachgewiesen durch ein
@@ -66,8 +80,9 @@ legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT M
     oder behördlichen Anordnungen verschieben. Ausgefallene Lektionen werden nachgeholt
     oder anteilig zurückerstattet.</p>
     <p>Kommt ein Durchgang mangels Mindestteilnehmerzahl von
-    <span class="todo">[Mindestteilnehmerzahl]</span> Personen nicht zustande, wird der
-    bezahlte Betrag vollständig zurückerstattet.</p>
+    <strong><?= h($c['legal']['min_gr']) ?> Personen</strong> nicht zustande, wird dies
+    spätestens <strong>7 Tage vor Kursstart</strong> mitgeteilt und der bezahlte Betrag
+    vollständig zurückerstattet. Weitergehende Ansprüche bestehen nicht.</p>
   </section>
 
   <section>
@@ -120,13 +135,5 @@ legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT M
     gesetzliche Bestimmungen einen anderen Gerichtsstand vorsehen.</p>
   </section>
 
-  <div class="note">
-    <b>Hinweis zu diesem Dokument</b>
-    <p>Entwurf als Ausgangspunkt, keine Rechtsberatung. Laut Briefing liegen bereits AGB
-    für das 12-Wochen-Programm und für Drop-in vor — diese ersetzen den Text hier, schick
-    sie mir und ich setze sie ein. Offen sind in jedem Fall die Stornoregelung, die
-    Zahlungsfrist und die Abstimmung der Zahlungsformulierung auf die Banküberweisung.
-    Diesen Hinweis vor dem Livegang entfernen.</p>
-  </div>
 </main>
 <?php legal_foot();

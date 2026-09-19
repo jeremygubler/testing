@@ -154,12 +154,18 @@ function ff_schema(): array {
             'owner'   => ['text', 'Inhaberin', 'Inhaberin Jocelyn Gubler'],
             'email'   => ['text', 'E-Mail', 'info@combat-mind.ch'],
             'phone'   => ['text', 'Telefon', '076 527 74 93'],
+            'hours'   => ['text', 'Erreichbarkeit', 'Mo–Fr 10–12 und 13–18 Uhr'],
             'address' => ['text', 'Strasse und Hausnummer', 'Blotzheimerstr. 68'],
             'zip'     => ['text', 'PLZ', '4054'],
             'city'    => ['text', 'Ort', 'Basel'],
             'about'   => ['textarea', 'Footer-Text', 'Premium Combat Fitness in Basel. Striking · Grappling · Strength · Conditioning · Mindset.'],
             'form_url'=> ['text', 'Anmeldeformular (Tally-Link)', ''],
             'form_id' => ['text', 'Tally Formular-ID', ''],
+        ]],
+
+        'legal' => ['label' => 'Rechtstexte', 'fields' => [
+            'stand'   => ['text', 'Stand (erscheint auf AGB und Datenschutz)', '19. September 2026'],
+            'min_gr'  => ['text', 'Mindestteilnehmerzahl', '6'],
         ]],
     ];
 }

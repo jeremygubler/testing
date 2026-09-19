@@ -5,7 +5,7 @@ legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet �
 <header class="doc">
   <div class="shell">
     <h1>Datenschutz&shy;erklärung</h1>
-    <p class="stand">Stand: <span class="todo">[Datum einsetzen]</span></p>
+    <p class="stand">Stand: <?= h(ff_content()['legal']['stand']) ?></p>
   </div>
 </header>
 

@@ -210,5 +210,8 @@ function legal_address(): string {
         $out .= '<br>Telefon: <a href="tel:' . h(phone_href()) . '">'
               . h($c['contact']['phone']) . '</a>';
     }
+    if ($c['contact']['hours']) {
+        $out .= '<br>Erreichbar: ' . h($c['contact']['hours']);
+    }
     return $out;
 }

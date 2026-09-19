@@ -1018,6 +1018,9 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
           <?php if ($c['contact']['phone']): ?>
             <li><a href="tel:<?= h(phone_href()) ?>"><?= h($c['contact']['phone']) ?></a></li>
           <?php endif ?>
+          <?php if ($c['contact']['hours']): ?>
+            <li><?= h($c['contact']['hours']) ?></li>
+          <?php endif ?>
         </ul>
         <h4 style="margin-top:1.6rem">Rechtliches</h4>
         <ul>
