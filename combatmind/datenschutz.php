@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/inc/legal.php';
+require __DIR__ . '/inc/signup.php';
 legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet — Anmeldung, Gesundheitsangaben, Zahlungen, Hosting.', 'datenschutz.php');
 ?>
 <header class="doc">
@@ -58,9 +59,10 @@ legal_head('Datenschutzerklärung', 'Wie COMBAT MIND Personendaten bearbeitet �
       setzen. Dafür werden nur Name, E-Mail-Adresse und auf Wunsch die Telefonnummer
       gespeichert — keine Gesundheitsangaben und kein Geburtsdatum. Der Eintrag dient
       einzig der Benachrichtigung und wird gelöscht, sobald er sich erledigt hat.</p>
-      <p>Nach Abschluss des Kurses werden die Anmeldedaten gelöscht, soweit keine
-      gesetzliche Aufbewahrungspflicht besteht. Du kannst jederzeit per E-Mail Auskunft
-      oder Löschung verlangen.</p>
+      <p>Anmeldungen und Wartelisten-Einträge werden <strong><?= h((string)signup_keep_days()) ?> Tage</strong>
+      nach dem jeweiligen Kurs oder Training <strong>automatisch gelöscht</strong>, soweit keine
+      gesetzliche Aufbewahrungspflicht entgegensteht. Du kannst jederzeit per E-Mail
+      Auskunft oder eine frühere Löschung verlangen.</p>
     <?php endif ?>
   </section>
 

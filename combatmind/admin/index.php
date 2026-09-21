@@ -98,9 +98,20 @@ $gesamt  = max(0, (int)$c['program']['seats_total']);
 $gesetzt = $c['program']['seats_left'] !== '';
 $frei    = $gesetzt ? max(0, (int)$c['program']['seats_left']) : $gesamt;
 $upcoming = events_upcoming(3);
+// Fällige Einträge verschwinden, sobald jemand den Admin öffnet. Auf
+// öffentlichen Seiten passiert das bewusst nicht.
+$weg = signup_purge();
+if ($weg['anmeldungen'] || $weg['warteliste']) {
+    $teile = [];
+    if ($weg['anmeldungen']) $teile[] = $weg['anmeldungen'] . ' Anmeldung' . ($weg['anmeldungen'] === 1 ? '' : 'en');
+    if ($weg['warteliste'])  $teile[] = $weg['warteliste'] . ' Wartelisten-Eintrag' . ($weg['warteliste'] === 1 ? '' : 'e');
+    flash('Aufbewahrungsfrist abgelaufen: ' . implode(' und ', $teile) . ' gelöscht.');
+}
+
 $anm      = signup_all();
 $neu      = count(array_filter($anm, fn($r) => ($r['status'] ?? 'neu') === 'neu'));
 $wl       = count(waitlist_all());
+$faellig  = signup_due_soon();
 $shots = gallery_items();
 admin_head('Übersicht');
 admin_tabs('index.php');
@@ -133,6 +144,18 @@ admin_tabs('index.php');
     <?php endif ?>
     <a class="btn btn--ghost" href="termine.php">Termine pflegen</a>
   </div>
+  <?php if ($faellig): ?>
+    <div class="card" style="border-color:#5a4a1e;background:#221c0c">
+      <h3 style="margin:0 0 .5rem;font-size:1rem;color:var(--gold-hi)">Bald gelöscht</h3>
+      <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
+        <strong style="color:var(--white)"><?= $faellig ?></strong>
+        <?= $faellig === 1 ? 'Eintrag wird' : 'Einträge werden' ?> in den nächsten
+        <?= FF_KEEP_WARN ?> Tagen automatisch gelöscht — die Aufbewahrungsfrist von
+        <?= signup_keep_days() ?> Tagen läuft ab. Wenn du die Angaben behalten willst,
+        lade sie vorher als CSV.</p>
+      <a class="btn btn--ghost" href="anmeldungen.php?csv=1">Jetzt als CSV sichern</a>
+    </div>
+  <?php endif ?>
   <div class="card">
     <h3 style="margin:0 0 .5rem;font-size:1rem">Backup</h3>
     <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">

@@ -322,6 +322,76 @@ function waitlist_store(array $data): string {
     }
 }
 
+/* ── Aufbewahrung ───────────────────────────────────────────────────────
+   Die Datenschutzerklärung verspricht, dass Anmeldedaten nach dem Angebot
+   gelöscht werden. Ein Versprechen, das daran hängt, dass jemand daran denkt,
+   ist keines — deshalb räumt die Anwendung selbst auf. */
+
+const FF_KEEP_DEFAULT = 180;   // Tage
+const FF_KEEP_WARN    = 14;    // Tage Vorwarnung, damit ein Export noch möglich ist
+
+function signup_keep_days(): int {
+    $n = (int)(ff_content()['legal']['keep_days'] ?? 0);
+    return $n > 0 ? min(3650, $n) : FF_KEEP_DEFAULT;
+}
+
+/**
+ * Wann ein Eintrag fällig wird.
+ *
+ * Bei einem Einzeltraining zählt das Datum des Trainings, nicht der Zeitpunkt
+ * der Anmeldung: Wer sich ein halbes Jahr im Voraus einträgt, wäre sonst schon
+ * vor dem Training gelöscht. Fehlt der Termin — etwa weil er entfernt wurde —
+ * bleibt der Anmeldezeitpunkt.
+ */
+function signup_expires(array $r): int {
+    $ev = (string)($r['event'] ?? '') !== '' ? event_by_id((string)$r['event']) : null;
+    $anker = $ev ? (int)strtotime((string)$ev['date'] . ' 23:59:59') : (int)($r['ts'] ?? 0);
+    return $anker + signup_keep_days() * 86400;
+}
+
+/** Wie viele Einträge in den nächsten $tage Tagen fällig werden. */
+function signup_due_soon(int $tage = FF_KEEP_WARN, ?int $jetzt = null): int {
+    $jetzt = $jetzt ?? time();
+    $bis   = $jetzt + $tage * 86400;
+    $zahl  = 0;
+    foreach (array_merge(signup_all(), waitlist_all()) as $r) {
+        $f = signup_expires($r);
+        if ($f > $jetzt && $f <= $bis) $zahl++;
+    }
+    return $zahl;
+}
+
+/**
+ * Fällige Einträge entfernen. Liefert, was gelöscht wurde.
+ * Wird beim Öffnen des Admin aufgerufen, nicht auf öffentlichen Seiten.
+ */
+function signup_purge(?int $jetzt = null): array {
+    $jetzt = $jetzt ?? time();
+    $weg   = ['anmeldungen' => 0, 'warteliste' => 0];
+
+    $sperre = data_lock('signups');
+    try {
+        $rows = signup_all();
+        $neu  = array_values(array_filter($rows, fn($r) => signup_expires($r) > $jetzt));
+        if (count($neu) !== count($rows)) {
+            $weg['anmeldungen'] = count($rows) - count($neu);
+            signup_save($neu);
+        }
+    } finally { data_unlock($sperre); }
+
+    $sperre = data_lock('waitlist');
+    try {
+        $rows = waitlist_all();
+        $neu  = array_values(array_filter($rows, fn($r) => signup_expires($r) > $jetzt));
+        if (count($neu) !== count($rows)) {
+            $weg['warteliste'] = count($rows) - count($neu);
+            waitlist_save($neu);
+        }
+    } finally { data_unlock($sperre); }
+
+    return $weg;
+}
+
 function signup_name(array $r): string {
     return trim((string)($r['vorname'] ?? '') . ' ' . (string)($r['name'] ?? ''));
 }

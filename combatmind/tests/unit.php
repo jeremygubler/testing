@@ -292,6 +292,72 @@ eq('drei Einträge',                  count(waitlist_all()), 2);
 eq('Angebot wird mitgespeichert',
    waitlist_validate(['vorname'=>'A','name'=>'B','email'=>'a@b.ch','event'=>'tabc'])['data']['event'], 'tabc');
 
+echo "\nAufbewahrungsfrist\n";
+$tag = 86400;
+json_write('content.json', ['program'=>['seats_total'=>'16','seats_left'=>'5'],
+                            'legal'=>['keep_days'=>'180']]);
+ff_content(true);
+eq('Frist aus dem Admin', signup_keep_days(), 180);
+json_write('content.json', ['legal'=>['keep_days'=>'']]);
+ff_content(true);
+eq('ohne Angabe der Standardwert', signup_keep_days(), FF_KEEP_DEFAULT);
+json_write('content.json', ['legal'=>['keep_days'=>'30']]);
+ff_content(true);
+
+$jetzt = time();
+$lange_her = $jetzt - 100 * $tag;
+$gestern   = date('Y-m-d', $jetzt - $tag);
+$lang_vorbei = date('Y-m-d', $jetzt - 100 * $tag);
+$in100     = date('Y-m-d', $jetzt + 100 * $tag);
+
+json_write('events.json', [
+    ['id'=>'tvergangen1', 'date'=>$lang_vorbei, 'title'=>'Lang vorbei', 'signup'=>true, 'seats'=>5],
+    ['id'=>'tgestern0001', 'date'=>$gestern, 'title'=>'Gestern', 'signup'=>true, 'seats'=>5],
+    ['id'=>'tspaeter0001', 'date'=>$in100,  'title'=>'In 100 Tagen', 'signup'=>true, 'seats'=>5],
+]);
+json_write('signups.json', [
+    ['id'=>'a1','ts'=>$lange_her, 'vorname'=>'Alt',  'name'=>'Kurs',  'email'=>'a@b.ch', 'event'=>''],
+    ['id'=>'a2','ts'=>$jetzt,     'vorname'=>'Neu',  'name'=>'Kurs',  'email'=>'n@b.ch', 'event'=>''],
+    ['id'=>'a3','ts'=>$lange_her, 'vorname'=>'Alt',  'name'=>'Termin','email'=>'t@b.ch', 'event'=>'tvergangen1'],
+    // Der heikle Fall: früh angemeldet, Training erst in 100 Tagen.
+    ['id'=>'a4','ts'=>$lange_her, 'vorname'=>'Früh', 'name'=>'Dran',  'email'=>'f@b.ch', 'event'=>'tspaeter0001'],
+]);
+json_write('waitlist.json', [
+    ['id'=>'w1','ts'=>$lange_her, 'vorname'=>'Alt', 'name'=>'Warte', 'email'=>'w@b.ch', 'event'=>''],
+    ['id'=>'w2','ts'=>$jetzt,     'vorname'=>'Neu', 'name'=>'Warte', 'email'=>'x@b.ch', 'event'=>''],
+]);
+
+$holen = fn(string $id) => current(array_filter(signup_all(), fn($r) => $r['id'] === $id)) ?: [];
+ok('früh angemeldet, Training später — noch nicht fällig',
+   signup_expires($holen('a4')) > $jetzt);
+ok('Training lange vorbei — fällig', signup_expires($holen('a3')) < $jetzt);
+// Die Frist läuft ab dem Termin, nicht ab der Anmeldung: ein gestriges
+// Training behält seine Anmeldungen noch die volle Frist.
+ok('gestriges Training noch nicht fällig',
+   signup_expires(['ts'=>$lange_her, 'event'=>'tgestern0001']) > $jetzt);
+
+$weg = signup_purge();
+eq('zwei Anmeldungen gelöscht', $weg['anmeldungen'], 2);
+eq('ein Wartelisten-Eintrag',   $weg['warteliste'], 1);
+$uebrig = array_column(signup_all(), 'id');
+ok('neue Kursanmeldung bleibt',    in_array('a2', $uebrig, true), implode(',', $uebrig));
+ok('Anmeldung fürs späte Training bleibt', in_array('a4', $uebrig, true), implode(',', $uebrig));
+ok('alte Kursanmeldung ist weg',   !in_array('a1', $uebrig, true));
+ok('alte Terminanmeldung ist weg', !in_array('a3', $uebrig, true));
+eq('Warteliste zusammengestrichen', count(waitlist_all()), 1);
+
+$nochmal = signup_purge();
+eq('zweiter Durchlauf löscht nichts mehr', $nochmal['anmeldungen'], 0);
+
+// Vorwarnung: was in den nächsten Tagen fällig wird.
+json_write('signups.json', [
+    ['id'=>'b1','ts'=>$jetzt - 25 * $tag, 'vorname'=>'Bald','name'=>'Weg','email'=>'b@b.ch','event'=>''],
+    ['id'=>'b2','ts'=>$jetzt,             'vorname'=>'Noch','name'=>'Lang','email'=>'c@b.ch','event'=>''],
+]);
+json_write('waitlist.json', []);
+eq('einer wird bald fällig', signup_due_soon(14, $jetzt), 1);
+eq('mit kurzem Fenster keiner', signup_due_soon(1, $jetzt), 0);
+
 echo "\nBackup einspielen — was hinein darf\n";
 eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');
 ok('Galeriebild erlaubt',      restore_target('assets/gallery/20260919-ab12.jpg') !== null);

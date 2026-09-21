@@ -122,7 +122,9 @@ admin_tabs('anmeldungen.php');
   .sum b{color:var(--white);font-size:1.3rem;display:block}
 </style>
 <h1>Anmeldungen</h1>
-<p class="sub">Die Liste liegt auf eurem Server — unabhängig davon, ob eine E-Mail ankam.</p>
+<p class="sub">Die Liste liegt auf eurem Server — unabhängig davon, ob eine E-Mail ankam.
+Einträge werden <?= signup_keep_days() ?> Tage nach dem jeweiligen Angebot automatisch
+gelöscht; die Frist stellst du unter <a href="texte.php">Texte → Rechtstexte</a> ein.</p>
 
 <?php if (!$rows): ?>
   <div class="empty">Noch keine Anmeldungen.</div>

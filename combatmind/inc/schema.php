@@ -181,6 +181,7 @@ function ff_schema(): array {
             'min_gr'  => ['text', 'Mindestteilnehmerzahl', '6'],
             'rechtsform' => ['text', 'Rechtsform', 'Einzelunternehmen'],
             'uid'        => ['text', 'UID/MWST-Nummer (leer lassen, solange keine vorhanden)', ''],
+            'keep_days'  => ['text', 'Anmeldungen aufbewahren (Tage, danach automatisch gelöscht)', '180'],
         ]],
     ];
 }

@@ -508,6 +508,35 @@ try {
   ok('beide Angemeldeten stehen da', txt.includes('Ann Test') && txt.includes('Ben Test'));
   await p4.close();
 
+  group('Aufbewahrungsfrist');
+  // Frist auf einen Tag setzen und die Anmeldungen künstlich altern lassen.
+  await page.goto(B + '/admin/texte.php');
+  await page.fill('input[name="c[legal][keep_days]"]', '1');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+  ok('Datenschutz nennt die Frist', (await body('/datenschutz.php')).includes('1 Tage'));
+
+  const datei = join(work, 'data/signups.json.php');
+  const roh = readFileSync(datei, 'utf8');
+  const kopf = roh.slice(0, roh.indexOf('\n') + 1);
+  const liste = JSON.parse(roh.slice(roh.indexOf('\n') + 1));
+  const vorher = liste.length;
+  liste.forEach((r) => { r.ts = Math.floor(Date.now() / 1000) - 10 * 86400; });
+  writeFileSync(datei, kopf + JSON.stringify(liste));
+
+  await page.goto(B + '/admin/index.php');
+  ok('Löschung wird gemeldet', /Aufbewahrungsfrist abgelaufen/.test(await page.textContent('body')),
+     await page.textContent('.flash').catch(() => 'keine Meldung'));
+  await page.goto(B + '/admin/anmeldungen.php');
+  const rest = await page.textContent('body');
+  ok('alte Anmeldungen sind weg', !rest.includes('Anna Muster'), `${vorher} vorher`);
+  ok('die Seite nennt die Frist', rest.includes('1 Tage nach dem jeweiligen Angebot'));
+
+  await page.goto(B + '/admin/texte.php');
+  await page.fill('input[name="c[legal][keep_days]"]', '180');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+
   group('Backup');
   const [zip] = await Promise.all([
     page.waitForEvent('download'),
