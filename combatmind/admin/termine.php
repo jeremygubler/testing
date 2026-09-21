@@ -66,9 +66,14 @@ sie auch hier nicht mehr sehen willst. Änderungen werden erst mit
   .anm label{margin:0}
   .mangel{font-size:.8rem;color:#f0b4b4;background:#2a1414;border:1px solid #5a2b2b;
     border-radius:6px;padding:.4rem .7rem}
+  .vh{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip-path:inset(50%);border:0}
 </style>
 <form method="post">
   <?= csrf_field() ?>
+  <?php /* Enter in einem Feld löst den ersten Absende-Knopf des Formulars aus.
+           Ohne diesen hier wäre das der Löschen-Knopf der ersten Zeile. */ ?>
+  <button type="submit" class="vh" tabindex="-1" aria-hidden="true">Speichern</button>
   <div class="rows" id="rows">
     <?php $i = 0; foreach ($rows as $r): ?>
       <div class="row">

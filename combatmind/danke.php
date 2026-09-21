@@ -28,7 +28,19 @@ $kurs  = event_by_id(trim((string)($_GET['t'] ?? '')));
 </style>
 
 <main class="done">
-<?php if ($kurs): ?>
+<?php if ($warte && $kurs): ?>
+  <h1><em>Du stehst drauf.</em></h1>
+  <p>Du bist auf der Warteliste für <strong><?= h($kurs['title']) ?></strong> am
+  <?= h(event_weekday($kurs['date']) . ', ' . event_day($kurs['date']) . '. '
+        . event_month($kurs['date']) . ' ' . event_year($kurs['date'])) ?>.
+  Wird ein Platz frei, melden wir uns — in der Reihenfolge der Eintragungen.</p>
+
+  <ol class="steps">
+    <li><b>1</b><span><strong>Wir merken dich vor</strong>Dein Eintrag ist gespeichert, eine Bestätigung ist unterwegs.</span></li>
+    <li><b>2</b><span><strong>Wir melden uns</strong>Sobald jemand absagt — bei Einzeltrainings passiert das oft kurzfristig.</span></li>
+    <li><b>3</b><span><strong>Du entscheidest dann</strong>Der Eintrag verpflichtet zu nichts.</span></li>
+  </ol>
+<?php elseif ($kurs): ?>
   <h1><em>Platz reserviert.</em></h1>
   <p>Du bist angemeldet für <strong><?= h($kurs['title']) ?></strong> am
   <?= h(event_weekday($kurs['date']) . ', ' . event_day($kurs['date']) . '. '

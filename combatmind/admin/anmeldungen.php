@@ -242,8 +242,11 @@ admin_tabs('anmeldungen.php');
     ältesten zuerst anfragen.</p>
   <?php foreach (array_reverse($warte) as $n => $r): ?>
     <div class="an">
+      <?php $wev = ($r['event'] ?? '') !== '' ? event_by_id((string)$r['event']) : null; ?>
       <div class="an__top">
         <span class="an__name"><?= $n + 1 ?>. <?= h(signup_name($r)) ?></span>
+        <span class="pill"><?= $wev ? h($wev['title']) . ' · '
+              . h(date('d.m.Y', strtotime($wev['date']))) : '12 Week Program' ?></span>
         <span class="an__when"><?= h(date('d.m.Y H:i', (int)($r['ts'] ?? 0))) ?></span>
       </div>
       <dl>

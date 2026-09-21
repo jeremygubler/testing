@@ -25,7 +25,9 @@ if (!$istTermin && trim((string)($_GET['t'] ?? '')) !== '') {
     header('Location: index.php#termine'); exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut && !$istTermin) {
+$wlMoeglich = $soldOut && (!$istTermin || event_deadline($termin) >= date('Y-m-d'));
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $wlMoeglich) {
     $alt = $_POST;
     if (!signup_looks_human($_POST)) {
         $fehler['_'] = 'Das Formular wurde zu schnell abgeschickt. Versuch es bitte noch einmal.';
@@ -44,7 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut && !$istTermin) {
                 $an = trim((string)$c['contact']['email']);
                 if ($an !== '') {
                     mail_send($an, 'Warteliste: ' . signup_name($d), implode("\n", [
-                        'Neuer Eintrag auf der Warteliste', '',
+                        $istTermin ? 'Warteliste — ' . $termin['title'] . ' am '
+                                     . date('d.m.Y', strtotime($termin['date']))
+                                   : 'Neuer Eintrag auf der Warteliste', '',
                         'Name:    ' . signup_name($d),
                         'E-Mail:  ' . $d['email'],
                         'Telefon: ' . ($d['telefon'] !== '' ? $d['telefon'] : '—'),
@@ -52,9 +56,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut && !$istTermin) {
                         '', 'Im Admin: ' . site_url('admin/anmeldungen.php'),
                     ]), $d['email']);
                 }
-                mail_send($d['email'], 'Du stehst auf der Warteliste',
+                mail_send($d['email'],
+                    $istTermin ? 'Warteliste: ' . $termin['title'] : 'Du stehst auf der Warteliste',
                     str_replace('{vorname}', $d['vorname'], (string)$c['signup']['wl_reply']));
-                header('Location: danke.php?w=1'); exit;
+                header('Location: danke.php?w=1' . ($istTermin ? '&t=' . urlencode((string)$termin['id']) : ''));
+                exit;
             }
         }
     }
@@ -252,10 +258,8 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
   ?>
   <?php if ($istTermin) $auswahlBlock(); ?>
 
-  <?php if ($soldOut && $istTermin): ?>
-    <div class="banner"><?= event_deadline($termin) < date('Y-m-d')
-      ? 'Die Anmeldefrist für dieses Training ist abgelaufen.'
-      : 'Dieses Training ist ausgebucht.' ?>
+  <?php if ($soldOut && $istTermin && !$wlMoeglich): ?>
+    <div class="banner">Die Anmeldefrist für dieses Training ist abgelaufen.
       Schreib an <a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a>,
       wenn du beim nächsten Mal dabei sein willst.</div>
     <p><a href="index.php#termine">← Alle Termine</a></p>
@@ -264,13 +268,18 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
     <?php if ($fehler && !isset($fehler['_'])): ?>
       <div class="banner">Bitte schau dir die markierten Felder noch einmal an.</div>
     <?php endif ?>
-    <p><?= nl2br(h($c['signup']['wl_intro'])) ?></p>
+    <p><?= $istTermin
+      ? 'Dieses Training ist ausgebucht. Trag dich ein — wird ein Platz frei, melden wir uns bei dir, in der Reihenfolge der Eintragungen.'
+      : nl2br(h($c['signup']['wl_intro'])) ?></p>
 
     <form method="post" novalidate>
       <div class="hp" aria-hidden="true">
         <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
       </div>
       <input type="hidden" name="ts" value="<?= time() ?>">
+      <?php if ($istTermin): ?>
+        <input type="hidden" name="event" value="<?= h((string)$termin['id']) ?>">
+      <?php endif ?>
       <div class="two">
         <div class="fld"><label for="wv">Vorname</label>
           <input id="wv" type="text" name="vorname" value="<?= $w('vorname') ?>" required autocomplete="given-name"><?= $e('vorname') ?></div>

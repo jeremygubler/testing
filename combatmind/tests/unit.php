@@ -279,6 +279,19 @@ ok('und als geschlossen angezeigt', !event_open(event_by_id('tffffffffff')));
 eq('ohne eigenen Schluss gilt das Termindatum',
    event_deadline(['date'=>$bald]), $bald);
 
+echo "\nWarteliste je Angebot\n";
+json_write('waitlist.json', []);
+$wl = fn(string $mail, string $event) =>
+    waitlist_store(waitlist_validate(['vorname'=>'Wanda','name'=>'Wartend',
+        'email'=>$mail,'event'=>$event])['data']);
+eq('Warteliste für den Kurs',        $wl('w@example.ch',''), 'ok');
+eq('dieselbe Adresse fürs Training', $wl('w@example.ch','tffffffffff'), 'ok');
+eq('aber nicht zweimal dasselbe',    $wl('w@example.ch','tffffffffff'), 'doppelt');
+eq('und nicht zweimal der Kurs',     $wl('w@example.ch',''), 'doppelt');
+eq('drei Einträge',                  count(waitlist_all()), 2);
+eq('Angebot wird mitgespeichert',
+   waitlist_validate(['vorname'=>'A','name'=>'B','email'=>'a@b.ch','event'=>'tabc'])['data']['event'], 'tabc');
+
 echo "\nBackup einspielen — was hinein darf\n";
 eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');
 ok('Galeriebild erlaubt',      restore_target('assets/gallery/20260919-ab12.jpg') !== null);

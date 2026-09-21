@@ -349,7 +349,9 @@ try {
   await page.click('#add');
   await page.fill('input[name="ev[1][date]"]', new Date(Date.now() + 9e8).toISOString().slice(0, 10));
   await page.fill('input[name="ev[1][title]"]', 'Kommt bald');
-  await page.click('button[type=submit]');
+  // Nicht button[type=submit]: der erste ist der verborgene Knopf, der Enter
+  // auf «speichern» statt auf «löschen» lenkt.
+  await page.click('button:has-text("Termine speichern")');
   await page.waitForLoadState('networkidle');
   h = await body('/index.php');
   ok('kommender Termin steht auf der Seite', h.includes('Kommt bald'));
@@ -428,9 +430,27 @@ try {
   h = await body('/index.php');
   ok('Termin ist voll', h.includes('Ausgebucht') && !h.includes('noch 0 von'));
   await p4.goto(`${B}/anmeldung.php?t=${tid}`);
-  ok('Formular zu, Hinweis steht da',
-     (await p4.textContent('body')).includes('ausgebucht')
-     && await p4.locator('input[name=vorname]').count() === 0);
+  ok('ausgebucht heisst Warteliste, keine Sackgasse',
+     await p4.locator('button:has-text("Auf die Warteliste")').count() === 1);
+  ok('mit Begründung', (await p4.textContent('body')).includes('ausgebucht'));
+  ok('kein Geburtsdatum auf der Warteliste', await p4.locator('#geburtsdatum').count() === 0);
+  await p4.evaluate(() => { document.querySelector('input[name=ts]').value = String(Math.floor(Date.now()/1000) - 30); });
+  await p4.fill('input[name=vorname]', 'Cara');
+  await p4.fill('input[name=name]', 'Wartend');
+  await p4.fill('input[name=email]', 'cara@example.ch');
+  await p4.click('button[type=submit]');
+  await p4.waitForLoadState('networkidle');
+  ok('Eintrag bestätigt', p4.url().includes('danke.php?w=1&t='));
+  ok('Dankesseite nennt das Training', (await p4.textContent('body')).includes('Sparring-Basics'));
+
+  // Enter in einem Feld darf nicht den Löschen-Knopf auslösen.
+  await page.goto(B + '/admin/termine.php');
+  const vorEnter = await page.locator('.row').count();
+  await page.locator('input[name$="[title]"]').first().press('Enter');
+  await page.waitForLoadState('networkidle');
+  ok('Enter speichert, statt zu löschen',
+     await page.locator('.row').count() === vorEnter && await page.locator('.flash.ok').isVisible(),
+     `${vorEnter} Zeilen vorher, ${await page.locator('.row').count()} nachher`);
 
   await p4.goto(B + '/anmeldung.php?t=gibtsnicht');
   ok('unbekannter Termin führt zurück', p4.url().includes('index.php'));

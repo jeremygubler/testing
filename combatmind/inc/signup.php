@@ -298,15 +298,23 @@ function waitlist_validate(array $p): array {
         'email'     => $email,
         'telefon'   => $tel,
         'nachricht' => mb_substr($v('nachricht'), 0, 1000),
+        'event'     => trim((string)($p['event'] ?? '')),
     ]];
 }
 
 function waitlist_store(array $data): string {
     $sperre = data_lock('waitlist');
     try {
-        $rows = waitlist_all();
-        $schl = fn($r) => mb_strtolower(trim((string)($r['email'] ?? '')));
-        foreach ($rows as $r) if ($schl($r) === mb_strtolower($data['email'])) return 'doppelt';
+        $rows  = waitlist_all();
+        $event = (string)($data['event'] ?? '');
+        // Je Angebot getrennt: wer beim Kurs wartet, darf auch bei einem
+        // einzelnen Training auf der Liste stehen.
+        foreach ($rows as $r) {
+            if ((string)($r['event'] ?? '') !== $event) continue;
+            if (mb_strtolower(trim((string)($r['email'] ?? ''))) === mb_strtolower($data['email'])) {
+                return 'doppelt';
+            }
+        }
         array_unshift($rows, $data);
         return waitlist_save($rows) ? 'ok' : 'fehler';
     } finally {
