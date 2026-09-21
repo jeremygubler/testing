@@ -181,6 +181,8 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
   .auswahl__n{flex:1 1 12rem;font-weight:600}
   .auswahl__n span{display:block;color:var(--mute);font-size:.86rem;font-weight:400}
   .auswahl__f{flex:none;color:var(--mute);font-size:.84rem}
+  .auswahl--unten{margin:3rem 0 0}
+  .auswahl__l{color:var(--mute);font-size:.92rem;margin:-.4rem 0 .85rem}
 </style>
 
 <main class="form">
@@ -207,11 +209,25 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
   ?>
   <?php /* Auf einer Terminseite steht der Weg zurück zum Kurs auch dann, wenn
            es gerade kein weiteres offenes Training gibt. */ ?>
-  <?php if ($offen || $istTermin): ?>
-    <div class="auswahl">
+  <?php
+    /**
+     * Auf einer Terminseite steht die Auswahl oben — dort ist der Wechsel
+     * zwischen Terminen der Zweck der Seite. Auf der Kursseite steht sie
+     * unter dem Formular: Wer dort landet, will sich meist für das Programm
+     * anmelden, und ein Einzeltraining für 40 Franken direkt über dem
+     * Formular lenkt davon ab, statt Unentschlossene aufzufangen.
+     */
+    $auswahlBlock = function () use ($offen, $istTermin, $termin) {
+      if (!$offen && !$istTermin) return;
+      ?>
+    <div class="auswahl<?= $istTermin ? '' : ' auswahl--unten' ?>">
       <p class="auswahl__t"><?= $istTermin
         ? ($offen ? 'Weitere Trainings' : 'Auch im Angebot')
-        : 'Einzelne Trainings' ?></p>
+        : 'Lieber erst einmal reinschnuppern?' ?></p>
+      <?php if (!$istTermin): ?>
+        <p class="auswahl__l">Einzelne Trainings zu festen Terminen — ohne Anmeldung
+          zum ganzen Programm.</p>
+      <?php endif ?>
       <?php /* Nicht $e als Laufvariable: so heisst weiter unten die Funktion,
                die Feldfehler ausgibt. */ ?>
       <?php foreach ($offen as $trm): ?>
@@ -231,7 +247,10 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
         </a>
       <?php endif ?>
     </div>
-  <?php endif ?>
+      <?php
+    };
+  ?>
+  <?php if ($istTermin) $auswahlBlock(); ?>
 
   <?php if ($soldOut && $istTermin): ?>
     <div class="banner"><?= event_deadline($termin) < date('Y-m-d')
@@ -345,6 +364,8 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
       <button class="send" type="submit">Anmeldung absenden</button>
     </form>
   <?php endif ?>
+
+  <?php if (!$istTermin) $auswahlBlock(); ?>
 </main>
 
 <script>

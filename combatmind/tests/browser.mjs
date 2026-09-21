@@ -466,9 +466,20 @@ try {
   const aus = await p4.textContent('.auswahl').catch(() => '');
   ok('Kursseite bietet die Trainings an', aus.includes('Ohne Plaetze'), aus.slice(0, 120));
   ok('mit freien Plätzen', aus.includes('noch 5'));
+
+  // Reihenfolge: auf der Kursseite unter dem Formular, damit die Trainings
+  // nicht vom teureren Programm ablenken.
+  const reihenfolge = (sel) => p4.evaluate((s) => {
+    const f = document.querySelector('form[method=post]'), a = document.querySelector('.auswahl');
+    if (!f || !a) return 'fehlt';
+    return (f.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'unten' : 'oben';
+  }, sel);
+  ok('auf der Kursseite steht die Auswahl unter dem Formular', await reihenfolge() === 'unten');
+  ok('und trägt eine eigene Überschrift', aus.includes('reinschnuppern'));
   await p4.click('.auswahl__i');
   await p4.waitForLoadState('networkidle');
   ok('Auswahl führt zum Termin', /anmeldung\.php\?t=t[0-9a-f]{10}/.test(p4.url()));
+  ok('dort steht sie über dem Formular', await reihenfolge() === 'oben');
   ok('und zurück zum Kurs', await p4.locator('.auswahl__i:has-text("12 Week Program")').count() === 1);
 
   await page.goto(B + '/admin/anmeldungen.php');
