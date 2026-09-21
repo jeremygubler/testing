@@ -3,6 +3,7 @@ require __DIR__ . '/inc/core.php';
 require __DIR__ . '/inc/schema.php';
 require __DIR__ . '/inc/media.php';
 require __DIR__ . '/inc/events.php';
+require __DIR__ . '/inc/signup.php';
 
 $c        = ff_content();
 $events   = events_upcoming();
@@ -529,7 +530,15 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   text-transform:uppercase;letter-spacing:.03em;font-size:1.02rem;margin-bottom:.2rem}
 .ev__main span{color:var(--mute);font-size:.93rem}
 .ev__when{flex:none;font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.76rem;
-  letter-spacing:.16em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+  letter-spacing:.16em;text-transform:uppercase;color:var(--mute);white-space:nowrap;
+  display:flex;flex-direction:column;align-items:flex-end;gap:.35rem}
+.ev__seats{color:var(--gold-hi);letter-spacing:.08em}
+.ev__seats--out{color:#77777f}
+.ev__cta{display:inline-flex;text-decoration:none;color:#0a0a0a;font-size:.74rem;letter-spacing:.14em;
+  background:linear-gradient(140deg,#f4e4ae,#d4af37 38%,#a8801d 72%,#e8cf88);
+  padding:.5rem 1.1rem;border-radius:2px}
+.ev__cta:hover{color:#0a0a0a;filter:brightness(1.08)}
+@media (max-width:700px){.ev__when{align-items:flex-start}}
 
 /* ─────────────────────────  REVEAL  ───────────────────────── */
 .js .rv{opacity:0;transform:translateY(22px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
@@ -927,6 +936,16 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
         </span>
         <span class="ev__when">
           <?= h(event_weekday($e['date'])) ?>, <?= h(event_day($e['date'])) ?>. <?= h(event_month($e['date'])) ?> <?= h(event_year($e['date'])) ?><?php if (!empty($e['time'])): ?> · <?= h($e['time']) ?><?php endif ?>
+          <?php if (!empty($e['signup'])): ?>
+            <?php if (event_open($e)): ?>
+              <span class="ev__seats">noch <?= event_free($e) ?> von <?= event_seats($e) ?> Plätzen<?php
+                if (!empty($e['price'])): ?> · CHF <?= h($e['price']) ?><?php endif ?></span>
+              <a class="ev__cta" href="anmeldung.php?t=<?= h(urlencode((string)$e['id'])) ?>">Anmelden</a>
+            <?php else: ?>
+              <span class="ev__seats ev__seats--out"><?= event_deadline($e) < date('Y-m-d')
+                ? 'Anmeldeschluss vorbei' : 'Ausgebucht' ?></span>
+            <?php endif ?>
+          <?php endif ?>
         </span>
       </li>
       <?php endforeach ?>

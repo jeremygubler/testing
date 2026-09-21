@@ -1,9 +1,11 @@
 <?php
 /** Bestätigungsseite nach der Anmeldung. In Tally als Redirect-URL hinterlegen. */
 require __DIR__ . '/inc/legal.php';
+require __DIR__ . '/inc/events.php';
 legal_head('Anmeldung eingegangen', '', '', true);
 $c = ff_content();
 $warte = isset($_GET['w']);
+$kurs  = event_by_id(trim((string)($_GET['t'] ?? '')));
 ?>
 <style>
   main.done{width:var(--shell);margin-inline:auto;padding:clamp(4rem,12vh,8rem) 0 clamp(3rem,7vw,5rem);text-align:center}
@@ -26,7 +28,22 @@ $warte = isset($_GET['w']);
 </style>
 
 <main class="done">
-<?php if ($warte): ?>
+<?php if ($kurs): ?>
+  <h1><em>Platz reserviert.</em></h1>
+  <p>Du bist angemeldet für <strong><?= h($kurs['title']) ?></strong> am
+  <?= h(event_weekday($kurs['date']) . ', ' . event_day($kurs['date']) . '. '
+        . event_month($kurs['date']) . ' ' . event_year($kurs['date'])) ?><?php
+    if (!empty($kurs['time'])): ?> um <?= h($kurs['time']) ?><?php endif ?>.
+  Eine Bestätigung ist unterwegs.</p>
+
+  <ol class="steps">
+    <li><b>1</b><span><strong>Komm einfach vorbei</strong>Bequeme Sportkleidung, Wasserflasche, sonst nichts.</span></li>
+    <li><b>2</b><span><strong>Bezahlung vor Ort</strong><?= !empty($kurs['price'])
+      ? 'CHF ' . h($kurs['price']) . ' per TWINT oder bar im Training.'
+      : 'Die Angaben dazu bekommst du vor Ort.' ?></span></li>
+    <li><b>3</b><span><strong>Falls du nicht kannst</strong>Sag uns bitte spätestens 48 Stunden vorher Bescheid, dann rückt jemand von der Liste nach.</span></li>
+  </ol>
+<?php elseif ($warte): ?>
   <h1><em>Du stehst drauf.</em></h1>
   <p>Dein Eintrag auf der Warteliste ist da. Wird ein Platz frei oder startet der
   nächste Durchgang, melden wir uns bei dir — in der Reihenfolge der Eintragungen.

@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/inc/legal.php';
+require __DIR__ . '/inc/signup.php';
 $c = ff_content();
 legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT MIND 12 Week Program in Basel.', 'agb.php');
 ?>
@@ -53,7 +54,24 @@ legal_head('AGB / Teilnahmebedingungen', 'Teilnahmebedingungen für das COMBAT M
   </section>
 
   <section>
-    <h2>Rücktritt und Stornierung</h2>
+    <h2>Einzeltrainings</h2>
+    <p>Neben dem 12 WEEK PROGRAM werden einzelne Trainings zu wechselnden Terminen
+    angeboten. Die Anmeldung erfolgt über den jeweiligen Termin auf dieser Website und
+    ist eine <strong>Platzreservation</strong>. Es gelten dieselben Voraussetzungen wie
+    für das Programm: Mindestalter <?= h(FF_MIN_AGE) ?> Jahre, bei Minderjährigen die
+    Einwilligung der erziehungsberechtigten Person, und die Angaben zur Gesundheit.</p>
+    <p>Der Beitrag für ein Einzeltraining wird <strong>vor Ort bezahlt</strong>, per TWINT
+    oder bar. Eine Vorauszahlung ist nicht nötig.</p>
+    <p>Eine Absage ist <strong>bis 48 Stunden vor Trainingsbeginn kostenlos</strong> und in
+    Textform mitzuteilen. Danach oder bei Nichterscheinen ist der volle Beitrag geschuldet,
+    damit der Platz nicht anderen verwehrt bleibt.</p>
+    <p>Kommt ein Einzeltraining mangels Teilnehmenden nicht zustande oder muss es
+    abgesagt werden, wird dies rechtzeitig mitgeteilt; ein Beitrag wird in diesem Fall
+    nicht geschuldet. Weitergehende Ansprüche bestehen nicht.</p>
+  </section>
+
+  <section>
+    <h2>Rücktritt und Stornierung (12 WEEK PROGRAM)</h2>
     <p>Eine Stornierung ist in Textform an
     <?= $c['contact']['email'] ? '<a href="mailto:' . h($c['contact']['email']) . '">'
         . h($c['contact']['email']) . '</a>' : 'COMBAT MIND' ?> zu richten. Massgebend für

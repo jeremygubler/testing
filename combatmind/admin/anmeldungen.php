@@ -9,10 +9,19 @@ declare(strict_types=1);
 require_once __DIR__ . '/_layout.php';
 require_once __DIR__ . '/../inc/signup.php';
 require_once __DIR__ . '/../inc/mailer.php';
+require_once __DIR__ . '/../inc/events.php';
 auth_require();
 
-$rows  = signup_all();
+$alle  = signup_all();
+$rows  = array_values(array_filter($alle, fn($r) => ($r['event'] ?? '') === ''));
 $warte = waitlist_all();
+
+// Anmeldungen zu Einzeltrainings stehen für sich, nach Termin gebündelt.
+$proTermin = [];
+foreach ($alle as $r) {
+    $id = (string)($r['event'] ?? '');
+    if ($id !== '') $proTermin[$id][] = $r;
+}
 
 /* ── CSV für Excel & Co. ────────────────────────────────────────────────── */
 if (isset($_GET['csv'])) {
@@ -21,11 +30,13 @@ if (isset($_GET['csv'])) {
     header('X-Content-Type-Options: nosniff');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF");                       // damit Excel Umlaute erkennt
-    fputcsv($out, ['Datum', 'Vorname', 'Name', 'E-Mail', 'Telefon', 'Geburtsdatum', 'Alter',
+    fputcsv($out, ['Datum', 'Angebot', 'Vorname', 'Name', 'E-Mail', 'Telefon', 'Geburtsdatum', 'Alter',
                    'Erziehungsberechtigt', 'Gesundheit', 'Fotos', 'Nachricht', 'Status'], ';', '"', '');
-    foreach ($rows as $r) {
+    foreach ($alle as $r) {
+        $ev = ($r['event'] ?? '') !== '' ? event_by_id((string)$r['event']) : null;
         fputcsv($out, [
             date('d.m.Y H:i', (int)($r['ts'] ?? 0)),
+            $ev ? $ev['title'] . ' (' . date('d.m.Y', strtotime($ev['date'])) . ')' : '12 Week Program',
             $r['vorname'] ?? '', $r['name'] ?? '', $r['email'] ?? '', $r['telefon'] ?? '',
             $r['geburtsdatum'] ?? '', $r['alter'] ?? '',
             trim(($r['gv_name'] ?? '') . ' ' . ($r['gv_email'] ?? '')),
@@ -44,6 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id  = (string)($_POST['id'] ?? '');
     $tat = (string)($_POST['action'] ?? '');
 
+    if ($tat === 'delete' || $tat === 'status') {
+        // Einzeltrainings-Anmeldungen liegen in derselben Ablage.
+        $rows = $alle;
+    }
     if ($tat === 'wl_delete') {
         $neu = array_values(array_filter($warte, fn($r) => ($r['id'] ?? '') !== $id));
         waitlist_save($neu);
@@ -172,6 +187,48 @@ admin_tabs('anmeldungen.php');
           <button class="btn btn--danger" type="submit">Löschen</button>
         </form>
       </div>
+    </div>
+  <?php endforeach ?>
+<?php endif ?>
+
+<?php if ($proTermin): ?>
+  <h2>Einzeltrainings</h2>
+  <?php foreach (events_all() as $ev): $liste = $proTermin[$ev['id']] ?? []; if (!$liste) continue; ?>
+    <div class="card" id="t-<?= h((string)$ev['id']) ?>">
+      <div class="an__top" style="margin-bottom:.6rem">
+        <span class="an__name"><?= h($ev['title']) ?></span>
+        <span class="pill"><?= count($liste) ?> von <?= event_seats($ev) ?> Plätzen</span>
+        <span class="an__when"><?= h(event_weekday($ev['date']) . ', ' . event_day($ev['date']) . '. '
+              . event_month($ev['date']) . ' ' . event_year($ev['date'])) ?><?php
+              if (!empty($ev['time'])): ?> · <?= h($ev['time']) ?><?php endif ?></span>
+      </div>
+      <?php foreach ($liste as $r): ?>
+        <div class="an" style="margin-bottom:.6rem">
+          <div class="an__top">
+            <span class="an__name"><?= h(signup_name($r)) ?></span>
+            <span class="an__when"><?= h(date('d.m.Y H:i', (int)($r['ts'] ?? 0))) ?></span>
+          </div>
+          <dl>
+            <dt>E-Mail</dt><dd><a href="mailto:<?= h($r['email'] ?? '') ?>"><?= h($r['email'] ?? '') ?></a></dd>
+            <dt>Telefon</dt><dd><a href="tel:<?= h(phone_href((string)($r['telefon'] ?? ''))) ?>"><?= h($r['telefon'] ?? '') ?></a></dd>
+            <?php if (!empty($r['gv_name'])): ?>
+              <dt>Erziehungsberechtigt</dt><dd><?= h($r['gv_name']) ?> — <?= h($r['gv_email'] ?? '') ?></dd>
+            <?php endif ?>
+            <dt>Gesundheit</dt>
+            <dd<?= ($r['gesundheit'] ?? '') === 'ja' ? ' class="warn"' : '' ?>><?=
+              ($r['gesundheit'] ?? '') === 'ja' ? h($r['gesundheit_text'] ?? '') : 'keine Einschränkungen' ?></dd>
+            <?php if (!empty($r['nachricht'])): ?><dt>Nachricht</dt><dd><?= nl2br(h($r['nachricht'])) ?></dd><?php endif ?>
+          </dl>
+          <div class="an__act">
+            <form method="post" onsubmit="return confirm('Diese Anmeldung endgültig löschen?')">
+              <?= csrf_field() ?>
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="id" value="<?= h($r['id'] ?? '') ?>">
+              <button class="btn btn--danger" type="submit">Löschen</button>
+            </form>
+          </div>
+        </div>
+      <?php endforeach ?>
     </div>
   <?php endforeach ?>
 <?php endif ?>

@@ -12,11 +12,20 @@ require __DIR__ . '/inc/signup.php';
 require __DIR__ . '/inc/mailer.php';
 
 $c       = ff_content();
-$soldOut = !empty($c['program']['sold_out']);
+
+// Mit ?t=<Kennung> gilt die Seite einem einzelnen Training statt dem Kurs.
+$termin  = event_by_id(trim((string)($_GET['t'] ?? $_POST['event'] ?? '')));
+$istTermin = $termin !== null;
+$soldOut = $istTermin ? !event_open($termin) : !empty($c['program']['sold_out']);
 $fehler  = [];
 $alt     = [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut) {
+// Ein Termin ohne Anmeldung oder ein unbekannter Schlüssel gehört nicht hierher.
+if (!$istTermin && trim((string)($_GET['t'] ?? '')) !== '') {
+    header('Location: index.php#termine'); exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut && !$istTermin) {
     $alt = $_POST;
     if (!signup_looks_human($_POST)) {
         $fehler['_'] = 'Das Formular wurde zu schnell abgeschickt. Versuch es bitte noch einmal.';
@@ -49,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut) {
             }
         }
     }
-} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && !$soldOut) {
     $alt = $_POST;
     if (!signup_looks_human($_POST)) {
         $fehler['_'] = 'Das Formular wurde zu schnell abgeschickt. Versuch es bitte noch einmal.';
@@ -68,6 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut) {
                 $fehler['_'] = 'Mit diesen Angaben liegt bereits eine Anmeldung vor. '
                     . 'Hast du versehentlich zweimal gesendet, ist alles in Ordnung — '
                     . 'wir melden uns. Sonst schreib uns kurz.';
+            } elseif ($stand === 'voll') {
+                $fehler['_'] = 'Dieses Training ist inzwischen ausgebucht.';
+            } elseif ($stand === 'zu_spaet') {
+                $fehler['_'] = 'Die Anmeldefrist für dieses Training ist abgelaufen.';
             } elseif ($stand !== 'ok') {
                 $fehler['_'] = 'Speichern fehlgeschlagen. Melde dich bitte direkt per E-Mail.';
             } else {
@@ -75,7 +88,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut) {
                 $an = trim((string)$c['contact']['email']);
                 if ($an !== '') {
                     $zeilen = [
-                        'Neue Anmeldung — COMBAT MIND 12 Week Program', '',
+                        $istTermin
+                            ? 'Neue Anmeldung — ' . $termin['title'] . ' am '
+                              . date('d.m.Y', strtotime($termin['date']))
+                            : 'Neue Anmeldung — COMBAT MIND 12 Week Program', '',
                         'Name:          ' . signup_name($d),
                         'E-Mail:        ' . $d['email'],
                         'Telefon:       ' . $d['telefon'],
@@ -89,15 +105,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut) {
                     if ($d['nachricht'] !== '') { $zeilen[] = ''; $zeilen[] = 'Nachricht: ' . $d['nachricht']; }
                     $zeilen[] = '';
                     $zeilen[] = 'Im Admin: ' . site_url('admin/anmeldungen.php');
-                    mail_send($an, 'Neue Anmeldung: ' . signup_name($d), implode("\n", $zeilen), $d['email']);
+                    mail_send($an, ($istTermin ? 'Training: ' : 'Neue Anmeldung: ') . signup_name($d),
+                              implode("\n", $zeilen), $d['email']);
                 }
-                $text = str_replace('{vorname}', $d['vorname'], (string)$c['signup']['reply']);
-                mail_send($d['email'], 'Deine Anmeldung bei COMBAT MIND', $text);
+                if ($istTermin) {
+                    $wann = event_weekday($termin['date']) . ', ' . event_day($termin['date']) . '. '
+                          . event_month($termin['date']) . ' ' . event_year($termin['date'])
+                          . (!empty($termin['time']) ? ', ' . $termin['time'] : '');
+                    $text = "Hallo " . $d['vorname'] . "\n\ndanke für deine Anmeldung zu:\n\n"
+                          . $termin['title'] . "\n" . $wann . "\n"
+                          . (!empty($termin['price']) ? "CHF " . $termin['price'] . " — bezahlt wird vor Ort per TWINT oder bar.\n" : '')
+                          . "\nDein Platz ist reserviert. Solltest du nicht können, sag uns bitte "
+                          . "spätestens 48 Stunden vorher Bescheid.\n\nBis bald\nJocelyn\nCOMBAT MIND";
+                } else {
+                    $text = str_replace('{vorname}', $d['vorname'], (string)$c['signup']['reply']);
+                }
+                mail_send($d['email'], $istTermin ? 'Deine Anmeldung: ' . $termin['title']
+                                                  : 'Deine Anmeldung bei COMBAT MIND', $text);
                 if ($d['gv_email'] !== '') {
                     mail_send($d['gv_email'], 'Anmeldung von ' . signup_name($d) . ' bei COMBAT MIND',
                         str_replace('{vorname}', $d['gv_name'], (string)$c['signup']['reply']));
                 }
-                header('Location: danke.php'); exit;
+                header('Location: danke.php' . ($istTermin ? '?t=' . urlencode((string)$termin['id']) : '')); exit;
             }
         }
     }
@@ -106,7 +135,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $soldOut) {
 $w = fn(string $k) => h((string)($alt[$k] ?? ''));
 $e = fn(string $k) => isset($fehler[$k]) ? '<span class="err">' . h($fehler[$k]) . '</span>' : '';
 
-legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', 'anmeldung.php');
+legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
+           $istTermin ? 'Anmeldung zum Training ' . $termin['title'] . ' bei COMBAT MIND in Basel.'
+                      : 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.',
+           $istTermin ? '' : 'anmeldung.php', $istTermin);
 ?>
 <style>
   main.form{width:var(--shell);margin-inline:auto;padding:clamp(2.5rem,6vw,4rem) 0 clamp(3rem,7vw,5rem)}
@@ -135,12 +167,33 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
     background:linear-gradient(140deg,#f4e4ae,#d4af37 38%,#a8801d 72%,#e8cf88);
     padding:1.05rem 2.2rem;border-radius:2px;margin-top:.5rem}
   .fine{font-size:.86rem;margin-top:1.25rem}
+  .wann{color:var(--gold-hi);font-family:var(--display);font-weight:700;font-stretch:108%;
+    letter-spacing:.06em;text-transform:uppercase;font-size:.84rem;margin-bottom:1.25rem}
 </style>
 
 <main class="form">
-  <h1>Anmeldung</h1>
+  <h1><?= $istTermin ? h($termin['title']) : 'Anmeldung' ?></h1>
+<?php if ($istTermin): ?>
+  <p class="wann">
+    <?= h(event_weekday($termin['date']) . ', ' . event_day($termin['date']) . '. '
+          . event_month($termin['date']) . ' ' . event_year($termin['date'])) ?><?php
+      if (!empty($termin['time'])): ?> · <?= h($termin['time']) ?><?php endif ?><?php
+      if (!empty($termin['price'])): ?> · CHF <?= h($termin['price']) ?><?php endif ?>
+    <?php if (!$soldOut): ?>
+      · noch <?= event_free($termin) ?> von <?= event_seats($termin) ?> Plätzen
+    <?php endif ?>
+  </p>
+  <?php if (!empty($termin['note'])): ?><p><?= nl2br(h($termin['note'])) ?></p><?php endif ?>
+<?php endif ?>
 
-  <?php if ($soldOut): ?>
+  <?php if ($soldOut && $istTermin): ?>
+    <div class="banner"><?= event_deadline($termin) < date('Y-m-d')
+      ? 'Die Anmeldefrist für dieses Training ist abgelaufen.'
+      : 'Dieses Training ist ausgebucht.' ?>
+      Schreib an <a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a>,
+      wenn du beim nächsten Mal dabei sein willst.</div>
+    <p><a href="index.php#termine">← Alle Termine</a></p>
+  <?php elseif ($soldOut): ?>
     <?php if (isset($fehler['_'])): ?><div class="banner"><?= h($fehler['_']) ?></div><?php endif ?>
     <?php if ($fehler && !isset($fehler['_'])): ?>
       <div class="banner">Bitte schau dir die markierten Felder noch einmal an.</div>
@@ -183,6 +236,9 @@ legal_head('Anmeldung', 'Anmeldung zum COMBAT MIND 12 Week Program in Basel.', '
         <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
       </div>
       <input type="hidden" name="ts" value="<?= time() ?>">
+      <?php if ($istTermin): ?>
+        <input type="hidden" name="event" value="<?= h((string)$termin['id']) ?>">
+      <?php endif ?>
 
       <div class="two">
         <div class="fld"><label for="vorname">Vorname</label>

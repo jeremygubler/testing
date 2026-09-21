@@ -4,10 +4,42 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/core.php';
 
+/** Kennung für einen Termin. Anmeldungen zeigen darauf. */
+function event_new_id(): string { return 't' . bin2hex(random_bytes(5)); }
+
+/**
+ * Alle Termine, chronologisch.
+ *
+ * Termine waren früher eine reine Liste und wurden beim Speichern neu
+ * durchnummeriert. Sobald eine Anmeldung auf einen Termin zeigt, geht das
+ * nicht mehr — sie hinge nach dem nächsten Speichern am falschen Training.
+ * Ältere Einträge bekommen ihre Kennung deshalb hier einmalig nachgereicht.
+ */
 function events_all(): array {
-    $rows = array_filter(json_read('events.json'), fn($e) => is_array($e) && !empty($e['date']));
+    $rows = array_values(array_filter(json_read('events.json'),
+        fn($e) => is_array($e) && !empty($e['date'])));
+
+    $nachtragen = false;
+    foreach ($rows as &$e) {
+        if (empty($e['id'])) { $e['id'] = event_new_id(); $nachtragen = true; }
+    }
+    unset($e);
+    if ($nachtragen) json_write('events.json', $rows);
+
     usort($rows, fn($a, $b) => [$a['date'], $a['time'] ?? ''] <=> [$b['date'], $b['time'] ?? '']);
-    return array_values($rows);
+    return $rows;
+}
+
+/** Einen Termin über seine Kennung finden. */
+function event_by_id(string $id): ?array {
+    if ($id === '') return null;
+    foreach (events_all() as $e) if (($e['id'] ?? '') === $id) return $e;
+    return null;
+}
+
+/** Bis wann man sich eintragen kann — ohne eigenen Schluss bis zum Termin selbst. */
+function event_deadline(array $e): string {
+    return !empty($e['deadline']) ? (string)$e['deadline'] : (string)$e['date'];
 }
 
 /** Nur was heute oder später stattfindet — Vergangenes verschwindet von selbst. */

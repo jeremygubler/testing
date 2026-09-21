@@ -212,6 +212,73 @@ eq('Warteliste zieht keinen Platz ab', ff_content(true)['program']['seats_left']
 ok('Warteliste ohne E-Mail abgelehnt', !waitlist_validate(['vorname'=>'X','name'=>'Y'])['ok']);
 ok('Warteliste ist vom Einspielen ausgenommen', restore_target('data/waitlist.json.php') === null);
 
+echo "\nEinzeltrainings\n";
+$bald = (new DateTimeImmutable('today'))->modify('+14 days')->format('Y-m-d');
+$frueher = (new DateTimeImmutable('today'))->modify('-1 day')->format('Y-m-d');
+json_write('events.json', [
+    ['date'=>$bald, 'time'=>'10:00–11:30', 'title'=>'Sparring-Basics',
+     'signup'=>true, 'seats'=>2, 'price'=>'40', 'deadline'=>''],
+    ['date'=>$bald, 'title'=>'Nur Information', 'signup'=>false, 'seats'=>0],
+]);
+json_write('signups.json', []);
+json_write('content.json', ['program'=>['seats_total'=>'16','seats_left'=>'9']]);
+ff_content(true);
+
+// Nicht über den Index greifen: events_all() sortiert chronologisch, und ein
+// Termin ohne Uhrzeit steht vor einem mit.
+$finde = function (string $titel): array {
+    foreach (events_all() as $e) if ($e['title'] === $titel) return $e;
+    return [];
+};
+$sparring = $finde('Sparring-Basics');
+$nurinfo  = $finde('Nur Information');
+
+ok('fehlende Kennung wird nachgereicht',
+   preg_match('/^t[0-9a-f]{10}$/', $sparring['id'] ?? '') === 1, (string)($sparring['id'] ?? 'keine'));
+ok('und sofort gespeichert',
+   in_array($sparring['id'], array_column(json_read('events.json'), 'id'), true));
+ok('bleibt beim zweiten Lesen gleich', $finde('Sparring-Basics')['id'] === $sparring['id']);
+
+$t = $sparring['id'];
+$info = $nurinfo['id'];
+ok('Termin mit Anmeldung ist offen',  event_open($sparring));
+ok('reiner Informationstermin nicht', !event_open($nurinfo));
+eq('zwei Plätze frei', event_free($sparring), 2);
+ok('unbekannte Kennung liefert nichts', event_by_id('gibtsnicht') === null);
+
+$mach = fn(string $vorname, string $mail, string $event) =>
+    signup_store(signup_validate(['vorname'=>$vorname,'name'=>'Test','email'=>$mail,
+        'telefon'=>'076 527 74 93','geburtsdatum'=>'10.03.1990','gesundheit'=>'nein',
+        'agb'=>'1','event'=>$event])['data']);
+
+eq('erste Anmeldung zum Training', $mach('Ann','a@example.ch',$t), 'ok');
+eq('ein Platz weniger',            event_free(event_by_id($t)), 1);
+eq('Kursplätze bleiben unberührt', ff_content(true)['program']['seats_left'], '9');
+eq('zweite Anmeldung',             $mach('Ben','b@example.ch',$t), 'ok');
+eq('dritte wird abgewiesen',       $mach('Cid','c@example.ch',$t), 'voll');
+eq('nur zwei eingetragen',         event_free(event_by_id($t)), 0);
+ok('Termin gilt jetzt als zu',     !event_open(event_by_id($t)));
+
+// Dieselbe Person darf Kurs und Einzeltraining besuchen.
+eq('dieselbe Person zum Kurs',     $mach('Ann','a@example.ch',''), 'ok');
+eq('aber nicht zweimal zum selben Training',
+   signup_store(signup_validate(['vorname'=>'Ann','name'=>'Test','email'=>'a@example.ch',
+     'telefon'=>'076 527 74 93','geburtsdatum'=>'10.03.1990','gesundheit'=>'nein',
+     'agb'=>'1','event'=>$t])['data']), 'doppelt');
+
+// Termin ohne Anmeldung nimmt nichts entgegen.
+eq('Informationstermin weist ab',  $mach('Eva','e@example.ch',$info), 'fehler');
+
+// Abgelaufene Frist.
+json_write('events.json', [
+    ['id'=>'tffffffffff', 'date'=>$bald, 'title'=>'Zu spät',
+     'signup'=>true, 'seats'=>5, 'deadline'=>$frueher],
+]);
+eq('nach Anmeldeschluss abgewiesen', $mach('Fee','f@example.ch','tffffffffff'), 'zu_spaet');
+ok('und als geschlossen angezeigt', !event_open(event_by_id('tffffffffff')));
+eq('ohne eigenen Schluss gilt das Termindatum',
+   event_deadline(['date'=>$bald]), $bald);
+
 echo "\nBackup einspielen — was hinein darf\n";
 eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');
 ok('Galeriebild erlaubt',      restore_target('assets/gallery/20260919-ab12.jpg') !== null);

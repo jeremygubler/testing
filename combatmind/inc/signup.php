@@ -12,6 +12,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/core.php';
+require_once __DIR__ . '/events.php';
 
 const FF_MIN_AGE      = 16;
 const FF_SIGNUP_TRIES = 3;       // je Gerät und Stunde
@@ -114,6 +115,7 @@ function signup_validate(array $p): array {
         'gesundheit_text' => $ges === 'ja' ? mb_substr($v('gesundheit_text'), 0, 1000) : '',
         'fotos'      => !empty($p['fotos']),
         'nachricht'  => mb_substr($v('nachricht'), 0, 1000),
+        'event'      => trim((string)($p['event'] ?? '')),
         'status'     => 'neu',
     ]];
 }
@@ -166,15 +168,41 @@ function signup_rate_hit(): void {
  * darf zwei Kinder über dieselbe Adresse anmelden. Abgefangen wird damit der
  * häufige Fall — zweimal auf «Absenden» geklickt.
  */
-function signup_exists(string $email, string $vorname, string $name, ?array $rows = null): bool {
+function signup_exists(string $email, string $vorname, string $name, ?array $rows = null,
+                       string $event = ''): bool {
     $schl = fn($e, $v, $n) => mb_strtolower(trim($e)) . '|' . mb_strtolower(trim($v) . ' ' . trim($n));
     $ich  = $schl($email, $vorname, $name);
     foreach ($rows ?? signup_all() as $r) {
+        // Je Angebot getrennt: der Kurs und jedes Einzeltraining zählen für sich.
+        if ((string)($r['event'] ?? '') !== $event) continue;
         if ($schl((string)($r['email'] ?? ''), (string)($r['vorname'] ?? ''), (string)($r['name'] ?? '')) === $ich) {
             return true;
         }
     }
     return false;
+}
+
+/* ── Einzeltrainings ────────────────────────────────────────────────────
+   Termine können Anmeldungen entgegennehmen. Der freie Platz wird gezählt,
+   nicht mitgeführt: Ein Zähler kann von der Wirklichkeit abweichen, eine
+   Zählung der Einträge nie. */
+
+function event_taken(string $id): int {
+    if ($id === '') return 0;
+    return count(array_filter(signup_all(), fn($r) => (string)($r['event'] ?? '') === $id));
+}
+
+function event_seats(array $e): int { return max(0, (int)($e['seats'] ?? 0)); }
+
+function event_free(array $e): int {
+    return max(0, event_seats($e) - event_taken((string)($e['id'] ?? '')));
+}
+
+/** Kann man sich für diesen Termin eintragen? */
+function event_open(array $e): bool {
+    if (empty($e['signup']) || event_seats($e) === 0) return false;
+    if (event_deadline($e) < date('Y-m-d')) return false;
+    return event_free($e) > 0;
 }
 
 function signup_all(): array {
@@ -194,10 +222,24 @@ function signup_save(array $rows): bool { return json_write('signups.json', arra
 function signup_store(array $data): string {
     $sperre = data_lock('signups');
     try {
-        $rows = signup_all();
-        if (signup_exists((string)$data['email'], (string)$data['vorname'], (string)$data['name'], $rows)) {
+        $event = (string)($data['event'] ?? '');
+        $rows  = signup_all();
+        if (signup_exists((string)$data['email'], (string)$data['vorname'], (string)$data['name'], $rows, $event)) {
             return 'doppelt';
         }
+
+        // Einzeltraining: eigene Kapazität, und der Kursplatzzähler bleibt
+        // unberührt — die beiden Angebote haben nichts miteinander zu tun.
+        if ($event !== '') {
+            $e = event_by_id($event);
+            if ($e === null || empty($e['signup'])) return 'fehler';
+            if (event_deadline($e) < date('Y-m-d')) return 'zu_spaet';
+            $belegt = count(array_filter($rows, fn($r) => (string)($r['event'] ?? '') === $event));
+            if ($belegt >= event_seats($e)) return 'voll';
+            array_unshift($rows, $data);
+            return signup_save($rows) ? 'ok' : 'fehler';
+        }
+
         array_unshift($rows, $data);
         if (!signup_save($rows)) return 'fehler';
 

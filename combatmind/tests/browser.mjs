@@ -371,6 +371,76 @@ try {
   ok('der andere steht noch', titel.includes('Kommt bald'), titel.join(', '));
   ok('und weiterhin auf der Website', (await body('/index.php')).includes('Kommt bald'));
 
+  group('Einzeltrainings');
+  await page.goto(B + '/admin/termine.php');
+  await page.click('#add');
+  const inZwei = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+  const zeile = page.locator('.row').last();
+  await zeile.locator('input[name$="[date]"]').fill(inZwei);
+  await zeile.locator('input[name$="[time]"]').fill('10:00–11:30');
+  await zeile.locator('input[name$="[title]"]').fill('Sparring-Basics');
+  await zeile.locator('input[name$="[signup]"]').check();
+  await zeile.locator('input[name$="[seats]"]').fill('2');
+  await zeile.locator('input[name$="[price]"]').fill('40');
+  // Ausdrücklich der Speichern-Knopf: die Löschen-Knöpfe der Zeilen sind
+  // ebenfalls Absende-Knöpfe und stehen im Markup davor.
+  await page.click('button:has-text("Termine speichern")');
+  await page.waitForLoadState('networkidle');
+  ok('Termin mit Anmeldung gespeichert', await page.locator('.flash.ok').isVisible(),
+     await page.textContent('.flash').catch(() => 'keine Meldung'));
+
+  h = await body('/index.php');
+  ok('Platzstand steht beim Termin', h.includes('noch 2 von 2 Plätzen'));
+  ok('Anmelde-Knopf beim Termin', /anmeldung\.php\?t=t[0-9a-f]{10}/.test(h));
+  ok('Preis wird genannt', h.includes('CHF 40'));
+  const tid = h.match(/anmeldung\.php\?t=(t[0-9a-f]{10})/)[1];
+
+  const p4 = await ctx.newPage();
+  const traeg = async (vorname, mail) => {
+    await p4.goto(`${B}/anmeldung.php?t=${tid}`);
+    await p4.evaluate(() => { document.querySelector('input[name=ts]').value = String(Math.floor(Date.now()/1000) - 30); });
+    await p4.fill('input[name=vorname]', vorname);
+    await p4.fill('input[name=name]', 'Test');
+    await p4.fill('input[name=email]', mail);
+    await p4.fill('input[name=telefon]', '076 527 74 93');
+    await p4.fill('input[name=geburtsdatum]', '10.03.1990');
+    await p4.check('input[name=gesundheit][value=nein]');
+    await p4.check('input[name=agb]');
+    await p4.click('button[type=submit]');
+    await p4.waitForLoadState('networkidle');
+  };
+
+  await p4.goto(`${B}/anmeldung.php?t=${tid}`);
+  ok('Terminseite nennt das Training', (await p4.textContent('h1')).includes('Sparring-Basics'));
+  ok('mit Datum und Preis', (await p4.textContent('.wann')).includes('CHF 40'));
+
+  // Nicht auf eine feste Zahl prüfen — frühere Gruppen haben Kursplätze verbraucht.
+  const kursVorher = (await body('/index.php')).match(/Noch (\d+) von \d+ Plätzen frei/)?.[1];
+  await traeg('Ann', 'ann@example.ch');
+  ok('Anmeldung bestätigt', p4.url().includes('danke.php?t='));
+  ok('Dankesseite nennt das Training', (await p4.textContent('body')).includes('Sparring-Basics'));
+  h = await body('/index.php');
+  ok('ein Platz weg', h.includes('noch 1 von 2 Plätzen'));
+  ok('Kursplätze unberührt', h.match(/Noch (\d+) von \d+ Plätzen frei/)?.[1] === kursVorher,
+     `vorher ${kursVorher}, nachher ${h.match(/Noch (\d+) von \d+ Plätzen frei/)?.[1]}`);
+
+  await traeg('Ben', 'ben@example.ch');
+  h = await body('/index.php');
+  ok('Termin ist voll', h.includes('Ausgebucht') && !h.includes('noch 0 von'));
+  await p4.goto(`${B}/anmeldung.php?t=${tid}`);
+  ok('Formular zu, Hinweis steht da',
+     (await p4.textContent('body')).includes('ausgebucht')
+     && await p4.locator('input[name=vorname]').count() === 0);
+
+  await p4.goto(B + '/anmeldung.php?t=gibtsnicht');
+  ok('unbekannter Termin führt zurück', p4.url().includes('index.php'));
+
+  await page.goto(B + '/admin/anmeldungen.php');
+  const txt = await page.textContent('body');
+  ok('Training im Admin gruppiert', txt.includes('Sparring-Basics') && txt.includes('2 von 2 Plätzen'));
+  ok('beide Angemeldeten stehen da', txt.includes('Ann Test') && txt.includes('Ben Test'));
+  await p4.close();
+
   group('Backup');
   const [zip] = await Promise.all([
     page.waitForEvent('download'),
