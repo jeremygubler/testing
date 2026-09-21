@@ -169,6 +169,18 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
   .fine{font-size:.86rem;margin-top:1.25rem}
   .wann{color:var(--gold-hi);font-family:var(--display);font-weight:700;font-stretch:108%;
     letter-spacing:.06em;text-transform:uppercase;font-size:.84rem;margin-bottom:1.25rem}
+  .auswahl{border:1px solid var(--line);border-radius:12px;background:var(--ink-2);
+    padding:1.1rem 1.25rem;margin:0 0 2rem}
+  .auswahl__t{font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.72rem;
+    letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin:0 0 .85rem}
+  .auswahl__i{display:flex;gap:1rem;align-items:baseline;flex-wrap:wrap;text-decoration:none;
+    color:var(--white);padding:.7rem 0;border-top:1px solid var(--line)}
+  .auswahl__i:hover{color:var(--gold-hi)}
+  .auswahl__d{flex:none;width:5.5rem;font-family:var(--display);font-weight:800;font-stretch:108%;
+    font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-hi)}
+  .auswahl__n{flex:1 1 12rem;font-weight:600}
+  .auswahl__n span{display:block;color:var(--mute);font-size:.86rem;font-weight:400}
+  .auswahl__f{flex:none;color:var(--mute);font-size:.84rem}
 </style>
 
 <main class="form">
@@ -185,6 +197,41 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
   </p>
   <?php if (!empty($termin['note'])): ?><p><?= nl2br(h($termin['note'])) ?></p><?php endif ?>
 <?php endif ?>
+
+  <?php
+    // Wer direkt hierher findet, soll sehen, dass es ausser dem Kurs noch
+    // einzelne Trainings gibt — sonst ist der Weg dorthin nur der Knopf auf
+    // der Startseite.
+    $offen = array_values(array_filter(events_upcoming(20),
+        fn($e) => event_open($e) && ($e['id'] ?? '') !== ($termin['id'] ?? '')));
+  ?>
+  <?php /* Auf einer Terminseite steht der Weg zurück zum Kurs auch dann, wenn
+           es gerade kein weiteres offenes Training gibt. */ ?>
+  <?php if ($offen || $istTermin): ?>
+    <div class="auswahl">
+      <p class="auswahl__t"><?= $istTermin
+        ? ($offen ? 'Weitere Trainings' : 'Auch im Angebot')
+        : 'Einzelne Trainings' ?></p>
+      <?php /* Nicht $e als Laufvariable: so heisst weiter unten die Funktion,
+               die Feldfehler ausgibt. */ ?>
+      <?php foreach ($offen as $trm): ?>
+        <a class="auswahl__i" href="anmeldung.php?t=<?= h(urlencode((string)$trm['id'])) ?>">
+          <span class="auswahl__d"><?= h(event_day($trm['date'])) ?>. <?= h(event_month($trm['date'])) ?></span>
+          <span class="auswahl__n"><?= h($trm['title']) ?><?php if (!empty($trm['time'])): ?>
+            <span><?= h($trm['time']) ?></span><?php endif ?></span>
+          <span class="auswahl__f">noch <?= event_free($trm) ?><?php
+            if (!empty($trm['price'])): ?> · CHF <?= h($trm['price']) ?><?php endif ?></span>
+        </a>
+      <?php endforeach ?>
+      <?php if ($istTermin): ?>
+        <a class="auswahl__i" href="anmeldung.php">
+          <span class="auswahl__d">Kurs</span>
+          <span class="auswahl__n">12 Week Program</span>
+          <span class="auswahl__f">ansehen</span>
+        </a>
+      <?php endif ?>
+    </div>
+  <?php endif ?>
 
   <?php if ($soldOut && $istTermin): ?>
     <div class="banner"><?= event_deadline($termin) < date('Y-m-d')

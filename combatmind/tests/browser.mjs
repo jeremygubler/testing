@@ -435,6 +435,42 @@ try {
   await p4.goto(B + '/anmeldung.php?t=gibtsnicht');
   ok('unbekannter Termin führt zurück', p4.url().includes('index.php'));
 
+  group('Termin finden ohne Startseite');
+  // Häkchen ohne Plätze: auf der Website darf nichts erscheinen, im Admin aber
+  // muss dastehen, warum.
+  await page.goto(B + '/admin/termine.php');
+  await page.click('#add');
+  const z2 = page.locator('.row').last();
+  await z2.locator('input[name$="[date]"]').fill(new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10));
+  await z2.locator('input[name$="[title]"]').fill('Ohne Plaetze');
+  await z2.locator('input[name$="[signup]"]').check();
+  await page.click('button:has-text("Termine speichern")');
+  await page.waitForLoadState('networkidle');
+  ok('Admin erklärt die fehlenden Plätze',
+     (await page.textContent('body')).includes('Ohne Plätze erscheint kein Anmelde-Knopf'));
+  // Der Termin steht als Information auf der Seite — nur anmelden kann man sich
+  // nicht, und genau das war zu prüfen.
+  h = await body('/index.php');
+  ok('Termin steht als Information da', h.includes('Ohne Plaetze'));
+  const abschnitt = h.split('Ohne Plaetze')[1]?.split('</li>')[0] ?? '';
+  ok('aber ohne Anmelde-Knopf', !abschnitt.includes('anmeldung.php?t='), abschnitt.slice(0, 120));
+
+  // Jetzt Plätze nachtragen — und prüfen, dass die Auswahl auf der
+  // Anmeldeseite den Termin anbietet, ganz ohne Startseite.
+  await page.goto(B + '/admin/termine.php');
+  const zeileOhne = page.locator('.row').filter({ has: page.locator('input[value="Ohne Plaetze"]') });
+  await zeileOhne.locator('input[name$="[seats]"]').fill('5');
+  await page.click('button:has-text("Termine speichern")');
+  await page.waitForLoadState('networkidle');
+  await p4.goto(B + '/anmeldung.php');
+  const aus = await p4.textContent('.auswahl').catch(() => '');
+  ok('Kursseite bietet die Trainings an', aus.includes('Ohne Plaetze'), aus.slice(0, 120));
+  ok('mit freien Plätzen', aus.includes('noch 5'));
+  await p4.click('.auswahl__i');
+  await p4.waitForLoadState('networkidle');
+  ok('Auswahl führt zum Termin', /anmeldung\.php\?t=t[0-9a-f]{10}/.test(p4.url()));
+  ok('und zurück zum Kurs', await p4.locator('.auswahl__i:has-text("12 Week Program")').count() === 1);
+
   await page.goto(B + '/admin/anmeldungen.php');
   const txt = await page.textContent('body');
   ok('Training im Admin gruppiert', txt.includes('Sparring-Basics') && txt.includes('2 von 2 Plätzen'));

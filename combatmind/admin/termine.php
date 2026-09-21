@@ -64,6 +64,8 @@ sie auch hier nicht mehr sehen willst. Änderungen werden erst mit
   .anm .an1{display:flex;gap:.5rem;align-items:center;margin:0;color:var(--mute);font-size:.9rem}
   .anm .an1 input{width:18px;height:18px;accent-color:var(--gold);flex:none}
   .anm label{margin:0}
+  .mangel{font-size:.8rem;color:#f0b4b4;background:#2a1414;border:1px solid #5a2b2b;
+    border-radius:6px;padding:.4rem .7rem}
 </style>
 <form method="post">
   <?= csrf_field() ?>
@@ -102,10 +104,21 @@ sie auch hier nicht mehr sehen willst. Änderungen werden erst mit
             <input type="date" name="ev[<?= $i ?>][deadline]"
                    value="<?= h((string)($r['deadline'] ?? '')) ?>"></label>
           <?php $belegt = event_taken((string)($r['id'] ?? '')); ?>
-          <span style="font-size:.8rem;color:<?= $belegt ? 'var(--gold-hi)' : '#77777f' ?>">
-            <?= $belegt ?> angemeldet<?php if ($belegt): ?>
-              · <a href="anmeldungen.php#t-<?= h((string)$r['id']) ?>">ansehen</a><?php endif ?>
-          </span>
+          <?php if (!empty($r['signup']) && (int)($r['seats'] ?? 0) < 1): ?>
+            <?php /* Häkchen ohne Plätze ist der häufigste Stolperstein: Auf der
+                     Website erscheint dann gar kein Knopf, und nichts erklärt es. */ ?>
+            <span class="mangel">Ohne Plätze erscheint kein Anmelde-Knopf — trag eine Zahl ein.</span>
+          <?php else: ?>
+            <span style="font-size:.8rem;color:<?= $belegt ? 'var(--gold-hi)' : '#77777f' ?>">
+              <?= $belegt ?> angemeldet<?php if ($belegt): ?>
+                · <a href="anmeldungen.php#t-<?= h((string)$r['id']) ?>">ansehen</a><?php endif ?>
+              <?php if (!empty($r['signup']) && $r['date'] >= $today
+                        && event_deadline($r) >= $today && $belegt < (int)$r['seats']): ?>
+                · <a href="../anmeldung.php?t=<?= h(urlencode((string)$r['id'])) ?>" target="_blank"
+                     rel="noopener">Anmeldeseite ↗</a>
+              <?php endif ?>
+            </span>
+          <?php endif ?>
         </div>
       </div>
     <?php $i++; endforeach ?>
