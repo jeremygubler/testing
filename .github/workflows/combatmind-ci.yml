@@ -1,0 +1,52 @@
+name: COMBAT MIND CI
+
+# Prüft die Website: Logiktests ohne Browser, danach die Ende-zu-Ende-Tests
+# gegen einen echten PHP-Server. Läuft bei jeder Änderung an combatmind/.
+
+on:
+  push:
+    paths:
+      - "combatmind/**"
+      - ".github/workflows/combatmind-ci.yml"
+  pull_request:
+    paths:
+      - "combatmind/**"
+      - ".github/workflows/combatmind-ci.yml"
+  workflow_dispatch:
+  workflow_call:      # damit der Deploy-Workflow dieselben Tests laufen lassen kann
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: combatmind/tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: gd, zip, mbstring, fileinfo, session
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Abhängigkeiten
+        run: npm install --no-audit --no-fund
+
+      - name: Browser bereitstellen
+        run: npx playwright install --with-deps chromium
+
+      - name: Syntaxprüfung aller PHP-Dateien
+        working-directory: combatmind
+        run: find . -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: Logiktests
+        run: php unit.php
+
+      - name: Ende-zu-Ende-Tests
+        run: node browser.mjs

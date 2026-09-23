@@ -1,0 +1,1169 @@
+<?php
+require __DIR__ . '/inc/core.php';
+require __DIR__ . '/inc/schema.php';
+require __DIR__ . '/inc/media.php';
+require __DIR__ . '/inc/events.php';
+require __DIR__ . '/inc/signup.php';
+
+$c        = ff_content();
+$events   = events_upcoming();
+$gallery  = gallery_items();
+$formUrl  = $c['contact']['form_url'];
+$formId   = $c['contact']['form_id'];
+
+// Ist der Kurs voll, führt jeder Anmelde-Button zur Warteliste statt in ein
+// geschlossenes Formular.
+$soldOut   = !empty($c['program']['sold_out']);
+$seatsLeft = trim((string)$c['program']['seats_left']);
+$seatsAll  = trim((string)$c['program']['seats_total']);
+$ownForm   = !empty($c['signup']['own']);
+$cta       = $soldOut
+    ? cta_attrs($c['program']['waitlist_url'], $c['program']['waitlist_id'])
+    : ($ownForm ? 'href="anmeldung.php"' : cta_attrs($formUrl, $formId));
+// Ohne eigenes Formular und ohne Tally-Link zeigt kein Knopf ins Leere.
+$ctaReady  = $ownForm || $formUrl !== '' || $soldOut;
+$ctaLabel  = $soldOut ? $c['program']['waitlist_cta'] : $c['hero']['cta'];
+$ctaLabelP = $soldOut ? $c['program']['waitlist_cta'] : $c['program']['cta'];
+$heroPhoto = $c['hero']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['hero']['photo']))
+    ? 'assets/' . basename($c['hero']['photo']) : '';
+?>
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COMBAT MIND Basel | Combat Fitness – Train Like a Fighter</title>
+<meta name="description" content="Combat Fitness in Basel: Striking, Grappling, Strength, Conditioning &amp; Mindset. 12 Week Program ab 16 Jahren – keine Kampfsporterfahrung nötig.">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230a0a0a'/><text x='16' y='23' font-family='sans-serif' font-size='16' font-weight='700' fill='%23c9a227' text-anchor='middle'>CM</text></svg>">
+
+<?php if (site_url()): ?><link rel="canonical" href="<?= h(site_url()) ?>"><?php endif ?>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="COMBAT MIND">
+<meta property="og:locale" content="de_CH">
+<?php if (site_url()): ?><meta property="og:url" content="<?= h(site_url()) ?>"><?php endif ?>
+<meta property="og:title" content="COMBAT MIND – Train like a fighter.">
+<meta property="og:description" content="Combat Fitness in Basel. Striking · Grappling · Strength · Conditioning · Mindset.">
+<?php
+// Social-Vorschaubild: nimmt assets/og.jpg, sonst das Hero-Bild. Ohne beides
+// wird kein og:image gesetzt — lieber keines als ein totes.
+$ogFile = is_file(__DIR__ . '/assets/og.jpg') ? 'assets/og.jpg' : $heroPhoto;
+if ($ogFile && site_url()): ?>
+<meta property="og:image" content="<?= h(site_url($ogFile)) ?>">
+<?php endif ?>
+<meta name="twitter:card" content="summary_large_image">
+
+<script>document.documentElement.classList.add('js')</script>
+
+<style>
+/* ─────────────────────────  SCHRIFTEN  ─────────────────────────
+   Lokal eingebunden statt über Google Fonts: keine Daten an Dritte beim
+   Seitenaufruf, ein Verbindungsaufbau weniger. unicode-range sorgt dafür,
+   dass der Browser nur lädt, was er wirklich braucht. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: italic;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-italic-latin-ext-526052.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: italic;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-italic-latin-33f250.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-latin-ext-c422bf.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url(assets/fonts/Archivo-latin-b92029.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-ext-395290.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-567244.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-ext-395290.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-567244.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-ext-395290.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(assets/fonts/Inter-latin-567244.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ─────────────────────────  TOKENS  ───────────────────────── */
+:root{
+  --ink:#050505;
+  --ink-2:#0d0d0e;
+  --ink-3:#141416;
+  --line:rgba(255,255,255,.10);
+  --line-strong:rgba(255,255,255,.18);
+  --white:#f7f7f5;
+  --mute:#a2a2a0;
+  --gold:#c9a227;
+  --gold-lo:#8f6f16;
+  --gold-hi:#f0d98a;
+  --gold-grad:linear-gradient(140deg,#f4e4ae 0%,#d4af37 38%,#a8801d 72%,#e8cf88 100%);
+  --shell:min(1180px,100% - 2.5rem);
+  --r:14px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+
+/* ─────────────────────────  BASE  ───────────────────────── */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0;background:var(--ink);color:var(--white);
+  font-family:var(--body);font-size:clamp(1rem,.96rem + .2vw,1.075rem);
+  line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+img{max-width:100%;display:block;height:auto}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4{font-family:var(--display);font-weight:800;font-stretch:112%;
+  line-height:.98;letter-spacing:-.01em;margin:0;text-transform:uppercase}
+p{margin:0}
+::selection{background:var(--gold);color:#0a0a0a}
+:focus-visible{outline:2px solid var(--gold-hi);outline-offset:3px;border-radius:4px}
+
+.shell{width:var(--shell);margin-inline:auto}
+.gold{color:var(--gold)}
+.gold-fill{background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.eyebrow{
+  font-family:var(--display);font-weight:700;font-size:.75rem;font-stretch:112%;
+  letter-spacing:.32em;text-transform:uppercase;color:var(--gold);
+  display:flex;align-items:center;gap:.85rem;margin-bottom:1.25rem;
+}
+.eyebrow::before{content:"";width:34px;height:1px;background:var(--gold);opacity:.7;flex:none}
+.eyebrow.is-center{justify-content:center}
+.eyebrow.is-center::after{content:"";width:34px;height:1px;background:var(--gold);opacity:.7;flex:none}
+
+.lede{color:var(--mute);max-width:58ch}
+section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
+
+/* ─────────────────────────  BUTTONS  ───────────────────────── */
+.btn{
+  --bg:var(--gold-grad);
+  display:inline-flex;align-items:center;justify-content:center;gap:.6rem;
+  font-family:var(--display);font-weight:800;font-stretch:112%;font-size:.86rem;
+  letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;
+  padding:1.05rem 2.1rem;border:0;border-radius:2px;cursor:pointer;
+  background:var(--bg);color:#0a0a0a;position:relative;isolation:isolate;
+  transition:transform .25s var(--ease),box-shadow .25s var(--ease),filter .25s var(--ease);
+  box-shadow:0 10px 34px -14px rgba(201,162,39,.85);
+}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 18px 40px -14px rgba(201,162,39,.95)}
+.btn:active{transform:translateY(0)}
+.btn--ghost{
+  background:transparent;color:var(--white);
+  box-shadow:inset 0 0 0 1px var(--line-strong);
+}
+.btn--ghost:hover{box-shadow:inset 0 0 0 1px var(--gold);color:var(--gold-hi);filter:none}
+.btn--sm{padding:.8rem 1.4rem;font-size:.74rem}
+
+/* Sprunglink: unsichtbar, bis er per Tab angesteuert wird */
+.skip{position:fixed;top:.6rem;left:.6rem;z-index:300;transform:translateY(-200%);
+  background:var(--gold);color:#0a0a0a;padding:.7rem 1.2rem;border-radius:4px;
+  font-family:var(--display);font-weight:700;font-size:.8rem;letter-spacing:.1em;
+  text-transform:uppercase;transition:transform .2s var(--ease)}
+.skip:focus{transform:translateY(0)}
+
+/* ─────────────────────────  HEADER  ───────────────────────── */
+.hdr{
+  position:fixed;inset:0 0 auto;z-index:100;
+  transition:background .35s var(--ease),border-color .35s var(--ease),backdrop-filter .35s var(--ease);
+  border-bottom:1px solid transparent;
+}
+.hdr[data-stuck]{
+  background:rgba(5,5,5,.82);backdrop-filter:blur(14px) saturate(1.3);
+  -webkit-backdrop-filter:blur(14px) saturate(1.3);border-bottom-color:var(--line);
+}
+.hdr__in{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;
+  height:74px;width:var(--shell);margin-inline:auto}
+.mark{font-family:var(--display);font-weight:900;font-stretch:120%;font-style:italic;
+  font-size:1.32rem;letter-spacing:.01em;text-transform:uppercase;line-height:1;white-space:nowrap}
+.mark span{color:var(--gold)}
+.nav{display:flex;align-items:center;gap:1.75rem}
+.nav a{
+  font-family:var(--display);font-weight:600;font-stretch:108%;font-size:.78rem;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--mute);white-space:nowrap;
+  transition:color .2s var(--ease);position:relative;padding-block:.4rem;
+}
+.nav a::after{content:"";position:absolute;left:0;bottom:0;height:1px;width:0;
+  background:var(--gold);transition:width .3s var(--ease)}
+.nav a:hover{color:var(--white)}
+.nav a:hover::after{width:100%}
+/* two header CTAs: one for the desktop bar, one inside the mobile drawer */
+.nav__cta,.hdr__cta{display:none}
+@media (min-width:1240px){.hdr__cta{display:inline-flex}}
+
+.burger{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  width:44px;height:44px;background:none;cursor:pointer;
+  border:1px solid var(--line-strong);border-radius:2px}
+.burger span{display:block;width:18px;height:1.5px;background:var(--white);
+  transition:transform .3s var(--ease),opacity .2s var(--ease)}
+.burger[aria-expanded="true"] span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+.burger[aria-expanded="true"] span:nth-child(2){opacity:0}
+.burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+@media (min-width:1080px){.burger{display:none}}
+
+@media (max-width:1079px){
+  .nav{
+    position:fixed;inset:74px 0 0;flex-direction:column;align-items:stretch;
+    justify-content:flex-start;gap:0;overflow-y:auto;overscroll-behavior:contain;
+    background:rgba(5,5,5,.98);backdrop-filter:blur(16px);border-top:1px solid var(--line);
+    padding:.5rem 1.25rem 2.5rem;
+    clip-path:inset(0 0 100% 0);opacity:0;pointer-events:none;
+    transition:clip-path .4s var(--ease),opacity .3s var(--ease);
+  }
+  .nav[data-open]{clip-path:inset(0 0 0 0);opacity:1;pointer-events:auto}
+  .nav a{padding:1.05rem 0;border-bottom:1px solid var(--line);font-size:.95rem;letter-spacing:.14em}
+  .nav a::after{display:none}
+  .nav a.nav__cta{display:inline-flex;margin-top:1.4rem;border-bottom:0;color:#0a0a0a}
+}
+
+/* ─────────────────────────  HERO  ───────────────────────── */
+.hero{
+  min-height:88svh;display:grid;align-items:center;padding:clamp(6.5rem,12vh,9rem) 0 clamp(2.5rem,6vh,4rem);
+  position:relative;overflow:clip;
+}
+.hero::before{
+  content:"";position:absolute;inset:-20% -10% auto 30%;height:120%;z-index:0;
+  background:radial-gradient(60% 55% at 60% 40%,rgba(201,162,39,.20),transparent 70%);
+  filter:blur(30px);pointer-events:none;
+}
+.hero::after{
+  content:"";position:absolute;inset:auto 0 0;height:38%;z-index:0;
+  background:linear-gradient(to top,var(--ink),transparent);pointer-events:none;
+}
+.hero__grid{position:relative;z-index:1;max-width:min(100%,54rem)}
+.hero--photo::before{opacity:.5}
+.hero__bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+.hero__bg img{width:100%;height:100%;object-fit:cover;opacity:.34}
+.hero__bg::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(100deg,var(--ink) 12%,rgba(5,5,5,.72) 48%,rgba(5,5,5,.35) 100%)}
+
+.hero h1{font-weight:900;font-stretch:118%;font-style:italic;letter-spacing:-.02em;max-width:none}
+.h1-brand{display:block;font-size:clamp(2.9rem,9vw,6.4rem);line-height:.92;text-wrap:balance}
+.h1-brand em{font-style:italic;background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.h1-claim{display:block;font-size:clamp(1.15rem,.85rem + 1.7vw,2.05rem);font-weight:700;
+  font-stretch:112%;letter-spacing:.02em;color:var(--mute);margin-top:1rem}
+.hero__pillars{font-family:var(--display);font-weight:600;font-stretch:108%;font-size:.78rem;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-top:1.6rem}
+.hero__sub{margin-top:1.6rem;font-size:clamp(1.02rem,.95rem + .5vw,1.28rem);color:var(--mute);max-width:48ch}
+.hero__sub strong{color:var(--white);font-weight:600}
+.hero__cta{display:flex;flex-wrap:wrap;gap:.9rem;margin-top:2.4rem}
+
+.facts{
+  position:relative;z-index:1;margin-top:clamp(3rem,7vw,4.5rem);
+  display:grid;grid-template-columns:repeat(2,1fr);gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+}
+@media (min-width:760px){.facts{grid-template-columns:repeat(4,1fr)}}
+.fact{background:var(--ink-2);padding:1.5rem 1.5rem 1.65rem}
+.fact dt{font-family:var(--display);font-size:.68rem;font-weight:700;font-stretch:110%;
+  letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem}
+.fact dd{margin:0;font-family:var(--display);font-weight:800;font-stretch:112%;
+  font-size:clamp(1.15rem,1rem + .7vw,1.5rem);text-transform:uppercase;line-height:1.1}
+.fact dd small{display:block;font-family:var(--body);font-weight:400;font-size:.82rem;
+  text-transform:none;color:var(--mute);letter-spacing:0;margin-top:.3rem}
+
+/* ─────────────────────────  ABOUT  ───────────────────────── */
+.about{border-top:1px solid var(--line);background:linear-gradient(180deg,var(--ink-2),var(--ink))}
+.about__grid{display:grid;gap:clamp(2rem,5vw,4rem)}
+@media (min-width:900px){.about__grid{grid-template-columns:.9fr 1.1fr;align-items:start}}
+.about h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.about p+p{margin-top:1.15rem}
+.about__body p:first-child{color:var(--white);font-size:1.12em}
+.tags{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:2rem}
+.tag{
+  font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.72rem;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--gold-hi);
+  border:1px solid rgba(201,162,39,.35);border-radius:999px;padding:.5rem 1.05rem;
+  background:rgba(201,162,39,.06);
+}
+
+/* ─────────────────────────  PILLARS  ───────────────────────── */
+.pillars{border-top:1px solid var(--line)}
+.pillars__head{display:grid;gap:1.25rem;margin-bottom:clamp(2.5rem,5vw,3.75rem)}
+@media (min-width:900px){.pillars__head{grid-template-columns:1fr 1fr;align-items:end}}
+.pillars h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.grid5{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+@media (min-width:560px){.grid5{grid-template-columns:repeat(2,1fr)}}
+@media (min-width:1040px){.grid5{grid-template-columns:repeat(5,1fr)}}
+.pillar{
+  background:var(--ink-2);padding:2.15rem 1.6rem 2.35rem;position:relative;overflow:hidden;
+  transition:background .35s var(--ease);
+}
+.pillar::before{
+  content:"";position:absolute;inset:auto 0 0;height:2px;background:var(--gold-grad);
+  transform:scaleX(0);transform-origin:left;transition:transform .45s var(--ease);
+}
+.pillar:hover{background:var(--ink-3)}
+.pillar:hover::before{transform:scaleX(1)}
+.pillar svg{width:40px;height:40px;stroke:var(--gold);fill:none;stroke-width:1.5;
+  stroke-linecap:round;stroke-linejoin:round;margin-bottom:1.35rem;
+  transition:transform .45s var(--ease)}
+.pillar:hover svg{transform:translateY(-3px) scale(1.06)}
+.pillar h3{font-size:1.16rem;letter-spacing:.06em;margin-bottom:.6rem}
+.pillar p{color:var(--mute);font-size:.94rem;line-height:1.55}
+.pillar__n{position:absolute;top:1.2rem;right:1.35rem;font-family:var(--display);
+  font-weight:800;font-size:.72rem;letter-spacing:.1em;color:rgba(255,255,255,.16)}
+
+/* ─────────────────────────  COACH  ───────────────────────── */
+.coach{border-top:1px solid var(--line);background:var(--ink-2)}
+.coach__grid{display:grid;gap:clamp(2.25rem,5vw,4rem);align-items:center}
+@media (min-width:900px){.coach__grid{grid-template-columns:.85fr 1.15fr}}
+.coach h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem);margin-bottom:.55rem}
+.coach__role{
+  font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.74rem;
+  letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:1.6rem;
+}
+.coach__body p+p{margin-top:1.15rem}
+.coach__quote{
+  margin:2rem 0 0;padding:1.35rem 0 .25rem 1.5rem;border-left:2px solid var(--gold);
+  font-family:var(--display);font-weight:600;font-stretch:108%;font-style:italic;
+  font-size:clamp(1.05rem,1rem + .5vw,1.3rem);line-height:1.4;color:var(--white);
+}
+.creds{list-style:none;margin:2rem 0 0;padding:0;display:grid;gap:.8rem}
+@media (min-width:620px){.creds{grid-template-columns:repeat(2,1fr)}}
+.creds li{display:flex;gap:.75rem;align-items:flex-start;color:var(--mute);font-size:.95rem}
+.creds svg{width:16px;height:16px;flex:none;margin-top:.32rem;stroke:var(--gold);fill:none;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.portrait{
+  position:relative;aspect-ratio:4/5;border-radius:var(--r);overflow:hidden;
+  background:var(--ink-3);border:1px solid var(--line);
+}
+.portrait img{width:100%;height:100%;object-fit:cover}
+.portrait__ph{
+  position:absolute;inset:.75rem;border:1px dashed rgba(201,162,39,.45);border-radius:8px;
+  display:grid;place-content:center;gap:.7rem;text-align:center;padding:1.5rem;
+}
+.portrait__ph svg{width:34px;height:34px;margin:0 auto;stroke:var(--gold);fill:none;
+  stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.portrait__ph b{font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.72rem;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.portrait__ph span{color:var(--mute);font-size:.84rem;line-height:1.5;max-width:24ch}
+
+/* Unersetzte Platzhalter sollen unübersehbar sein — nie versehentlich live gehen. */
+.todo{
+  background:rgba(201,162,39,.16);color:var(--gold-hi);
+  box-shadow:inset 0 0 0 1px rgba(201,162,39,.4);
+  border-radius:3px;padding:.05em .4em;font-style:normal;
+}
+
+/* ─────────────────────────  PROGRAM  ───────────────────────── */
+.program{border-top:1px solid var(--line);background:linear-gradient(180deg,var(--ink),var(--ink-2))}
+.offer{
+  display:grid;gap:0;border:1px solid var(--line-strong);border-radius:var(--r);
+  overflow:hidden;background:var(--ink-2);
+  box-shadow:0 50px 110px -60px rgba(0,0,0,1);
+}
+@media (min-width:940px){.offer{grid-template-columns:1.12fr .88fr}}
+.offer__main{padding:clamp(2rem,4vw,3.25rem)}
+.offer__side{
+  padding:clamp(2rem,4vw,3.25rem);background:var(--ink-3);
+  border-top:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;
+}
+@media (min-width:940px){.offer__side{border-top:0;border-left:1px solid var(--line)}}
+.offer h2{font-size:clamp(2rem,1.4rem + 2.4vw,3.1rem);margin-bottom:.9rem}
+.offer h2 em{font-style:italic;font-weight:900}
+.badge{
+  display:inline-flex;align-items:center;gap:.5rem;margin-bottom:1.5rem;
+  font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.7rem;
+  letter-spacing:.2em;text-transform:uppercase;color:#0a0a0a;
+  background:var(--gold-grad);padding:.42rem .85rem;border-radius:2px;
+}
+.specs{list-style:none;margin:0;padding:0;display:grid;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:1.9rem}
+@media (min-width:620px){.specs{grid-template-columns:repeat(2,1fr)}}
+.specs li{background:var(--ink-3);padding:1.05rem 1.25rem;display:flex;gap:.85rem;align-items:flex-start}
+.specs svg{width:17px;height:17px;flex:none;margin-top:.28rem;stroke:var(--gold);fill:none;
+  stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.specs b{display:block;font-family:var(--display);font-weight:700;font-stretch:108%;
+  font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:.15rem}
+.specs span{font-size:.98rem;font-weight:500}
+
+.price{font-family:var(--display);font-weight:900;font-stretch:118%;line-height:1;
+  font-size:clamp(3rem,2rem + 4.5vw,4.6rem);letter-spacing:-.02em}
+.price sup{font-size:.3em;vertical-align:super;letter-spacing:.1em;font-weight:700;margin-right:.35em;color:var(--mute)}
+.price-note{color:var(--mute);font-size:.92rem;margin-top:.7rem}
+.offer__side .btn{width:100%;margin-top:1.9rem}
+.check{list-style:none;margin:1.9rem 0 0;padding:0;display:grid;gap:.75rem}
+.check li{display:flex;gap:.7rem;align-items:flex-start;color:var(--mute);font-size:.94rem}
+.check svg{width:16px;height:16px;flex:none;margin-top:.3rem;stroke:var(--gold);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* ─────────────────────────  CTA BAND  ───────────────────────── */
+.band{
+  border-top:1px solid var(--line);text-align:center;position:relative;overflow:clip;
+  background:var(--ink-2);
+}
+.band::before{
+  content:"";position:absolute;inset:-60% 0 auto;height:200%;
+  background:radial-gradient(45% 40% at 50% 50%,rgba(201,162,39,.16),transparent 70%);pointer-events:none;
+}
+.band__in{position:relative;z-index:1}
+.band h2{font-size:clamp(2.3rem,1.5rem + 4vw,4.6rem);font-weight:900;font-stretch:118%;font-style:italic}
+.band p{color:var(--mute);margin:1.4rem auto 2.4rem;max-width:46ch}
+
+/* ─────────────────────────  FOOTER  ───────────────────────── */
+.ft{border-top:1px solid var(--line);padding:clamp(3rem,6vw,4.5rem) 0 2.5rem;background:var(--ink)}
+.ft__grid{display:grid;gap:2.5rem}
+@media (min-width:760px){.ft__grid{grid-template-columns:1.4fr 1fr 1fr}}
+.ft h4{font-size:.72rem;letter-spacing:.24em;color:var(--gold);margin-bottom:1.1rem;font-weight:700}
+.ft p,.ft li{color:var(--mute);font-size:.94rem}
+.ft ul{list-style:none;margin:0;padding:0;display:grid;gap:.65rem}
+.ft a:hover{color:var(--gold-hi)}
+.ft__claim{font-family:var(--display);font-weight:700;font-stretch:110%;font-style:italic;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--white);margin-top:.9rem;font-size:.95rem}
+.ft__bar a{text-decoration:underline;text-underline-offset:3px}
+.ft__bar{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:.75rem 1.5rem;justify-content:space-between;
+  color:#6d6d6b;font-size:.82rem}
+
+/* ─────────────────────────  GALERIE  ───────────────────────── */
+.gallery{border-top:1px solid var(--line);background:var(--ink-2)}
+.gallery__head{display:grid;gap:1.25rem;margin-bottom:clamp(2.25rem,4.5vw,3.25rem)}
+@media (min-width:900px){.gallery__head{grid-template-columns:1fr 1fr;align-items:end}}
+.gallery h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.shots{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;grid-template-columns:repeat(2,1fr)}
+@media (min-width:760px){.shots{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:1200px){.shots{grid-template-columns:repeat(4,1fr)}}
+.shot{position:relative;margin:0;background:var(--ink-3);border:0;padding:0;cursor:zoom-in;
+  aspect-ratio:4/3;overflow:hidden;display:block;width:100%}
+.shot img{width:100%;height:100%;object-fit:cover;
+  transition:transform .55s var(--ease),opacity .35s var(--ease);opacity:.88}
+.shot:hover img,.shot:focus-visible img{transform:scale(1.05);opacity:1}
+
+/* Lightbox */
+.lb{position:fixed;inset:0;z-index:200;display:none;place-items:center;
+  background:rgba(3,3,3,.94);backdrop-filter:blur(6px);padding:clamp(1rem,4vw,3rem)}
+.lb[data-open]{display:grid}
+.lb img{max-width:100%;max-height:82vh;border-radius:8px;
+  box-shadow:0 40px 90px -40px rgba(0,0,0,1)}
+.lb__cap{margin-top:1rem;color:var(--mute);font-size:.92rem;text-align:center}
+.lb__btn{position:absolute;background:rgba(255,255,255,.06);border:1px solid var(--line-strong);
+  color:var(--white);width:46px;height:46px;border-radius:50%;cursor:pointer;
+  display:grid;place-items:center;font-size:1.2rem;line-height:1;transition:background .2s var(--ease)}
+.lb__btn:hover{background:rgba(201,162,39,.25)}
+.lb__x{top:clamp(1rem,3vw,2rem);right:clamp(1rem,3vw,2rem)}
+.lb__prev{left:clamp(.5rem,2vw,2rem);top:50%;transform:translateY(-50%)}
+.lb__next{right:clamp(.5rem,2vw,2rem);top:50%;transform:translateY(-50%)}
+
+/* ─────────────────────────  TERMINE  ───────────────────────── */
+.events{border-top:1px solid var(--line)}
+.events__head{display:grid;gap:1.25rem;margin-bottom:clamp(2.25rem,4.5vw,3.25rem)}
+@media (min-width:900px){.events__head{grid-template-columns:1fr 1fr;align-items:end}}
+.events h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.agenda{list-style:none;margin:0;padding:0;display:grid;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.agenda li{background:var(--ink-2);padding:1.35rem 1.5rem;display:flex;gap:1.35rem;
+  align-items:center;flex-wrap:wrap;transition:background .3s var(--ease)}
+.agenda li:hover{background:var(--ink-3)}
+.date{flex:none;width:66px;text-align:center;border-right:1px solid var(--line);padding-right:1.1rem}
+.date b{display:block;font-family:var(--display);font-weight:800;font-stretch:112%;
+  font-size:1.75rem;line-height:1;font-variant-numeric:tabular-nums}
+.date span{display:block;font-family:var(--display);font-weight:700;font-size:.68rem;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-top:.25rem}
+.ev__main{flex:1 1 15rem;min-width:0}
+.ev__main strong{display:block;font-family:var(--display);font-weight:700;font-stretch:110%;
+  text-transform:uppercase;letter-spacing:.03em;font-size:1.02rem;margin-bottom:.2rem}
+.ev__main span{color:var(--mute);font-size:.93rem}
+.ev__when{flex:none;font-family:var(--display);font-weight:700;font-stretch:108%;font-size:.76rem;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--mute);white-space:nowrap;
+  display:flex;flex-direction:column;align-items:flex-end;gap:.35rem}
+.ev__seats{color:var(--gold-hi);letter-spacing:.08em}
+.ev__seats--out{color:#77777f}
+.ev__cta{display:inline-flex;text-decoration:none;color:#0a0a0a;font-size:.74rem;letter-spacing:.14em;
+  background:linear-gradient(140deg,#f4e4ae,#d4af37 38%,#a8801d 72%,#e8cf88);
+  padding:.5rem 1.1rem;border-radius:2px}
+.ev__cta:hover{color:#0a0a0a;filter:brightness(1.08)}
+@media (max-width:700px){.ev__when{align-items:flex-start}}
+
+/* ─────────────────────────  REVEAL  ───────────────────────── */
+.js .rv{opacity:0;transform:translateY(22px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.js .rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  .js .rv{opacity:1;transform:none;transition:none}
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+
+/* ─────────────────────────  PLÄTZE  ───────────────────────── */
+.seats{margin:0 0 1.5rem;padding:1rem 1.1rem;border-radius:10px;
+  background:rgba(201,162,39,.07);border:1px solid rgba(201,162,39,.28)}
+.seats b{display:block;font-family:var(--display);font-weight:800;font-stretch:110%;
+  text-transform:uppercase;letter-spacing:.06em;font-size:.92rem;color:var(--gold-hi);
+  font-variant-numeric:tabular-nums}
+.seats small{display:block;color:var(--mute);font-size:.85rem;margin-top:.2rem}
+.bar{display:block;height:4px;border-radius:99px;background:rgba(255,255,255,.1);
+  margin-top:.8rem;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--gold-grad)}
+.seats--out{background:rgba(255,255,255,.04);border-color:var(--line-strong)}
+.seats--out b{color:var(--white)}
+.badge--out{background:rgba(255,255,255,.1);color:var(--white);
+  box-shadow:inset 0 0 0 1px var(--line-strong)}
+
+/* ─────────────────────────  PROGRESSION  ───────────────────────── */
+.prog{border-top:1px solid var(--line);background:linear-gradient(180deg,var(--ink-2),var(--ink))}
+.prog__head{display:grid;gap:1.25rem;margin-bottom:clamp(2.25rem,4.5vw,3.25rem)}
+@media (min-width:900px){.prog__head{grid-template-columns:1fr 1fr;align-items:end}}
+.prog h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.weeks{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;grid-template-columns:repeat(2,1fr)}
+@media (min-width:680px){.weeks{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:1040px){.weeks{grid-template-columns:repeat(4,1fr)}}
+.week{background:var(--ink-2);padding:1.35rem 1.4rem 1.5rem;position:relative;
+  transition:background .3s var(--ease)}
+.week:hover{background:var(--ink-3)}
+.week b{display:block;font-family:var(--display);font-weight:800;font-stretch:112%;
+  font-size:.68rem;letter-spacing:.22em;color:var(--gold);margin-bottom:.5rem}
+.week span{font-family:var(--display);font-weight:700;font-stretch:110%;text-transform:uppercase;
+  letter-spacing:.02em;font-size:.98rem;line-height:1.2;display:block}
+.week--last{background:var(--ink-3)}
+.week--last span{background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ─────────────────────────  FAQ  ───────────────────────── */
+.faq{border-top:1px solid var(--line)}
+.faq__grid{display:grid;gap:clamp(2rem,5vw,4rem)}
+@media (min-width:900px){.faq__grid{grid-template-columns:.8fr 1.2fr;align-items:start}}
+.faq h2{font-size:clamp(2.1rem,1.5rem + 2.6vw,3.4rem)}
+.qa{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden}
+.qa details{background:var(--ink-2);transition:background .3s var(--ease)}
+.qa details[open]{background:var(--ink-3)}
+.qa summary{cursor:pointer;list-style:none;padding:1.2rem 1.4rem;display:flex;gap:1rem;
+  align-items:center;justify-content:space-between;
+  font-family:var(--display);font-weight:700;font-stretch:110%;text-transform:uppercase;
+  letter-spacing:.03em;font-size:.95rem}
+.qa summary::-webkit-details-marker{display:none}
+.qa summary::after{content:"";flex:none;width:11px;height:11px;border-right:1.5px solid var(--gold);
+  border-bottom:1.5px solid var(--gold);transform:rotate(45deg) translateY(-2px);
+  transition:transform .3s var(--ease)}
+.qa details[open] summary::after{transform:rotate(225deg) translateY(-2px)}
+.qa summary:hover{color:var(--gold-hi)}
+.qa p{margin:0;padding:0 1.4rem 1.35rem;color:var(--mute);font-size:.96rem;max-width:62ch}
+</style>
+
+<?php if (site_url()): ?>
+<script type="application/ld+json">
+<?= json_encode(array_filter([
+  '@context' => 'https://schema.org',
+  '@type'    => 'SportsActivityLocation',
+  'name'     => 'COMBAT MIND',
+  'slogan'   => 'Train like a fighter.',
+  'description' => 'Combat Fitness in Basel: Striking, Grappling, Strength, Conditioning und Mindset.',
+  'url'      => site_url(),
+  'email'    => $c['contact']['email'] ?: null,
+  'telephone'=> phone_href() ?: null,
+  'sameAs'   => instagram_url() ? [instagram_url()] : null,
+  'image'    => $ogFile ? site_url($ogFile) : null,
+  'address'  => array_filter([
+      '@type'           => 'PostalAddress',
+      'streetAddress'   => $c['contact']['address'] ?: null,
+      'postalCode'      => $c['contact']['zip'] ?: null,
+      'addressLocality' => $c['contact']['city'] ?: 'Basel',
+      'addressCountry'  => 'CH',
+  ]),
+  'makesOffer' => [[
+      '@type'        => 'Offer',
+      'name'         => 'COMBAT MIND — 12 Week Program',
+      'price'        => $c['program']['price'],
+      'priceCurrency'=> 'CHF',
+      'availability' => 'https://schema.org/LimitedAvailability',
+      'url'          => site_url('#program'),
+  ]],
+]), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
+</script>
+<?php endif ?>
+</head>
+<body>
+
+<a class="skip" href="#top">Direkt zum Inhalt</a>
+
+<!-- ══════════════  HEADER  ══════════════ -->
+<header class="hdr" id="hdr">
+  <div class="hdr__in">
+    <a class="mark" href="#top" aria-label="COMBAT MIND — Startseite">COMBAT<span>MIND</span></a>
+
+    <nav class="nav" id="nav" aria-label="Hauptnavigation">
+      <a href="#concept">Concept</a>
+      <a href="#training">Training</a>
+      <a href="#program">Program</a>
+      <a href="#coach">Coach</a>
+      <?php if ($gallery): ?><a href="#galerie">Galerie</a><?php endif ?>
+      <a href="#faq">FAQ</a>
+      <a class="btn btn--sm nav__cta" <?= $cta ?>><?= h($ctaLabel) ?></a>
+    </nav>
+
+    <div style="display:flex;gap:.75rem;align-items:center">
+      <a class="btn btn--sm hdr__cta" <?= $cta ?>><?= h($ctaLabel) ?></a>
+      <button class="burger" id="burger" aria-label="Menü öffnen" aria-controls="nav" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ══════════════  HERO  ══════════════ -->
+<section class="hero<?= $heroPhoto ? ' hero--photo' : '' ?>">
+  <?php if ($heroPhoto): ?>
+  <div class="hero__bg"><img src="<?= h($heroPhoto) ?>" alt="" decoding="async" fetchpriority="high"></div>
+  <?php endif ?>
+  <div class="shell">
+    <div class="hero__grid">
+      <h1>
+        <span class="h1-brand"><?= h($c['hero']['brand']) ?> <em><?= h($c['hero']['brand2']) ?></em></span>
+        <span class="h1-claim"><?= h($c['hero']['claim']) ?></span>
+      </h1>
+      <p class="hero__pillars"><?= h($c['hero']['pillars']) ?></p>
+      <p class="hero__sub">
+        <strong><?= h($c['hero']['lead']) ?></strong>
+        <?= nl2br(h($c['hero']['sub'])) ?>
+      </p>
+      <div class="hero__cta">
+        <a class="btn" <?= $cta ?>><?= h($ctaLabel) ?></a>
+        <a class="btn btn--ghost" href="#program"><?= h($c['hero']['cta2']) ?></a>
+      </div>
+    </div>
+
+    <dl class="facts rv">
+      <?php foreach ($c['facts'] as $f): ?>
+      <div class="fact"><dt><?= h($f['label']) ?></dt><dd><?= h($f['value']) ?><small><?= h($f['note']) ?></small></dd></div>
+      <?php endforeach ?>
+    </dl>
+  </div>
+</section>
+
+<!-- ══════════════  CONCEPT  ══════════════ -->
+<section class="about" id="concept">
+  <div class="shell about__grid">
+    <div class="rv">
+      <p class="eyebrow"><?= h($c['concept']['eyebrow']) ?></p>
+      <h2><?= h($c['concept']['h1']) ?><br><?= h($c['concept']['h2']) ?><br><span class="gold-fill"><?= h($c['concept']['h3']) ?></span></h2>
+    </div>
+    <div class="about__body rv">
+      <?= paragraphs($c['concept']['body']) ?>
+      <div class="tags">
+        <?php foreach ($c['concept']['tags'] as $t): ?><span class="tag"><?= h($t) ?></span><?php endforeach ?>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  5 PILLARS  ══════════════ -->
+<section class="pillars" id="training">
+  <div class="shell">
+    <div class="pillars__head rv">
+      <div>
+        <p class="eyebrow">Die 5 Bereiche</p>
+        <h2>Ein Training.<br><span class="gold-fill">Fünf Säulen.</span></h2>
+      </div>
+      <p class="lede">Jede Session kombiniert Technik, Athletik und Kopf — aufgebaut auf
+        den fünf Bereichen, die einen Fighter ausmachen.</p>
+    </div>
+
+    <?php $icons = [
+  '<svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6.5 5.5A2.5 2.5 0 0 1 9 3h5.5A4.5 4.5 0 0 1 19 7.5v3a4 4 0 0 1-4 4H9.5a3 3 0 0 1-3-3z"/>
+          <path d="M8 14.5v2.2a1.8 1.8 0 0 0 1.8 1.8h4.9a1.8 1.8 0 0 0 1.8-1.8v-2.2"/>
+          <path d="M9 18.5V20a1 1 0 0 0 1 1h4.5a1 1 0 0 0 1-1v-1.5"/>
+          <path d="M19 8.2h.6A1.4 1.4 0 0 1 21 9.6v1.2a1.4 1.4 0 0 1-1.4 1.4H19"/>
+        </svg>',
+  '<svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="6.5" cy="6" r="2"/>
+          <path d="M3 19.5c.4-3 1.9-5 4.4-5.6l3.6-.9 3-2.4"/>
+          <path d="M7.4 13.9 5.6 11l1.4-2.4"/>
+          <circle cx="18" cy="8.5" r="2"/>
+          <path d="M21 19.5c-.3-2.6-1.4-4.6-3.4-5.4l-3.2-1.2-2.4.6"/>
+          <path d="M12 19.5h9"/><path d="M3 19.5h5"/>
+        </svg>',
+  '<svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 7.5a3 3 0 1 1 6 0"/>
+          <path d="M14.6 7.8c2.4 1.2 3.9 3.6 3.9 6.4A6.5 6.5 0 0 1 12 20.9a6.5 6.5 0 0 1-6.5-6.7c0-2.8 1.5-5.2 3.9-6.4z"/>
+          <path d="M9.4 7.8h5.2"/>
+        </svg>',
+  '<svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M2.5 12.5h3.8l1.9-5.4 3 11 2.4-7.3 1.5 1.7h6.4"/>
+        </svg>',
+  '<svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20.5 12.4c0-4.4-3.6-8-8-8a8 8 0 0 0-8 7.6c0 1.6-.5 2.6-1.4 3.6-.5.5-.3 1.3.4 1.5l1.9.5v2.3a1.6 1.6 0 0 0 1.6 1.6h3.3"/>
+          <path d="M10.3 21.5V18"/>
+          <path d="M9.6 12.6a2 2 0 1 1 2.2-2.9 2 2 0 1 1 2.9 2.4 2 2 0 1 1-2.6 2.3 2 2 0 1 1-2.5-1.8z"/>
+        </svg>'
+]; ?>
+    <div class="grid5">
+      <?php foreach ($c['pillars'] as $i => $p): ?>
+      <article class="pillar rv">
+        <span class="pillar__n"><?= str_pad((string)($i + 1), 2, '0', STR_PAD_LEFT) ?></span>
+        <?= $icons[$i] ?? '' ?>
+        <h3><?= h($p['title']) ?></h3>
+        <p><?= h($p['text']) ?></p>
+      </article>
+      <?php endforeach ?>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  12 WEEK PROGRAM  ══════════════ -->
+<section class="program" id="program">
+  <div class="shell">
+    <div class="offer rv">
+      <div class="offer__main">
+        <span class="badge<?= $soldOut ? ' badge--out' : '' ?>"><?= $soldOut ? 'Ausgebucht' : h($c['program']['badge']) ?></span>
+        <h2><?= h($c['program']['title']) ?><br><em class="gold-fill"><?= h($c['program']['title_gold']) ?></em></h2>
+        <p class="lede"><?= nl2br(h($c['program']['lede'])) ?></p>
+
+        <?php $specIcons = [
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>',
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>',
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10.5c0 5.2-8 11-8 11s-8-5.8-8-11a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10.5" r="2.8"/></svg>',
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 20v-1.8a3.5 3.5 0 0 0-3.5-3.5H6.5A3.5 3.5 0 0 0 3 18.2V20"/><circle cx="9.7" cy="7.5" r="3.5"/><path d="M21 20v-1.8a3.5 3.5 0 0 0-2.7-3.4M15.5 4.2a3.5 3.5 0 0 1 0 6.6"/></svg>'
+]; ?>
+        <ul class="specs">
+          <?php foreach ($c['specs'] as $i => $sp): ?>
+          <li>
+            <?= $specIcons[$i] ?? $specIcons[0] ?>
+            <div><b><?= h($sp['label']) ?></b><span><?= h($sp['value']) ?></span></div>
+          </li>
+          <?php endforeach ?>
+        </ul>
+
+        <ul class="check">
+          <?php foreach ($c['program']['checks'] as $ck): ?>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg><?= h($ck) ?></li>
+          <?php endforeach ?>
+        </ul>
+      </div>
+
+      <aside class="offer__side">
+        <p class="eyebrow">Gesamtpreis</p>
+        <p class="price"><sup>CHF</sup><?= h($c['program']['price']) ?><span class="gold">.–</span></p>
+        <p class="price-note"><?= nl2br(h($c['program']['price_note'])) ?></p>
+
+        <?php if ($soldOut): ?>
+          <p class="seats seats--out" style="margin-top:1.9rem">
+            <b>Ausgebucht</b>
+            <small><?= $seatsAll ? 'Alle ' . h($seatsAll) . ' Plätze sind vergeben. ' : '' ?>Trag dich auf der Warteliste ein — wir melden uns, sobald ein Platz frei wird.</small>
+          </p>
+        <?php elseif ($seatsLeft !== '' && $seatsAll !== '' && (int)$seatsAll > 0): ?>
+          <?php $taken = max(0, (int)$seatsAll - (int)$seatsLeft); ?>
+          <p class="seats" style="margin-top:1.9rem">
+            <b>Noch <?= (int)$seatsLeft ?> von <?= (int)$seatsAll ?> Plätzen frei</b>
+            <small><?= $taken ?> bereits vergeben.</small>
+            <span class="bar" role="img" aria-label="<?= $taken ?> von <?= (int)$seatsAll ?> Plätzen vergeben">
+              <i style="width:<?= round($taken / (int)$seatsAll * 100) ?>%"></i>
+            </span>
+          </p>
+        <?php endif ?>
+
+        <a class="btn" <?= $cta ?>><?= h($ctaLabelP) ?></a>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  PROGRESSION  ══════════════ -->
+<section class="prog" id="progression">
+  <div class="shell">
+    <div class="prog__head rv">
+      <div>
+        <p class="eyebrow"><?= h($c['progression']['eyebrow']) ?></p>
+        <h2><?= h($c['progression']['title']) ?><br><span class="gold-fill"><?= h($c['progression']['title_gold']) ?></span></h2>
+      </div>
+      <p class="lede"><?= nl2br(h($c['progression']['lede'])) ?></p>
+    </div>
+    <div class="weeks rv">
+      <?php foreach ($c['weeks'] as $i => $w): $last = $i === count($c['weeks']) - 1; ?>
+      <div class="week<?= $last ? ' week--last' : '' ?>">
+        <b>W<?= $i + 1 ?></b>
+        <span><?= h($w['title']) ?></span>
+      </div>
+      <?php endforeach ?>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  MEET YOUR COACH  ══════════════ -->
+<section class="coach" id="coach">
+  <div class="shell coach__grid">
+    <figure class="portrait rv" style="margin:0">
+      <?php if ($c['coach']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['coach']['photo']))): ?>
+        <img src="assets/<?= h(basename($c['coach']['photo'])) ?>" alt="<?= h($c['coach']['name']) ?> — <?= h($c['coach']['role']) ?>" decoding="async">
+      <?php else: ?>
+        <div class="portrait__ph">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="15" rx="2"/>
+            <circle cx="12" cy="11.5" r="3.2"/>
+            <path d="M7.5 5 9 2.8h6L16.5 5"/>
+          </svg>
+          <b>Foto von Jocelyn</b>
+          <span>Im Admin unter &laquo;Meet your Coach&raquo; hochladen</span>
+        </div>
+      <?php endif ?>
+    </figure>
+
+    <div class="coach__body rv">
+      <p class="eyebrow"><?= h($c['coach']['eyebrow']) ?></p>
+      <h2><?= h($c['coach']['name']) ?></h2>
+      <p class="coach__role"><?= h($c['coach']['role']) ?></p>
+      <?= paragraphs($c['coach']['bio']) ?>
+      <?php if ($c['coach']['creds']): ?>
+      <ul class="creds">
+        <?php foreach ($c['coach']['creds'] as $cr): ?>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12.5 5 5L20 6.5"/></svg><?= h($cr) ?></li>
+        <?php endforeach ?>
+      </ul>
+      <?php endif ?>
+      <?php if ($c['coach']['quote']): ?>
+      <blockquote class="coach__quote"><?= h($c['coach']['quote']) ?></blockquote>
+      <?php endif ?>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  GALERIE  ══════════════ -->
+<?php if ($gallery): ?>
+<section class="gallery" id="galerie">
+  <div class="shell">
+    <div class="gallery__head rv">
+      <div>
+        <p class="eyebrow"><?= h($c['gallery']['eyebrow']) ?></p>
+        <h2><?= h($c['gallery']['title']) ?><br><span class="gold-fill"><?= h($c['gallery']['title_gold']) ?></span></h2>
+      </div>
+    </div>
+    <div class="shots rv">
+      <?php foreach ($gallery as $i => $g): ?>
+      <?php $small = thumb_or_full($g['file']); ?>
+      <button class="shot" type="button" data-i="<?= $i ?>"
+              data-src="assets/gallery/<?= h(basename($g['file'])) ?>"
+              data-cap="<?= h($g['caption'] ?? '') ?>">
+        <img src="assets/gallery/<?= h($small) ?>"
+             <?php if ($small !== basename($g['file'])): ?>
+             srcset="assets/gallery/<?= h($small) ?> 800w, assets/gallery/<?= h(basename($g['file'])) ?> 2000w"
+             sizes="(min-width: 1200px) 295px, (min-width: 760px) 33vw, 50vw"
+             <?php endif ?>
+             loading="lazy" decoding="async"
+             alt="<?= h($g['caption'] ?: 'COMBAT MIND Training') ?>">
+      </button>
+      <?php endforeach ?>
+    </div>
+  </div>
+</section>
+<?php endif ?>
+
+<!-- ══════════════  TERMINE  ══════════════ -->
+<?php if ($events): ?>
+<section class="events" id="termine">
+  <div class="shell">
+    <div class="events__head rv">
+      <div>
+        <p class="eyebrow"><?= h($c['events']['eyebrow']) ?></p>
+        <h2><?= h($c['events']['title']) ?><br><span class="gold-fill"><?= h($c['events']['title_gold']) ?></span></h2>
+      </div>
+      <p class="lede"><?= nl2br(h($c['events']['lede'])) ?></p>
+    </div>
+    <ul class="agenda rv">
+      <?php foreach ($events as $e): ?>
+      <li>
+        <span class="date">
+          <b><?= h(event_day($e['date'])) ?></b>
+          <span><?= h(event_month($e['date'])) ?></span>
+        </span>
+        <span class="ev__main">
+          <strong><?= h($e['title']) ?></strong>
+          <?php if (!empty($e['note'])): ?><span><?= h($e['note']) ?></span><?php endif ?>
+        </span>
+        <span class="ev__when">
+          <?= h(event_weekday($e['date'])) ?>, <?= h(event_day($e['date'])) ?>. <?= h(event_month($e['date'])) ?> <?= h(event_year($e['date'])) ?><?php if (!empty($e['time'])): ?> · <?= h($e['time']) ?><?php endif ?>
+          <?php if (!empty($e['signup'])): ?>
+            <?php if (event_open($e)): ?>
+              <span class="ev__seats">noch <?= event_free($e) ?> von <?= event_seats($e) ?> Plätzen<?php
+                if (!empty($e['price'])): ?> · CHF <?= h($e['price']) ?><?php endif ?></span>
+              <a class="ev__cta" href="anmeldung.php?t=<?= h(urlencode((string)$e['id'])) ?>">Anmelden</a>
+            <?php else: ?>
+              <span class="ev__seats ev__seats--out"><?= event_deadline($e) < date('Y-m-d')
+                ? 'Anmeldeschluss vorbei' : 'Ausgebucht' ?></span>
+            <?php endif ?>
+          <?php endif ?>
+        </span>
+      </li>
+      <?php endforeach ?>
+    </ul>
+  </div>
+</section>
+<?php endif ?>
+
+<!-- ══════════════  FAQ  ══════════════ -->
+<section class="faq" id="faq">
+  <div class="shell faq__grid">
+    <div class="rv">
+      <p class="eyebrow"><?= h($c['faq']['eyebrow']) ?></p>
+      <h2><?= h($c['faq']['title']) ?><br><span class="gold-fill"><?= h($c['faq']['title_gold']) ?></span></h2>
+    </div>
+    <div class="qa rv">
+      <?php foreach ($c['faqs'] as $f): ?>
+      <details>
+        <summary><?= h($f['q']) ?></summary>
+        <p><?= nl2br(h($f['a'])) ?></p>
+      </details>
+      <?php endforeach ?>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════  ANMELDUNG  ══════════════ -->
+<section class="band" id="anmeldung">
+  <div class="shell band__in rv">
+    <p class="eyebrow is-center"><?= h($c['band']['eyebrow']) ?></p>
+    <h2><?= h($c['band']['h1']) ?><br><?= h($c['band']['h2']) ?> <span class="gold-fill"><?= h($c['band']['h2b']) ?></span></h2>
+    <p><?php if ($soldOut): ?>Der aktuelle Durchgang ist ausgebucht. Trag dich auf der
+      Warteliste ein — wir melden uns, sobald ein Platz frei wird.<?php else: ?><?= nl2br(h($c['band']['text'])) ?><?php endif ?></p>
+    <div style="display:flex;flex-wrap:wrap;gap:.9rem;justify-content:center">
+      <?php if ($ctaReady): ?>
+        <a class="btn" <?= $cta ?>><?= h($ctaLabel) ?></a>
+      <?php else: ?>
+        <span class="tag" style="padding:.85rem 1.4rem">Anmeldeformular wird im Admin hinterlegt</span>
+      <?php endif ?>
+      <?php if ($c['contact']['email']): ?>
+        <a class="btn btn--ghost" href="mailto:<?= h($c['contact']['email']) ?>?subject=Frage%20zu%20COMBAT%20MIND">Frage stellen</a>
+      <?php endif ?>
+    </div>
+    <p style="margin-top:1.6rem;font-size:.86rem">
+      Mit der Anmeldung akzeptierst du die <a href="agb.php" style="color:var(--gold-hi)">AGB</a>
+      und bestätigst, die <a href="datenschutz.php" style="color:var(--gold-hi)">Datenschutzerklärung</a> gelesen zu haben.
+    </p>
+  </div>
+</section>
+
+<?php if ($gallery): ?>
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Bildansicht">
+  <button class="lb__btn lb__x" type="button" data-lb="close" aria-label="Schliessen">&times;</button>
+  <button class="lb__btn lb__prev" type="button" data-lb="prev" aria-label="Vorheriges Bild">&#8249;</button>
+  <button class="lb__btn lb__next" type="button" data-lb="next" aria-label="Nächstes Bild">&#8250;</button>
+  <div>
+    <img id="lbImg" src="" alt="">
+    <p class="lb__cap" id="lbCap"></p>
+  </div>
+</div>
+<?php endif ?>
+
+</main>
+
+<!-- ══════════════  FOOTER  ══════════════ -->
+<footer class="ft">
+  <div class="shell">
+    <div class="ft__grid">
+      <div>
+        <p class="mark" style="font-size:1.5rem">COMBAT<span>MIND</span></p>
+        <p class="ft__claim"><?= h($c['hero']['claim']) ?></p>
+        <p style="margin-top:1rem;max-width:34ch"><?= h($c['contact']['about']) ?></p>
+      </div>
+      <div>
+        <h4>Training</h4>
+        <ul>
+          <li><a href="#program">12 Week Program</a></li>
+          <li><a href="#progression">Progression</a></li>
+          <li><a href="#training">Die 5 Bereiche</a></li>
+          <li><a href="#coach">Meet your Coach</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Kontakt</h4>
+        <ul>
+          <li><?= h($c['contact']['owner']) ?></li>
+          <li><?= $c['contact']['address'] ? h($c['contact']['address']) . '<br>' : '' ?><?= h(zip_city()) ?></li>
+          <?php if ($c['contact']['email']): ?>
+            <li><a href="mailto:<?= h($c['contact']['email']) ?>"><?= h($c['contact']['email']) ?></a></li>
+          <?php endif ?>
+          <?php if ($c['contact']['phone']): ?>
+            <li><a href="tel:<?= h(phone_href()) ?>"><?= h($c['contact']['phone']) ?></a></li>
+          <?php endif ?>
+          <?php if ($c['contact']['hours']): ?>
+            <li><?= h($c['contact']['hours']) ?></li>
+          <?php endif ?>
+          <?php if (instagram_url()): ?>
+            <li><a href="<?= h(instagram_url()) ?>" target="_blank" rel="noopener me"
+                   style="display:inline-flex;align-items:center;gap:.4rem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" aria-hidden="true" style="flex:none">
+                <rect x="2" y="2" width="20" height="20" rx="5"/>
+                <circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor"/>
+              </svg><?= h(instagram_handle()) ?></a></li>
+          <?php endif ?>
+        </ul>
+        <h4 style="margin-top:1.6rem">Rechtliches</h4>
+        <ul>
+          <li><a href="impressum.php">Impressum</a></li>
+          <li><a href="agb.php">AGB / Teilnahmebedingungen</a></li>
+          <li><a href="datenschutz.php">Datenschutzerklärung</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="ft__bar">
+      <span>&copy; <span id="yr">2026</span> COMBAT MIND — <?= h($c['contact']['owner']) ?>, <?= h($c['contact']['city']) ?></span>
+      <span>You don't have to fight to train like a fighter.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  /* sticky header state */
+  const hdr = document.getElementById("hdr");
+  const onScroll = () => hdr.toggleAttribute("data-stuck", window.scrollY > 12);
+  addEventListener("scroll", onScroll, {passive:true});
+  onScroll();
+
+  /* mobile nav */
+  const burger = document.getElementById("burger");
+  const nav = document.getElementById("nav");
+  const setNav = open => {
+    nav.toggleAttribute("data-open", open);
+    burger.setAttribute("aria-expanded", String(open));
+    burger.setAttribute("aria-label", open ? "Menü schliessen" : "Menü öffnen");
+    document.body.style.overflow = open ? "hidden" : "";
+  };
+  burger.addEventListener("click", () => setNav(!nav.hasAttribute("data-open")));
+  nav.addEventListener("click", e => { if (e.target.closest("a")) setNav(false); });
+  addEventListener("keydown", e => { if (e.key === "Escape") setNav(false); });
+
+  /* scroll reveal */
+  const items = document.querySelectorAll(".rv");
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entries, obs) => {
+      entries.forEach((entry, i) => {
+        if (!entry.isIntersecting) return;
+        entry.target.style.transitionDelay = Math.min(i * 70, 280) + "ms";
+        entry.target.classList.add("in");
+        obs.unobserve(entry.target);
+      });
+    }, {rootMargin:"0px 0px -12% 0px", threshold:0.08});
+    items.forEach(el => io.observe(el));
+  } else {
+    items.forEach(el => el.classList.add("in"));
+  }
+
+  /* Galerie-Lightbox */
+  const lb = document.getElementById("lb");
+  if (lb) {
+    const shots = [...document.querySelectorAll(".shot")];
+    const img = document.getElementById("lbImg"), cap = document.getElementById("lbCap");
+    let idx = 0, lastFocus = null;
+    const show = i => {
+      idx = (i + shots.length) % shots.length;
+      const s = shots[idx];
+      img.src = s.dataset.src;
+      img.alt = s.dataset.cap || "COMBAT MIND Training";
+      cap.textContent = s.dataset.cap || "";
+    };
+    const open = i => {
+      lastFocus = document.activeElement;
+      show(i);
+      lb.setAttribute("data-open", "");
+      document.body.style.overflow = "hidden";
+      lb.querySelector('[data-lb="close"]').focus();
+    };
+    // Tab bleibt innerhalb des Overlays, solange es offen ist.
+    lb.addEventListener("keydown", e => {
+      if (e.key !== "Tab") return;
+      const focusable = [...lb.querySelectorAll("button")].filter(b => b.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    const close = () => {
+      lb.removeAttribute("data-open");
+      document.body.style.overflow = "";
+      if (lastFocus) lastFocus.focus();
+    };
+    shots.forEach((s, i) => s.addEventListener("click", () => open(i)));
+    lb.addEventListener("click", e => {
+      const act = e.target.closest("[data-lb]")?.dataset.lb;
+      if (act === "close" || e.target === lb) close();
+      else if (act === "prev") show(idx - 1);
+      else if (act === "next") show(idx + 1);
+    });
+    addEventListener("keydown", e => {
+      if (!lb.hasAttribute("data-open")) return;
+      if (e.key === "Escape") close();
+      else if (e.key === "ArrowLeft") show(idx - 1);
+      else if (e.key === "ArrowRight") show(idx + 1);
+    });
+  }
+
+  document.getElementById("yr").textContent = new Date().getFullYear();
+})();
+</script>
+<?php if ($formId || $c['program']['waitlist_id']): ?>
+<?php if (!$ownForm || $soldOut): ?>
+<script async src="https://tally.so/widgets/embed.js"></script>
+<?php endif ?>
+<?php endif ?>
+</body>
+</html>
