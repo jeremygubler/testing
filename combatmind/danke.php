@@ -55,6 +55,9 @@ $kurs  = event_by_id(trim((string)($_GET['t'] ?? '')));
       : 'Die Angaben dazu bekommst du vor Ort.' ?></span></li>
     <li><b>3</b><span><strong>Falls du nicht kannst</strong>Sag uns bitte spätestens 48 Stunden vorher Bescheid, dann rückt jemand von der Liste nach.</span></li>
   </ol>
+  <p style="margin-top:2rem"><a class="home" style="background:transparent;color:var(--gold-hi);
+    border:1px solid var(--line);padding:.85rem 1.6rem"
+    href="kalender.php?t=<?= h(urlencode((string)$kurs['id'])) ?>">In den Kalender übernehmen</a></p>
 <?php elseif ($warte): ?>
   <h1><em>Du stehst drauf.</em></h1>
   <p>Dein Eintrag auf der Warteliste ist da. Wird ein Platz frei oder startet der

@@ -426,6 +426,21 @@ try {
   ok('Kursplätze unberührt', h.match(/Noch (\d+) von \d+ Plätzen frei/)?.[1] === kursVorher,
      `vorher ${kursVorher}, nachher ${h.match(/Noch (\d+) von \d+ Plätzen frei/)?.[1]}`);
 
+  // Kalenderdatei: eigener Abruf und Knopf auf der Dankesseite.
+  ok('Kalenderknopf auf der Dankesseite',
+     await p4.locator('a[href^="kalender.php?t="]').count() === 1);
+  const kal = await ctx.request.get(`${B}/kalender.php?t=${tid}`);
+  ok('Kalenderdatei wird ausgeliefert', kal.status() === 200);
+  ok('als Kalender ausgewiesen', (kal.headers()['content-type'] || '').includes('text/calendar'),
+     kal.headers()['content-type']);
+  ok('mit Dateinamen zum Speichern',
+     (kal.headers()['content-disposition'] || '').includes('.ics'));
+  const ical = await kal.text();
+  ok('enthält den Termin', ical.includes('BEGIN:VEVENT') && ical.includes('Sparring-Basics'));
+  ok('mit Start und Ende', /DTSTART:\d{8}T\d{6}Z/.test(ical) && /DTEND:\d{8}T\d{6}Z/.test(ical));
+  const kalWeg = await ctx.request.get(B + '/kalender.php?t=gibtsnicht', { maxRedirects: 0 });
+  ok('unbekannter Termin führt zurück', kalWeg.status() === 302);
+
   await traeg('Ben', 'ben@example.ch');
   h = await body('/index.php');
   ok('Termin ist voll', h.includes('Ausgebucht') && !h.includes('noch 0 von'));
@@ -507,6 +522,22 @@ try {
   ok('Training im Admin gruppiert', txt.includes('Sparring-Basics') && txt.includes('2 von 2 Plätzen'));
   ok('beide Angemeldeten stehen da', txt.includes('Ann Test') && txt.includes('Ben Test'));
   await p4.close();
+
+  group('Instagram');
+  await page.goto(B + '/admin/texte.php');
+  await page.fill('input[name="c[contact][instagram]"]', '@combatmind');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+  h = await body('/index.php');
+  ok('Link im Footer', h.includes('https://www.instagram.com/combatmind/'));
+  ok('Name wird angezeigt', h.includes('@combatmind'));
+  ok('in den strukturierten Daten', /"sameAs":\s*\[\s*"https:\/\/www\.instagram\.com/.test(h));
+  ok('auch im Impressum', (await body('/impressum.php')).includes('instagram.com/combatmind'));
+  await page.goto(B + '/admin/texte.php');
+  await page.fill('input[name="c[contact][instagram]"]', '');
+  await page.click('button[type=submit]');
+  await page.waitForLoadState('networkidle');
+  ok('leeres Feld blendet alles aus', !(await body('/index.php')).includes('instagram.com'));
 
   group('Aufbewahrungsfrist');
   // Frist auf einen Tag setzen und die Anmeldungen künstlich altern lassen.

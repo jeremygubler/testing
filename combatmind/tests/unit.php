@@ -17,6 +17,7 @@ require __DIR__ . '/../inc/schema.php';
 require __DIR__ . '/../inc/media.php';
 require __DIR__ . '/../inc/events.php';
 require __DIR__ . '/../inc/restore.php';
+require __DIR__ . '/../inc/ics.php';
 require __DIR__ . '/../inc/signup.php';
 
 $pass = 0; $fail = 0;
@@ -357,6 +358,52 @@ json_write('signups.json', [
 json_write('waitlist.json', []);
 eq('einer wird bald fällig', signup_due_soon(14, $jetzt), 1);
 eq('mit kurzem Fenster keiner', signup_due_soon(1, $jetzt), 0);
+
+echo "\nKalendereintrag\n";
+json_write('content.json', ['contact'=>['address'=>'Blotzheimerstr. 68','zip'=>'4054',
+    'city'=>'Basel','email'=>'info@combat-mind.ch','site_url'=>'https://combat-mind.ch',
+    'instagram'=>'@combatmind']]);
+ff_content(true);
+
+$termin = ['id'=>'ta1b2c3d4e5', 'date'=>'2026-10-07', 'time'=>'10:00–11:30',
+           'title'=>'Sparring; Stufe 1', 'note'=>"Zeile eins\nZeile zwei", 'price'=>'40'];
+$datei = ics_for_event($termin);
+ok('beginnt und endet als Kalender',
+   str_starts_with($datei, 'BEGIN:VCALENDAR') && str_ends_with($datei, "END:VCALENDAR\r\n"));
+ok('Zeilen enden mit CRLF', !preg_match("/(?<!\r)\n/", $datei));
+ok('Zürich 10:00 wird zu 08:00 UTC', str_contains($datei, 'DTSTART:20261007T080000Z'), $datei);
+ok('Ende 11:30 wird zu 09:30 UTC',   str_contains($datei, 'DTEND:20261007T093000Z'));
+ok('Semikolon im Titel maskiert',    str_contains($datei, 'SUMMARY:Sparring\; Stufe 1'));
+ok('Komma im Ort maskiert',          str_contains($datei, 'Blotzheimerstr. 68\, 4054 Basel'));
+ok('Zeilenumbruch wird zu \\n',      str_contains($datei, 'Zeile eins\nZeile zwei'));
+ok('keine Zeile über 75 Zeichen',
+   !array_filter(explode("\r\n", $datei), fn($z) => strlen($z) > 75));
+
+// Ohne Uhrzeit ein ganztägiger Eintrag, nicht Mitternacht.
+$ganz = ics_for_event(['id'=>'tx', 'date'=>'2026-10-13', 'title'=>'Ganztag']);
+ok('ganztägig mit VALUE=DATE', str_contains($ganz, 'DTSTART;VALUE=DATE:20261013'));
+ok('und endet am Folgetag',    str_contains($ganz, 'DTEND;VALUE=DATE:20261014'));
+
+// Nur eine Uhrzeit ergibt eine Stunde.
+$eine = ics_for_event(['id'=>'ty', 'date'=>'2026-10-07', 'time'=>'18:00', 'title'=>'Abend']);
+ok('eine Stunde angenommen', str_contains($eine, 'DTSTART:20261007T160000Z')
+   && str_contains($eine, 'DTEND:20261007T170000Z'), $eine);
+
+eq('Dateiname aus Titel und Datum', ics_filename($termin), 'sparring-stufe-1-2026-10-07.ics');
+
+echo "\nInstagram\n";
+eq('at-Zeichen wird ergänzt', instagram_url(), 'https://www.instagram.com/combatmind/');
+eq('Anzeigename',             instagram_handle(), '@combatmind');
+$setz = function (string $v) {
+    json_write('content.json', ['contact'=>['instagram'=>$v]]);
+    ff_content(true);
+    return instagram_url();
+};
+eq('ohne at-Zeichen',        $setz('combatmind'), 'https://www.instagram.com/combatmind/');
+eq('ganzer Link bleibt',     $setz('https://www.instagram.com/combatmind/'), 'https://www.instagram.com/combatmind/');
+eq('fremder Host abgelehnt', $setz('https://evil.example.com/combatmind'), '');
+eq('Unsinn abgelehnt',       $setz('kein name mit leerzeichen'), '');
+eq('leer bleibt leer',       $setz(''), '');
 
 echo "\nBackup einspielen — was hinein darf\n";
 eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');

@@ -213,5 +213,9 @@ function legal_address(): string {
     if ($c['contact']['hours']) {
         $out .= '<br>Erreichbar: ' . h($c['contact']['hours']);
     }
+    if (instagram_url()) {
+        $out .= '<br>Instagram: <a href="' . h(instagram_url()) . '" target="_blank" rel="noopener me">'
+              . h(instagram_handle()) . '</a>';
+    }
     return $out;
 }

@@ -38,7 +38,14 @@ function mailer_subject(string $s): string {
  * Eine Textmail verschicken. Kopfzeilen werden gegen eingeschleuste Zeilen
  * geprüft — eine E-Mail-Adresse aus einem Formular ist fremde Eingabe.
  */
-function mail_send(string $to, string $subject, string $body, string $replyTo = ''): bool {
+/**
+ * Eine Textmail verschicken, wahlweise mit einem Anhang.
+ *
+ * $anhang: ['name' => 'training.ics', 'type' => 'text/calendar; charset=UTF-8',
+ *           'data' => '...']
+ */
+function mail_send(string $to, string $subject, string $body, string $replyTo = '',
+                   ?array $anhang = null): bool {
     $from = mailer_from();
     if ($from === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
     foreach ([$to, $from, $replyTo, $subject] as $teil) {
@@ -48,8 +55,6 @@ function mail_send(string $to, string $subject, string $body, string $replyTo = 
     $kopf = [
         'From: COMBAT MIND <' . $from . '>',
         'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset=UTF-8',
-        'Content-Transfer-Encoding: 8bit',
         'X-Mailer: combat-mind',
     ];
     if ($replyTo !== '' && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
@@ -57,5 +62,30 @@ function mail_send(string $to, string $subject, string $body, string $replyTo = 
     }
 
     $body = str_replace("\r\n", "\n", $body);
-    return @mail($to, mailer_subject($subject), $body, implode("\r\n", $kopf), '-f' . $from);
+
+    if ($anhang === null) {
+        $kopf[] = 'Content-Type: text/plain; charset=UTF-8';
+        $kopf[] = 'Content-Transfer-Encoding: 8bit';
+        $inhalt = $body;
+    } else {
+        // Der Dateiname kommt aus dem eigenen Code, wird aber trotzdem auf
+        // Harmloses beschränkt — Kopfzeilen sind kein Ort für Überraschungen.
+        $name = preg_replace('/[^A-Za-z0-9._-]/', '', (string)$anhang['name']) ?: 'anhang.txt';
+        $typ  = preg_replace('/[^A-Za-z0-9\/;=+.\- ]/', '', (string)$anhang['type']) ?: 'application/octet-stream';
+        $g    = '=_cm_' . bin2hex(random_bytes(12));
+
+        $kopf[] = 'Content-Type: multipart/mixed; boundary="' . $g . '"';
+        $inhalt = "--$g\r\n"
+            . "Content-Type: text/plain; charset=UTF-8\r\n"
+            . "Content-Transfer-Encoding: 8bit\r\n\r\n"
+            . str_replace("\n", "\r\n", $body) . "\r\n\r\n"
+            . "--$g\r\n"
+            . 'Content-Type: ' . $typ . '; name="' . $name . "\"\r\n"
+            . "Content-Transfer-Encoding: base64\r\n"
+            . 'Content-Disposition: attachment; filename="' . $name . "\"\r\n\r\n"
+            . chunk_split(base64_encode((string)$anhang['data']))
+            . "--$g--\r\n";
+    }
+
+    return @mail($to, mailer_subject($subject), $inhalt, implode("\r\n", $kopf), '-f' . $from);
 }

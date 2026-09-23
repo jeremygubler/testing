@@ -155,6 +155,7 @@ function ff_schema(): array {
             'email'   => ['text', 'E-Mail', 'info@combat-mind.ch'],
             'phone'   => ['text', 'Telefon', '076 527 74 93'],
             'hours'   => ['text', 'Erreichbarkeit', 'Mo–Fr 10–12 und 13–18 Uhr'],
+            'instagram' => ['text', 'Instagram (@name oder vollständiger Link)', ''],
             'address' => ['text', 'Strasse und Hausnummer', 'Blotzheimerstr. 68'],
             'zip'     => ['text', 'PLZ', '4054'],
             'city'    => ['text', 'Ort', 'Basel'],
@@ -165,7 +166,7 @@ function ff_schema(): array {
 
         'signup' => ['label' => 'Anmeldung', 'fields' => [
             'own'   => ['bool', 'Eigenes Anmeldeformular verwenden (statt Tally)', '1'],
-            'from'  => ['text', 'Absenderadresse der E-Mails (Konto bei cyon)', 'noreply@combat-mind.ch'],
+            'from'  => ['text', 'Absenderadresse der E-Mails', 'info@combat-mind.ch'],
             'intro' => ['textarea', 'Text über dem Formular',
                         "Zwölf Wochen, eine feste Gruppe, maximal 16 Plätze. Füll das Formular aus — wir melden uns innert zwei Arbeitstagen persönlich bei dir mit allen Angaben und der Zahlungsinformation."],
             'reply' => ['textarea', 'Bestätigungsmail an die anmeldende Person ({vorname} wird ersetzt)',

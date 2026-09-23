@@ -10,6 +10,7 @@ declare(strict_types=1);
 require __DIR__ . '/inc/legal.php';
 require __DIR__ . '/inc/signup.php';
 require __DIR__ . '/inc/mailer.php';
+require __DIR__ . '/inc/ics.php';
 
 $c       = ff_content();
 
@@ -58,7 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $wlMoeglich) {
                 }
                 mail_send($d['email'],
                     $istTermin ? 'Warteliste: ' . $termin['title'] : 'Du stehst auf der Warteliste',
-                    str_replace('{vorname}', $d['vorname'], (string)$c['signup']['wl_reply']));
+                    str_replace('{vorname}', $d['vorname'], (string)$c['signup']['wl_reply']),
+                    trim((string)$c['contact']['email']));
                 header('Location: danke.php?w=1' . ($istTermin ? '&t=' . urlencode((string)$termin['id']) : ''));
                 exit;
             }
@@ -121,16 +123,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $wlMoeglich) {
                     $text = "Hallo " . $d['vorname'] . "\n\ndanke für deine Anmeldung zu:\n\n"
                           . $termin['title'] . "\n" . $wann . "\n"
                           . (!empty($termin['price']) ? "CHF " . $termin['price'] . " — bezahlt wird vor Ort per TWINT oder bar.\n" : '')
+                          . "\nIm Anhang findest du den Termin zum Übernehmen in deinen Kalender.\n"
                           . "\nDein Platz ist reserviert. Solltest du nicht können, sag uns bitte "
                           . "spätestens 48 Stunden vorher Bescheid.\n\nBis bald\nJocelyn\nCOMBAT MIND";
                 } else {
                     $text = str_replace('{vorname}', $d['vorname'], (string)$c['signup']['reply']);
                 }
-                mail_send($d['email'], $istTermin ? 'Deine Anmeldung: ' . $termin['title']
-                                                  : 'Deine Anmeldung bei COMBAT MIND', $text);
+                // Reply-To auf die Kontaktadresse: Wer auf die Bestätigung
+                // antwortet, soll einen Menschen erreichen, keinen Briefkasten
+                // namens «noreply».
+                mail_send($d['email'],
+                    $istTermin ? 'Deine Anmeldung: ' . $termin['title'] : 'Deine Anmeldung bei COMBAT MIND',
+                    $text, $an,
+                    $istTermin ? ['name' => ics_filename($termin),
+                                  'type' => 'text/calendar; charset=UTF-8; method=PUBLISH',
+                                  'data' => ics_for_event($termin)] : null);
                 if ($d['gv_email'] !== '') {
                     mail_send($d['gv_email'], 'Anmeldung von ' . signup_name($d) . ' bei COMBAT MIND',
-                        str_replace('{vorname}', $d['gv_name'], (string)$c['signup']['reply']));
+                        str_replace('{vorname}', $d['gv_name'], (string)$c['signup']['reply']), $an);
                 }
                 header('Location: danke.php' . ($istTermin ? '?t=' . urlencode((string)$termin['id']) : '')); exit;
             }

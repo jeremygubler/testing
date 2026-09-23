@@ -615,6 +615,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   'url'      => site_url(),
   'email'    => $c['contact']['email'] ?: null,
   'telephone'=> phone_href() ?: null,
+  'sameAs'   => instagram_url() ? [instagram_url()] : null,
   'image'    => $ogFile ? site_url($ogFile) : null,
   'address'  => array_filter([
       '@type'           => 'PostalAddress',
@@ -1042,6 +1043,15 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
           <?php endif ?>
           <?php if ($c['contact']['hours']): ?>
             <li><?= h($c['contact']['hours']) ?></li>
+          <?php endif ?>
+          <?php if (instagram_url()): ?>
+            <li><a href="<?= h(instagram_url()) ?>" target="_blank" rel="noopener me"
+                   style="display:inline-flex;align-items:center;gap:.4rem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" aria-hidden="true" style="flex:none">
+                <rect x="2" y="2" width="20" height="20" rx="5"/>
+                <circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor"/>
+              </svg><?= h(instagram_handle()) ?></a></li>
           <?php endif ?>
         </ul>
         <h4 style="margin-top:1.6rem">Rechtliches</h4>

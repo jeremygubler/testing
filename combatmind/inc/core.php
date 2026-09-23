@@ -62,6 +62,33 @@ function cta_attrs(string $url, string $id = '', string $fallback = '#anmeldung'
         : '');
 }
 
+/**
+ * Instagram-Adresse aus dem Admin. Dort darf «@combatmind», «combatmind» oder
+ * der ganze Link stehen — hier kommt immer eine vollständige Adresse heraus,
+ * oder ein leerer String.
+ */
+function instagram_url(): string {
+    $v = trim((string)(ff_content()['contact']['instagram'] ?? ''));
+    if ($v === '') return '';
+    if (preg_match('#^https?://#i', $v)) {
+        // Nur instagram.com: Ein vertippter Link würde sonst als «Instagram»
+        // im Footer stehen und irgendwohin führen.
+        $host = strtolower((string)parse_url($v, PHP_URL_HOST));
+        $ok   = $host === 'instagram.com' || str_ends_with($host, '.instagram.com');
+        return ($ok && filter_var($v, FILTER_VALIDATE_URL)) ? $v : '';
+    }
+    $name = ltrim($v, '@');
+    return preg_match('/^[A-Za-z0-9._]{1,30}$/', $name) ? 'https://www.instagram.com/' . $name . '/' : '';
+}
+
+/** Der reine Name, für die Anzeige. */
+function instagram_handle(): string {
+    $u = instagram_url();
+    if ($u === '') return '';
+    $pfad = trim((string)parse_url($u, PHP_URL_PATH), '/');
+    return $pfad !== '' ? '@' . $pfad : '';
+}
+
 /** PLZ und Ort als eine Zeile, ohne führendes Leerzeichen wenn eines fehlt. */
 function zip_city(): string {
     $c = ff_content()['contact'];
