@@ -626,6 +626,45 @@ try {
   ok('keine PHP-Meldungen im Serverprotokoll', protokoll.length === 0,
      protokoll.slice(0, 3).join(' | '));
 
+  group('Mobile Navigation');
+  const p5 = await ctx.newPage();
+  await p5.setViewportSize({ width: 390, height: 844 });
+  await p5.goto(B + '/index.php', { waitUntil: 'networkidle' });
+
+  // Geschlossene Schublade darf nicht per Tabulator erreichbar sein.
+  ok('Schublade zunächst zu', !(await p5.locator('#nav').isVisible()));
+  ok('ihre Links sind nicht fokussierbar',
+     await p5.locator('#nav a').first().isVisible() === false);
+
+  await p5.click('#burger');
+  await p5.waitForTimeout(500);
+  ok('Burger öffnet die Schublade', await p5.locator('#nav').isVisible());
+  ok('Fokus springt hinein',
+     await p5.evaluate(() => document.activeElement?.closest('#nav') !== null));
+  ok('Knopf meldet den Zustand',
+     await p5.locator('#burger').getAttribute('aria-expanded') === 'true');
+
+  await p5.keyboard.press('Escape');
+  await p5.waitForTimeout(500);
+  ok('Escape schliesst', !(await p5.locator('#nav').isVisible()));
+  ok('und gibt den Fokus zurück',
+     await p5.evaluate(() => document.activeElement?.id === 'burger'));
+
+  await p5.click('#burger');
+  await p5.waitForTimeout(500);
+  await p5.setViewportSize({ width: 1280, height: 900 });
+  await p5.waitForTimeout(400);
+  ok('breites Fenster schliesst die Schublade',
+     await p5.locator('#burger').getAttribute('aria-expanded') === 'false');
+
+  // Der Inhalt darf nie unsichtbar bleiben, auch nicht bei einem Skriptfehler.
+  const sichtbar = await p5.evaluate(() => {
+    const el = document.querySelector('.rv');
+    return el ? getComputedStyle(el).opacity : '1';
+  });
+  ok('Abschnitte sind eingeblendet', parseFloat(sichtbar) > 0.9, `opacity ${sichtbar}`);
+  await p5.close();
+
   group('Darstellung');
   const ext = new Set();
   const p2 = await ctx.newPage();

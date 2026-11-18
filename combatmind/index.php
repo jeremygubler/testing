@@ -28,13 +28,14 @@ $heroPhoto = $c['hero']['photo'] && is_file(__DIR__ . '/assets/' . basename($c['
     ? 'assets/' . basename($c['hero']['photo']) : '';
 ?>
 <!doctype html>
-<html lang="de">
+<html lang="de-CH">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>COMBAT MIND Basel | Combat Fitness – Train Like a Fighter</title>
 <meta name="description" content="Combat Fitness in Basel: Striking, Grappling, Strength, Conditioning &amp; Mindset. 12 Week Program ab 16 Jahren – keine Kampfsporterfahrung nötig.">
 <meta name="theme-color" content="#0a0a0a">
+<meta name="color-scheme" content="dark">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230a0a0a'/><text x='16' y='23' font-family='sans-serif' font-size='16' font-weight='700' fill='%23c9a227' text-anchor='middle'>CM</text></svg>">
 
 <?php if (site_url()): ?><link rel="canonical" href="<?= h(site_url()) ?>"><?php endif ?>
@@ -270,10 +271,11 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
     justify-content:flex-start;gap:0;overflow-y:auto;overscroll-behavior:contain;
     background:rgba(5,5,5,.98);backdrop-filter:blur(16px);border-top:1px solid var(--line);
     padding:.5rem 1.25rem 2.5rem;
-    clip-path:inset(0 0 100% 0);opacity:0;pointer-events:none;
-    transition:clip-path .4s var(--ease),opacity .3s var(--ease);
+    clip-path:inset(0 0 100% 0);opacity:0;pointer-events:none;visibility:hidden;
+    transition:clip-path .4s var(--ease),opacity .3s var(--ease),visibility 0s linear .4s;
   }
-  .nav[data-open]{clip-path:inset(0 0 0 0);opacity:1;pointer-events:auto}
+  .nav[data-open]{clip-path:inset(0 0 0 0);opacity:1;pointer-events:auto;visibility:visible;
+    transition:clip-path .4s var(--ease),opacity .3s var(--ease),visibility 0s}
   .nav a{padding:1.05rem 0;border-bottom:1px solid var(--line);font-size:.95rem;letter-spacing:.14em}
   .nav a::after{display:none}
   .nav a.nav__cta{display:inline-flex;margin-top:1.4rem;border-bottom:0;color:#0a0a0a}
@@ -545,7 +547,8 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .js .rv.in{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){
   .js .rv{opacity:1;transform:none;transition:none}
-  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
 
 /* ─────────────────────────  PLÄTZE  ───────────────────────── */
@@ -602,6 +605,18 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .qa details[open] summary::after{transform:rotate(225deg) translateY(-2px)}
 .qa summary:hover{color:var(--gold-hi)}
 .qa p{margin:0;padding:0 1.4rem 1.35rem;color:var(--mute);font-size:.96rem;max-width:62ch}
+
+/* ─────────────────────────  FEINSCHLIFF  ───────────────────────── */
+/* Auf Touchgeräten bleibt ein :hover nach dem Tippen kleben. */
+@media (hover:none){.btn:hover{transform:none}.shot:hover img{transform:none}}
+@media (max-width:480px){
+  :root{--shell:min(1180px,100% - 2rem)}
+  .hero__cta{gap:.7rem}
+  .hero__cta .btn{max-width:100%;white-space:normal;text-align:center}
+  .eyebrow{letter-spacing:.19em}
+}
+/* Windows-Kontrastmodus ersetzt Hintergründe — Knöpfe brauchen dann einen Rand. */
+@media (forced-colors:active){.btn{border:2px solid ButtonText}.btn--ghost{border:1px solid ButtonText}}
 </style>
 
 <?php if (site_url()): ?>
@@ -897,6 +912,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
       <?php foreach ($gallery as $i => $g): ?>
       <?php $small = thumb_or_full($g['file']); ?>
       <button class="shot" type="button" data-i="<?= $i ?>"
+              aria-label="Bild vergrössern: <?= h($g['caption'] ?: 'COMBAT MIND Training') ?>"
               data-src="assets/gallery/<?= h(basename($g['file'])) ?>"
               data-cap="<?= h($g['caption'] ?? '') ?>">
         <img src="assets/gallery/<?= h($small) ?>"
@@ -1079,20 +1095,10 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   addEventListener("scroll", onScroll, {passive:true});
   onScroll();
 
-  /* mobile nav */
-  const burger = document.getElementById("burger");
-  const nav = document.getElementById("nav");
-  const setNav = open => {
-    nav.toggleAttribute("data-open", open);
-    burger.setAttribute("aria-expanded", String(open));
-    burger.setAttribute("aria-label", open ? "Menü schliessen" : "Menü öffnen");
-    document.body.style.overflow = open ? "hidden" : "";
-  };
-  burger.addEventListener("click", () => setNav(!nav.hasAttribute("data-open")));
-  nav.addEventListener("click", e => { if (e.target.closest("a")) setNav(false); });
-  addEventListener("keydown", e => { if (e.key === "Escape") setNav(false); });
-
-  /* scroll reveal */
+  /* Scroll-Reveal zuerst.
+     Die Klasse .js blendet alle .rv-Abschnitte aus, bis dieser Block sie
+     wieder einblendet. Stünde davor Code, der scheitern kann, bliebe die
+     ganze Seite leer — deshalb steht das hier oben und nicht unten. */
   const items = document.querySelectorAll(".rv");
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window) {
     const io = new IntersectionObserver((entries, obs) => {
@@ -1106,6 +1112,29 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
     items.forEach(el => io.observe(el));
   } else {
     items.forEach(el => el.classList.add("in"));
+  }
+
+  /* mobile nav */
+  const burger = document.getElementById("burger");
+  const nav = document.getElementById("nav");
+  if (burger && nav) {
+    const setNav = open => {
+      nav.toggleAttribute("data-open", open);
+      burger.setAttribute("aria-expanded", String(open));
+      burger.setAttribute("aria-label", open ? "Menü schliessen" : "Menü öffnen");
+      document.body.style.overflow = open ? "hidden" : "";
+      // Beim Öffnen in die Schublade springen, beim Schliessen zurück zum Knopf.
+      if (open) nav.querySelector("a")?.focus();
+    };
+    burger.addEventListener("click", () => setNav(!nav.hasAttribute("data-open")));
+    nav.addEventListener("click", e => { if (e.target.closest("a")) setNav(false); });
+    addEventListener("keydown", e => {
+      if (e.key === "Escape" && nav.hasAttribute("data-open")) { setNav(false); burger.focus(); }
+    });
+    // Kein «Klick daneben schliesst»: Die Schublade liegt inset:74px 0 0 und
+    // deckt alles unter der Kopfzeile ab — ein Daneben gibt es nicht.
+    // Wird das Fenster breit genug, übernimmt die normale Navigation wieder.
+    addEventListener("resize", () => { if (innerWidth >= 1080 && nav.hasAttribute("data-open")) setNav(false); });
   }
 
   /* Galerie-Lightbox */
