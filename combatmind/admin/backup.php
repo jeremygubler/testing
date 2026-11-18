@@ -32,7 +32,8 @@ if (isset($_GET['download'])) {
         // Anmeldungen bleiben draussen: Dieses ZIP soll bedenkenlos per Mail
         // und in der Cloud liegen dürfen, Personendaten dürfen das nicht.
         if (in_array(basename($f), ['auth.json.php', 'throttle.json.php', 'signups.json.php',
-                                    'waitlist.json.php', 'signup_rate.json.php'], true)) continue;
+                                    'waitlist.json.php', 'signup_rate.json.php',
+                                    'cron.json.php'], true)) continue;
         $zip->addFile($f, 'data/' . basename($f));
         $count++;
     }

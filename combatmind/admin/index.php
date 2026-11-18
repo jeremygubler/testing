@@ -5,6 +5,7 @@ require_once __DIR__ . '/_layout.php';
 require_once __DIR__ . '/../inc/media.php';
 require_once __DIR__ . '/../inc/events.php';
 require_once __DIR__ . '/../inc/signup.php';
+require_once __DIR__ . '/../inc/cron.php';
 
 /* ── Ersteinrichtung: Passwort setzen, solange keines existiert ───────── */
 if (!auth_is_setup()) {
@@ -151,6 +152,42 @@ admin_tabs('index.php');
     <?php endif ?>
     <a class="btn btn--ghost" href="termine.php">Termine pflegen</a>
   </div>
+  <?php
+    $cronLetzter = cron_last_run();
+    $cronAlt     = cron_overdue();
+    $cronPfad    = realpath(FF_ROOT) ?: FF_ROOT;
+  ?>
+  <div class="card"<?= $cronAlt ? ' style="border-color:#5a2b2b;background:#1c1010"' : '' ?>>
+    <h3 style="margin:0 0 .5rem;font-size:1rem">Automatische Bereinigung</h3>
+    <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">
+      <?php if ($cronLetzter === 0): ?>
+        <strong style="color:var(--gold-hi)">Noch nicht eingerichtet.</strong>
+        Bis dahin wird nur aufgeräumt, wenn du diese Seite öffnest.
+      <?php elseif ($cronAlt): ?>
+        <strong style="color:#f0b4b4">Seit <?= (int)floor((time() - $cronLetzter) / 86400) ?> Tagen
+        nicht mehr gelaufen.</strong> Prüf den Cronjob im cyon-Panel.
+      <?php else: ?>
+        Zuletzt gelaufen am <strong style="color:var(--white)"><?= h(date('d.m.Y, H:i', $cronLetzter)) ?></strong>.
+      <?php endif ?>
+    </p>
+    <details>
+      <summary style="cursor:pointer;color:var(--gold-hi);font-size:.9rem">Einrichten bei cyon</summary>
+      <p style="color:var(--mute);font-size:.9rem;margin:.8rem 0 .4rem">
+        Im cyon-Panel unter <strong>Cronjobs</strong> einen neuen Auftrag anlegen,
+        täglich, mit diesem Befehl:</p>
+      <code style="display:block;background:var(--ink);border:1px solid var(--line);border-radius:7px;
+        padding:.7rem .85rem;font-size:.82rem;overflow-x:auto;color:var(--white)">php <?= h($cronPfad) ?>/cron.php</code>
+      <p style="color:var(--mute);font-size:.9rem;margin:.8rem 0 .4rem">
+        Geht das nicht, stattdessen über das Netz — dieser Link enthält den
+        Schlüssel und gehört nirgendwo sonst hin:</p>
+      <code style="display:block;background:var(--ink);border:1px solid var(--line);border-radius:7px;
+        padding:.7rem .85rem;font-size:.82rem;overflow-x:auto;color:var(--white)">curl -s "<?= h(site_url('cron.php')) ?>?key=<?= h(cron_key()) ?>"</code>
+      <p class="hint" style="margin-top:.6rem">Ohne Schlüssel antwortet die Seite mit
+        «nicht gefunden». Ein Cronjob läuft nicht, nur weil die Datei hochgeladen ist —
+        er muss im Panel angelegt werden.</p>
+    </details>
+  </div>
+
   <?php if ($faellig): ?>
     <div class="card" style="border-color:#5a4a1e;background:#221c0c">
       <h3 style="margin:0 0 .5rem;font-size:1rem;color:var(--gold-hi)">Bald gelöscht</h3>

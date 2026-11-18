@@ -539,6 +539,29 @@ try {
   await page.waitForLoadState('networkidle');
   ok('leeres Feld blendet alles aus', !(await body('/index.php')).includes('instagram.com'));
 
+  group('Cronjob');
+  // Ohne Schlüssel darf die Datei nicht als vorhanden erkennbar sein.
+  ok('ohne Schlüssel 404', (await ctx.request.get(B + '/cron.php')).status() === 404);
+  ok('falscher Schlüssel 404',
+     (await ctx.request.get(B + '/cron.php?key=falsch')).status() === 404);
+
+  await page.goto(B + '/admin/index.php');
+  const karte = await page.textContent('body');
+  ok('Admin erklärt den Zustand', karte.includes('Automatische Bereinigung'));
+  ok('und nennt ihn noch nicht eingerichtet', karte.includes('Noch nicht eingerichtet'));
+  const befehl = await page.textContent('.card:has-text("Automatische Bereinigung") code');
+  ok('mit fertigem Befehl', befehl.includes('cron.php'), befehl);
+  const link = await page.locator('.card:has-text("Automatische Bereinigung") code').last().textContent();
+  const key = link.match(/key=([0-9a-f]{32})/)?.[1];
+  ok('Schlüssel steht im Admin', !!key);
+
+  const lauf = await ctx.request.get(`${B}/cron.php?key=${key}`);
+  ok('mit Schlüssel läuft er', lauf.status() === 200);
+  ok('und meldet, was er tat', (await lauf.text()).includes('Anmeldungen gelöscht'));
+  await page.goto(B + '/admin/index.php');
+  ok('Admin zeigt den Lauf an',
+     /Zuletzt gelaufen am/.test(await page.textContent('body')));
+
   group('Aufbewahrungsfrist');
   // Frist auf einen Tag setzen und die Anmeldungen künstlich altern lassen.
   await page.goto(B + '/admin/texte.php');

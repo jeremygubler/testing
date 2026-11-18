@@ -12,13 +12,14 @@ mkdir($tmp . '/assets/gallery', 0775, true);
 define('FF_TEST_ROOT', $tmp);
 
 require __DIR__ . '/bootstrap.php';
-require __DIR__ . '/../inc/core.php';
-require __DIR__ . '/../inc/schema.php';
-require __DIR__ . '/../inc/media.php';
-require __DIR__ . '/../inc/events.php';
-require __DIR__ . '/../inc/restore.php';
-require __DIR__ . '/../inc/ics.php';
-require __DIR__ . '/../inc/signup.php';
+require_once __DIR__ . '/../inc/core.php';
+require_once __DIR__ . '/../inc/schema.php';
+require_once __DIR__ . '/../inc/media.php';
+require_once __DIR__ . '/../inc/events.php';
+require_once __DIR__ . '/../inc/restore.php';
+require_once __DIR__ . '/../inc/ics.php';
+require_once __DIR__ . '/../inc/cron.php';
+require_once __DIR__ . '/../inc/signup.php';
 
 $pass = 0; $fail = 0;
 function ok(string $name, bool $cond, string $detail = ''): void {
@@ -469,6 +470,38 @@ ok('es ist weiterhin ein JPEG', (@getimagesize($ziel))[2] === IMAGETYPE_JPEG);
 ok('kein halbfertiger Rest', glob(FF_GALLERY . '/.restore-*') === []);
 ok('Nicht-Bild abgelehnt', !restore_image('<?php echo "x";', FF_GALLERY . '/20260101-kein.jpg'));
 ok('und nicht abgelegt', !is_file(FF_GALLERY . '/20260101-kein.jpg'));
+
+echo "\nZeitgesteuerte Bereinigung\n";
+json_write('cron.json', []);
+$schl = cron_key();
+ok('Schlüssel wird erzeugt', preg_match('/^[0-9a-f]{32}$/', $schl) === 1, $schl);
+eq('und bleibt gleich', cron_key(), $schl);
+eq('noch nie gelaufen', cron_last_run(), 0);
+ok('und gilt nicht als überfällig', !cron_overdue());
+
+json_write('content.json', ['legal'=>['keep_days'=>'30']]);
+ff_content(true);
+json_write('events.json', []);
+json_write('signups.json', [
+    ['id'=>'alt','ts'=>time() - 200*86400, 'vorname'=>'Alt','name'=>'X','email'=>'a@b.ch','event'=>''],
+    ['id'=>'neu','ts'=>time(),             'vorname'=>'Neu','name'=>'Y','email'=>'n@b.ch','event'=>''],
+]);
+$b = cron_run();
+eq('ein alter Eintrag gelöscht', $b['anmeldungen'], 1);
+eq('der neue bleibt', array_column(signup_all(), 'id'), ['neu']);
+ok('Lauf wird festgehalten', cron_last_run() > 0);
+ok('Dauer wird gemessen', isset($b['dauer']));
+eq('frisch gelaufen ist nicht überfällig', cron_overdue(), false);
+
+// Ein Cronjob, der seit Tagen schweigt, muss auffallen.
+$st = json_read('cron.json');
+$st['last_run'] = time() - (FF_CRON_STALE + 1) * 86400;
+json_write('cron.json', $st);
+ok('langes Schweigen gilt als überfällig', cron_overdue());
+
+eq('zweiter Lauf löscht nichts mehr', cron_run()['anmeldungen'], 0);
+ok('Schlüssel steht nicht im Bericht',
+   !str_contains(json_encode(cron_state()['last_result'] ?? []), $schl));
 
 echo "\nBackup einspielen — was hinein darf\n";
 eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');
