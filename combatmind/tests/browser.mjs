@@ -692,6 +692,51 @@ try {
   ok('Abschnitte sind eingeblendet', parseFloat(sichtbar) > 0.9, `opacity ${sichtbar}`);
   await p5.close();
 
+  group('Anmelde-Leiste auf dem Handy');
+  const p6 = await ctx.newPage();
+  await p6.setViewportSize({ width: 390, height: 844 });
+  await p6.goto(B + '/index.php', { waitUntil: 'networkidle' });
+
+  const leisteAn = async () => p6.evaluate(() => {
+    const b = document.getElementById('ctabar');
+    if (!b) return 'fehlt';
+    return b.hasAttribute('data-on') && getComputedStyle(b).display !== 'none' ? 'an' : 'aus';
+  });
+  ok('im Hero noch verborgen', await leisteAn() === 'aus');
+
+  await p6.evaluate(() => document.getElementById('faq')?.scrollIntoView());
+  await p6.waitForTimeout(600);
+  ok('nach dem Hero sichtbar', await leisteAn() === 'an');
+  ok('nennt den Platzstand', /Noch \d+ von \d+ Plätzen|Ausgebucht|CHF/.test(
+     await p6.textContent('#ctabar .ctabar__t')));
+  ok('führt zur Anmeldung',
+     (await p6.getAttribute('#ctabar a', 'href'))?.includes('anmeldung.php'));
+
+  await p6.evaluate(() => document.getElementById('anmeldung')?.scrollIntoView());
+  await p6.waitForTimeout(600);
+  ok('am Anmeldeband wieder weg', await leisteAn() === 'aus');
+
+  // Sie darf den Fuss der Seite nicht verdecken.
+  await p6.evaluate(() => document.getElementById('faq')?.scrollIntoView());
+  await p6.waitForTimeout(600);
+  ok('verdeckt keinen Text', await p6.evaluate(() => {
+    const b = document.getElementById('ctabar').getBoundingClientRect();
+    return [...document.querySelectorAll('.qa summary, .ev__main strong')].every((el) => {
+      const r = el.getBoundingClientRect();
+      return r.bottom <= b.top || r.top >= b.bottom || r.bottom < 0 || r.top > innerHeight;
+    });
+  }));
+
+  // Auf dem Desktop hat sie nichts zu suchen.
+  await p6.setViewportSize({ width: 1280, height: 900 });
+  await p6.waitForTimeout(300);
+  const anzeige = await p6.evaluate(() => {
+    const b = document.getElementById('ctabar');
+    return { display: getComputedStyle(b).display, breite: innerWidth };
+  });
+  ok('auf breiten Fenstern ausgeblendet', anzeige.display === 'none', JSON.stringify(anzeige));
+  await p6.close();
+
   group('Darstellung');
   const ext = new Set();
   const p2 = await ctx.newPage();

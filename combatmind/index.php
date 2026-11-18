@@ -606,6 +606,28 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .qa summary:hover{color:var(--gold-hi)}
 .qa p{margin:0;padding:0 1.4rem 1.35rem;color:var(--mute);font-size:.96rem;max-width:62ch}
 
+/* ───────────────  ANMELDE-LEISTE (nur schmale Fenster)  ─────────────── */
+/* Der Anmelde-Knopf steht oben im Hero und unten im Band. Dazwischen liegen
+   auf dem Handy mehrere Bildschirmlängen ohne jede Handlungsmöglichkeit. */
+.ctabar{
+  position:fixed;left:0;right:0;bottom:0;z-index:8;display:none;
+  align-items:center;gap:1rem;
+  padding:.8rem 1.25rem calc(.8rem + env(safe-area-inset-bottom,0px));
+  background:rgba(5,5,5,.96);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+  transform:translateY(110%);transition:transform .32s var(--ease);
+}
+.ctabar[data-on]{transform:none}
+.ctabar__t{flex:1 1 auto;min-width:0;font-family:var(--display);font-weight:700;
+  font-stretch:108%;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mute);line-height:1.35}
+.ctabar__t b{display:block;color:var(--gold-hi);font-size:.84rem}
+.ctabar__b{flex:none;white-space:nowrap}
+@media (max-width:1079px){.ctabar{display:flex}}
+/* Die Menü-Schublade liegt darüber — zwei Leisten gleichzeitig wären Unsinn. */
+body:has(.nav[data-open]) .ctabar{transform:translateY(110%)}
+@media (prefers-reduced-motion:reduce){.ctabar{transition:none}}
+
 /* ─────────────────────────  FEINSCHLIFF  ───────────────────────── */
 /* Auf Touchgeräten bleibt ein :hover nach dem Tippen kleben. */
 @media (hover:none){.btn:hover{transform:none}.shot:hover img{transform:none}}
@@ -1014,6 +1036,21 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 </section>
 
 <?php if ($gallery): ?>
+<?php if ($ctaReady): ?>
+<div class="ctabar" id="ctabar">
+  <span class="ctabar__t">
+    <?php if ($soldOut): ?>
+      <b>Ausgebucht</b>Warteliste offen
+    <?php elseif ($seatsLeft !== '' && $seatsAll !== ''): ?>
+      <b>Noch <?= h($seatsLeft) ?> von <?= h($seatsAll) ?> Plätzen</b><?= h($c['program']['title']) ?> <?= h($c['program']['title_gold']) ?>
+    <?php else: ?>
+      <b><?= h($c['program']['title']) ?> <?= h($c['program']['title_gold']) ?></b>CHF <?= h($c['program']['price']) ?>
+    <?php endif ?>
+  </span>
+  <a class="btn btn--sm ctabar__b" <?= $cta ?>><?= h($ctaLabel) ?></a>
+</div>
+<?php endif ?>
+
 <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Bildansicht">
   <button class="lb__btn lb__x" type="button" data-lb="close" aria-label="Schliessen">&times;</button>
   <button class="lb__btn lb__prev" type="button" data-lb="prev" aria-label="Vorheriges Bild">&#8249;</button>
@@ -1135,6 +1172,22 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
     // deckt alles unter der Kopfzeile ab — ein Daneben gibt es nicht.
     // Wird das Fenster breit genug, übernimmt die normale Navigation wieder.
     addEventListener("resize", () => { if (innerWidth >= 1080 && nav.hasAttribute("data-open")) setNav(false); });
+  }
+
+  /* Anmelde-Leiste: erscheint, sobald der Hero durch ist, und verschwindet
+     am Anmeldeband — dort steht derselbe Knopf schon gross auf der Seite. */
+  const bar = document.getElementById("ctabar");
+  const band = document.getElementById("anmeldung");
+  if (bar) {
+    let heroWeg = false, bandDa = false;
+    const zeigen = () => bar.toggleAttribute("data-on", heroWeg && !bandDa);
+    const hero = document.querySelector(".hero");
+    if ("IntersectionObserver" in window && hero) {
+      new IntersectionObserver(([e]) => { heroWeg = !e.isIntersecting; zeigen(); },
+        {threshold:0}).observe(hero);
+      if (band) new IntersectionObserver(([e]) => { bandDa = e.isIntersecting; zeigen(); },
+        {threshold:0}).observe(band);
+    }
   }
 
   /* Galerie-Lightbox */
