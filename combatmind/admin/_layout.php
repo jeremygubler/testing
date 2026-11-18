@@ -45,7 +45,7 @@ input[type=text],input[type=password],input[type=date],input[type=time],textarea
   color:var(--white);padding:.65rem .8rem;font:inherit;font-size:.95rem}
 input:focus,textarea:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:transparent}
 textarea{min-height:90px;resize:vertical;line-height:1.55}
-.hint{color:#77777f;font-size:.8rem;margin-top:.3rem}
+.hint{color:#797981;font-size:.8rem;margin-top:.3rem}
 .btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--gold);color:#0a0a0a;
   border:0;border-radius:7px;padding:.7rem 1.3rem;font:inherit;font-weight:700;cursor:pointer}
 .btn:hover{background:var(--gold-hi)}
@@ -69,6 +69,16 @@ textarea{min-height:90px;resize:vertical;line-height:1.55}
 .row{border:1px solid var(--line);border-radius:10px;background:var(--ink-2);padding:1rem;
   display:grid;gap:.75rem;grid-template-columns:1fr;align-items:end}
 @media (min-width:720px){.row{grid-template-columns:150px 110px 1fr 1fr auto}}
+.zahlen{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:10px;overflow:hidden;margin-bottom:2rem;
+  grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+.zahlen div{background:var(--ink-2);padding:.9rem 1rem;font-size:.78rem;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.zahlen b{display:block;font-size:1.5rem;font-weight:700;color:var(--white);
+  letter-spacing:-.01em;text-transform:none;margin-bottom:.15rem}
+.zahlen b span{font-size:.95rem;color:var(--mute);font-weight:400}
+.zahlen b.gold{color:var(--gold-hi)}
+.zahlen b.rot{color:#f0b4b4}
 .empty{border:1px dashed var(--line);border-radius:10px;padding:2.5rem 1.5rem;text-align:center;color:var(--mute)}
 </style>
 </head>

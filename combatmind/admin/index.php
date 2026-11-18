@@ -119,6 +119,9 @@ if ($weg['anmeldungen'] || $weg['warteliste']) {
 $anm      = signup_all();
 $neu      = count(array_filter($anm, fn($r) => ($r['status'] ?? 'neu') === 'neu'));
 $wl       = count(waitlist_all());
+$cronLetzter = cron_last_run();
+$cronAlt     = cron_overdue();
+$cronPfad    = realpath(FF_ROOT) ?: FF_ROOT;
 $faellig  = signup_due_soon();
 $shots = gallery_items();
 admin_head('Übersicht');
@@ -126,6 +129,20 @@ admin_tabs('index.php');
 ?>
 <h1>Übersicht</h1>
 <p class="sub">Alles, was du auf der Website ändern kannst.</p>
+
+<?php
+  // Nur Zahlen, die aus vorhandenen Daten stammen — nichts Hergeleitetes.
+  $belegt   = max(0, $gesamt - $frei);
+  $kommende = count(events_upcoming(50));
+?>
+<div class="zahlen">
+  <div><b><?= $belegt ?><span>/<?= $gesamt ?></span></b>Plätze belegt</div>
+  <div><b class="<?= $frei === 0 ? 'rot' : '' ?>"><?= $frei ?></b>frei</div>
+  <div><b class="<?= $neu ? 'gold' : '' ?>"><?= $neu ?></b>neue Anmeldung<?= $neu === 1 ? '' : 'en' ?></div>
+  <div><b><?= $kommende ?></b>kommende Termine</div>
+  <div><b class="<?= $cronAlt ? 'rot' : '' ?>"><?= $cronLetzter
+      ? h(date('d.m.', $cronLetzter)) : '—' ?></b>letzter Cronlauf</div>
+</div>
 
 <div class="grid2">
   <div class="card">
@@ -152,11 +169,6 @@ admin_tabs('index.php');
     <?php endif ?>
     <a class="btn btn--ghost" href="termine.php">Termine pflegen</a>
   </div>
-  <?php
-    $cronLetzter = cron_last_run();
-    $cronAlt     = cron_overdue();
-    $cronPfad    = realpath(FF_ROOT) ?: FF_ROOT;
-  ?>
   <div class="card"<?= $cronAlt ? ' style="border-color:#5a2b2b;background:#1c1010"' : '' ?>>
     <h3 style="margin:0 0 .5rem;font-size:1rem">Automatische Bereinigung</h3>
     <p style="color:var(--mute);margin:0 0 1rem;font-size:.92rem">

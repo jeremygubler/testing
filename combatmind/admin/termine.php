@@ -87,7 +87,7 @@ sie auch hier nicht mehr sehen willst. Änderungen werden erst mit
           <input type="text" name="ev[<?= $i ?>][note]" value="<?= h((string)($r['note'] ?? '')) ?>" placeholder="optional"></label>
         <input type="hidden" name="ev[<?= $i ?>][id]" value="<?= h((string)($r['id'] ?? '')) ?>">
         <span style="display:flex;gap:.7rem;align-items:center;white-space:nowrap">
-          <span style="color:<?= $r['date'] < $today ? '#77777f' : 'var(--gold)' ?>;font-size:.78rem">
+          <span style="color:<?= $r['date'] < $today ? '#797981' : 'var(--gold)' ?>;font-size:.78rem">
             <?php /* Ausgeschrieben, damit ein im Kalender verklickter Monat auffällt. */ ?>
             <?= h(event_weekday($r['date']) . ', ' . event_day($r['date']) . '. '
                   . event_month($r['date']) . ' ' . event_year($r['date'])) ?><br>
@@ -114,7 +114,7 @@ sie auch hier nicht mehr sehen willst. Änderungen werden erst mit
                      Website erscheint dann gar kein Knopf, und nichts erklärt es. */ ?>
             <span class="mangel">Ohne Plätze erscheint kein Anmelde-Knopf — trag eine Zahl ein.</span>
           <?php else: ?>
-            <span style="font-size:.8rem;color:<?= $belegt ? 'var(--gold-hi)' : '#77777f' ?>">
+            <span style="font-size:.8rem;color:<?= $belegt ? 'var(--gold-hi)' : '#797981' ?>">
               <?= $belegt ?> angemeldet<?php if ($belegt): ?>
                 · <a href="anmeldungen.php#t-<?= h((string)$r['id']) ?>">ansehen</a><?php endif ?>
               <?php if (!empty($r['signup']) && $r['date'] >= $today

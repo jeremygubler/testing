@@ -539,6 +539,40 @@ try {
   await page.waitForLoadState('networkidle');
   ok('leeres Feld blendet alles aus', !(await body('/index.php')).includes('instagram.com'));
 
+  group('Kennzahlen und Fehlerführung');
+  await page.goto(B + '/admin/index.php');
+  const zahlen = await page.textContent('.zahlen');
+  ok('Kennzahlen auf der Übersicht', /Plätze belegt/.test(zahlen), zahlen.replace(/\s+/g, ' '));
+  ok('frei und belegt ergeben das Ganze', await page.evaluate(() => {
+    const w = [...document.querySelectorAll('.zahlen b')].map((e) => e.textContent.trim());
+    const [belegt, gesamt] = w[0].split('/').map((x) => parseInt(x, 10));
+    return belegt + parseInt(w[1], 10) === gesamt;
+  }));
+
+  // Fehlerhafte Anmeldung: Meldung am Feld, Fokus dorthin.
+  // Frühere Gruppen haben das Rate-Limit ausgeschöpft — sonst käme die
+  // Sammelmeldung statt der Feldfehler, die hier geprüft werden.
+  rmSync(join(work, 'data/signup_rate.json.php'), { force: true });
+  const p7 = await ctx.newPage();
+  await p7.goto(B + '/anmeldung.php');
+  await p7.evaluate(() => { document.querySelector('input[name=ts]').value = String(Math.floor(Date.now()/1000) - 30); });
+  await p7.fill('input[name=vorname]', 'Ohne');
+  await p7.fill('input[name=email]', 'keine-adresse');
+  await p7.click('button[type=submit]');
+  await p7.waitForLoadState('networkidle');
+  ok('Feld ist als ungültig ausgezeichnet',
+     await p7.locator('[aria-invalid="true"]').count() > 0);
+  ok('Meldung hängt am Feld', await p7.evaluate(() => {
+    const f = document.querySelector('[aria-invalid="true"]');
+    const id = f?.getAttribute('aria-describedby');
+    return !!id && !!document.getElementById(id);
+  }));
+  ok('Fokus steht im ersten beanstandeten Feld',
+     await p7.evaluate(() => document.activeElement?.getAttribute('aria-invalid') === 'true'));
+  ok('Sammelmeldung meldet sich als Hinweis',
+     await p7.locator('.banner[role=alert]').count() === 1);
+  await p7.close();
+
   group('Cronjob');
   // Ohne Schlüssel darf die Datei nicht als vorhanden erkennbar sein.
   ok('ohne Schlüssel 404', (await ctx.request.get(B + '/cron.php')).status() === 404);

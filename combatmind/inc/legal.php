@@ -163,8 +163,8 @@ strong{color:var(--white);font-weight:600}
 .note p{margin:0;font-size:.94rem}
 .ft{border-top:1px solid var(--line);padding:2.5rem 0;margin-top:clamp(3rem,6vw,4.5rem)}
 .ft__in{width:var(--shell);margin-inline:auto;display:flex;flex-wrap:wrap;
-  gap:.75rem 1.5rem;justify-content:space-between;color:#6d6d6b;font-size:.85rem}
-.ft a{color:#6d6d6b;text-decoration:none}
+  gap:.75rem 1.5rem;justify-content:space-between;color:#7a7a78;font-size:.85rem}
+.ft a{color:#7a7a78;text-decoration:none}
 .ft a:hover{color:var(--gold-hi)}
 </style>
 </head>

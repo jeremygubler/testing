@@ -480,7 +480,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
 .ft__bar a{text-decoration:underline;text-underline-offset:3px}
 .ft__bar{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--line);
   display:flex;flex-wrap:wrap;gap:.75rem 1.5rem;justify-content:space-between;
-  color:#6d6d6b;font-size:.82rem}
+  color:#7a7a78;font-size:.82rem}
 
 /* ─────────────────────────  GALERIE  ───────────────────────── */
 .gallery{border-top:1px solid var(--line);background:var(--ink-2)}
@@ -535,7 +535,7 @@ section{padding:clamp(4.5rem,9vw,8rem) 0;position:relative}
   letter-spacing:.16em;text-transform:uppercase;color:var(--mute);white-space:nowrap;
   display:flex;flex-direction:column;align-items:flex-end;gap:.35rem}
 .ev__seats{color:var(--gold-hi);letter-spacing:.08em}
-.ev__seats--out{color:#77777f}
+.ev__seats--out{color:#797981}
 .ev__cta{display:inline-flex;text-decoration:none;color:#0a0a0a;font-size:.74rem;letter-spacing:.14em;
   background:linear-gradient(140deg,#f4e4ae,#d4af37 38%,#a8801d 72%,#e8cf88);
   padding:.5rem 1.1rem;border-radius:2px}

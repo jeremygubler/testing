@@ -149,7 +149,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $wlMoeglich) {
 }
 
 $w = fn(string $k) => h((string)($alt[$k] ?? ''));
-$e = fn(string $k) => isset($fehler[$k]) ? '<span class="err">' . h($fehler[$k]) . '</span>' : '';
+$e = fn(string $k) => isset($fehler[$k])
+    ? '<span class="err" id="err-' . h($k) . '">' . h($fehler[$k]) . '</span>' : '';
+// Ein Feld mit Fehler verweist darauf und meldet sich als ungültig — sonst
+// liest ein Bildschirmleser die Meldung nie vor.
+$a = fn(string $k) => isset($fehler[$k])
+    ? ' aria-invalid="true" aria-describedby="err-' . h($k) . '"' : '';
 
 legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
            $istTermin ? 'Anmeldung zum Training ' . $termin['title'] . ' bei COMBAT MIND in Basel.'
@@ -173,7 +178,7 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
   .grp .opt:last-child{margin-bottom:0}
   .grp .opt input{margin-top:.25rem;accent-color:var(--gold);width:18px;height:18px;flex:none}
   #geburtsdatum{max-width:12rem;letter-spacing:.06em}
-  ::placeholder{color:#5c5c62}
+  ::placeholder{color:#7a7a80}
   .err{display:block;color:#f0b4b4;font-size:.86rem;margin-top:.35rem}
   .banner{border:1px solid #5a2b2b;background:#2a1414;color:#f0b4b4;border-radius:10px;
     padding:1rem 1.2rem;margin-bottom:2rem}
@@ -274,9 +279,9 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
       wenn du beim nächsten Mal dabei sein willst.</div>
     <p><a href="index.php#termine">← Alle Termine</a></p>
   <?php elseif ($soldOut): ?>
-    <?php if (isset($fehler['_'])): ?><div class="banner"><?= h($fehler['_']) ?></div><?php endif ?>
+    <?php if (isset($fehler['_'])): ?><div class="banner" role="alert"><?= h($fehler['_']) ?></div><?php endif ?>
     <?php if ($fehler && !isset($fehler['_'])): ?>
-      <div class="banner">Bitte schau dir die markierten Felder noch einmal an.</div>
+      <div class="banner" role="alert">Bitte schau dir die markierten Felder noch einmal an.</div>
     <?php endif ?>
     <p><?= $istTermin
       ? 'Dieses Training ist ausgebucht. Trag dich ein — wird ein Platz frei, melden wir uns bei dir, in der Reihenfolge der Eintragungen.'
@@ -292,15 +297,15 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
       <?php endif ?>
       <div class="two">
         <div class="fld"><label for="wv">Vorname</label>
-          <input id="wv" type="text" name="vorname" value="<?= $w('vorname') ?>" required autocomplete="given-name"><?= $e('vorname') ?></div>
+          <input id="wv" type="text" name="vorname" value="<?= $w('vorname') ?>"<?= $a('vorname') ?> required autocomplete="given-name"><?= $e('vorname') ?></div>
         <div class="fld"><label for="wn">Name</label>
-          <input id="wn" type="text" name="name" value="<?= $w('name') ?>" required autocomplete="family-name"><?= $e('name') ?></div>
+          <input id="wn" type="text" name="name" value="<?= $w('name') ?>"<?= $a('name') ?> required autocomplete="family-name"><?= $e('name') ?></div>
       </div>
       <div class="two">
         <div class="fld"><label for="we">E-Mail</label>
-          <input id="we" type="email" name="email" value="<?= $w('email') ?>" required autocomplete="email"><?= $e('email') ?></div>
+          <input id="we" type="email" name="email" value="<?= $w('email') ?>"<?= $a('email') ?> required autocomplete="email"><?= $e('email') ?></div>
         <div class="fld"><label for="wt">Telefon (freiwillig)</label>
-          <input id="wt" type="tel" name="telefon" value="<?= $w('telefon') ?>" autocomplete="tel"><?= $e('telefon') ?></div>
+          <input id="wt" type="tel" name="telefon" value="<?= $w('telefon') ?>"<?= $a('telefon') ?> autocomplete="tel"><?= $e('telefon') ?></div>
       </div>
       <div class="fld"><label for="wm">Nachricht (freiwillig)</label>
         <textarea id="wm" name="nachricht"><?= $w('nachricht') ?></textarea></div>
@@ -310,9 +315,9 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
       <button class="send" type="submit">Auf die Warteliste</button>
     </form>
   <?php else: ?>
-    <?php if (isset($fehler['_'])): ?><div class="banner"><?= h($fehler['_']) ?></div><?php endif ?>
+    <?php if (isset($fehler['_'])): ?><div class="banner" role="alert"><?= h($fehler['_']) ?></div><?php endif ?>
     <?php if ($fehler && !isset($fehler['_'])): ?>
-      <div class="banner">Bitte schau dir die markierten Felder noch einmal an.</div>
+      <div class="banner" role="alert">Bitte schau dir die markierten Felder noch einmal an.</div>
     <?php endif ?>
     <p><?= nl2br(h($c['signup']['intro'])) ?></p>
 
@@ -327,19 +332,19 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
 
       <div class="two">
         <div class="fld"><label for="vorname">Vorname</label>
-          <input id="vorname" type="text" name="vorname" value="<?= $w('vorname') ?>" required autocomplete="given-name"><?= $e('vorname') ?></div>
+          <input id="vorname" type="text" name="vorname" value="<?= $w('vorname') ?>"<?= $a('vorname') ?> required autocomplete="given-name"><?= $e('vorname') ?></div>
         <div class="fld"><label for="name">Name</label>
-          <input id="name" type="text" name="name" value="<?= $w('name') ?>" required autocomplete="family-name"><?= $e('name') ?></div>
+          <input id="name" type="text" name="name" value="<?= $w('name') ?>"<?= $a('name') ?> required autocomplete="family-name"><?= $e('name') ?></div>
       </div>
       <div class="two">
         <div class="fld"><label for="email">E-Mail</label>
-          <input id="email" type="email" name="email" value="<?= $w('email') ?>" required autocomplete="email"><?= $e('email') ?></div>
+          <input id="email" type="email" name="email" value="<?= $w('email') ?>"<?= $a('email') ?> required autocomplete="email"><?= $e('email') ?></div>
         <div class="fld"><label for="telefon">Telefon</label>
-          <input id="telefon" type="tel" name="telefon" value="<?= $w('telefon') ?>" required autocomplete="tel"><?= $e('telefon') ?></div>
+          <input id="telefon" type="tel" name="telefon" value="<?= $w('telefon') ?>"<?= $a('telefon') ?> required autocomplete="tel"><?= $e('telefon') ?></div>
       </div>
 
       <div class="fld"><label for="geburtsdatum">Geburtsdatum <span style="text-transform:none;letter-spacing:0">(TT.MM.JJJJ)</span></label>
-        <input id="geburtsdatum" type="text" name="geburtsdatum" value="<?= $w('geburtsdatum') ?>"
+        <input id="geburtsdatum" type="text" name="geburtsdatum" value="<?= $w('geburtsdatum') ?>"<?= $a('geburtsdatum') ?>
                required inputmode="numeric" autocomplete="bday" placeholder="TT.MM.JJJJ" maxlength="10">
         <span class="fine" style="color:var(--mute);display:block" id="alter-echo">Teilnahme ab <?= FF_MIN_AGE ?> Jahren.</span><?= $e('geburtsdatum') ?></div>
 
@@ -347,9 +352,9 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
       <div class="grp" id="gv">
         <legend>Einwilligung der erziehungsberechtigten Person</legend>
         <div class="fld"><label for="gv_name">Name</label>
-          <input id="gv_name" type="text" name="gv_name" value="<?= $w('gv_name') ?>"><?= $e('gv_name') ?></div>
+          <input id="gv_name" type="text" name="gv_name" value="<?= $w('gv_name') ?>"<?= $a('gv_name') ?>><?= $e('gv_name') ?></div>
         <div class="fld" style="margin-bottom:0"><label for="gv_email">E-Mail</label>
-          <input id="gv_email" type="email" name="gv_email" value="<?= $w('gv_email') ?>">
+          <input id="gv_email" type="email" name="gv_email" value="<?= $w('gv_email') ?>"<?= $a('gv_email') ?><?= $a('gv_email') ?>>
           <span class="fine" style="color:var(--mute);display:block">Diese Person erhält eine Kopie der Bestätigung.</span><?= $e('gv_email') ?></div>
       </div>
 
@@ -362,7 +367,7 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
         <?= $e('gesundheit') ?>
         <div class="fld" id="ges" style="margin:1rem 0 0">
           <label for="gesundheit_text">Worum geht es?</label>
-          <textarea id="gesundheit_text" name="gesundheit_text"><?= $w('gesundheit_text') ?></textarea>
+          <textarea id="gesundheit_text" name="gesundheit_text"<?= $a('gesundheit_text') ?>><?= $w('gesundheit_text') ?></textarea>
           <span class="fine" style="color:var(--mute);display:block">Bleibt vertraulich und dient nur der Trainingsplanung.</span><?= $e('gesundheit_text') ?></div>
       </fieldset>
 
@@ -389,6 +394,17 @@ legal_head($istTermin ? 'Anmeldung — ' . $termin['title'] : 'Anmeldung',
 
 <script>
 (() => {
+  // Nach einem abgewiesenen Absenden an die erste beanstandete Stelle
+  // springen — sonst steht man oben und sucht die Meldung.
+  const ersterFehler = document.querySelector('[aria-invalid="true"]');
+  if (ersterFehler) {
+    ersterFehler.focus({ preventScroll: true });
+    ersterFehler.scrollIntoView({ block: 'center', behavior: 'auto' });
+  } else {
+    const banner = document.querySelector('.banner');
+    if (banner) { banner.setAttribute('tabindex', '-1'); banner.focus({ preventScroll: true }); }
+  }
+
   // Gilt für beide Formulare: Nach dem ersten Klick ist Schluss.
   document.querySelectorAll('form[method=post]').forEach((f) => {
     f.addEventListener('submit', () => {

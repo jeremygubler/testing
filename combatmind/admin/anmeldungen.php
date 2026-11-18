@@ -123,9 +123,9 @@ admin_tabs('anmeldungen.php');
   .an{border:1px solid var(--line);border-radius:10px;background:var(--ink-2);padding:1.1rem 1.25rem;margin-bottom:.9rem}
   .an__top{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:baseline;justify-content:space-between}
   .an__name{font-size:1.05rem;color:var(--white);font-weight:600}
-  .an__when{color:#77777f;font-size:.82rem}
+  .an__when{color:#797981;font-size:.82rem}
   .an dl{display:grid;grid-template-columns:auto 1fr;gap:.3rem .9rem;margin:.9rem 0 0;font-size:.92rem}
-  .an dt{color:#77777f}
+  .an dt{color:#797981}
   .an dd{margin:0;color:var(--mute);overflow-wrap:anywhere}
   .an dd a{color:var(--gold-hi)}
   .warn{color:#f0b4b4}
