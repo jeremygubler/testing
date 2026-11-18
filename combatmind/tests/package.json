@@ -1,0 +1,11 @@
+{
+  "name": "combat-mind-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "php unit.php && node browser.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
