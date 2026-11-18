@@ -71,18 +71,25 @@ if (!auth_check()) {
 // hier direkt gesetzt — und bei null schaltet die Seite selbst auf ausgebucht.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['seats'])) {
     csrf_check();
-    $prog    = ff_content()['program'];
-    $gesamt  = max(0, (int)$prog['seats_total']);
-    $frei    = $prog['seats_left'] === '' ? $gesamt : max(0, (int)$prog['seats_left']);
-    $neu     = max(0, min($gesamt, $frei + ($_POST['seats'] === 'plus' ? 1 : -1)));
-
     // Nur die beiden Felder anfassen, alles andere bleibt, wie es gespeichert ist.
+    // Dieselbe Sperre wie in signup_store(): Sonst liest der Admin den Stand,
+    // eine Anmeldung zieht dazwischen einen Platz ab, und der Admin schreibt
+    // den alten Wert zurück — der Platz wäre wieder da.
+    $inhalt = data_lock('content');
+    $prog   = ff_content(true)['program'];
+    $gesamt = max(0, (int)$prog['seats_total']);
+    $frei   = $prog['seats_left'] === '' ? $gesamt : max(0, (int)$prog['seats_left']);
+    $neu    = max(0, min($gesamt, $frei + ($_POST['seats'] === 'plus' ? 1 : -1)));
+
     $saved = json_read('content.json');
     $saved['program'] = ($saved['program'] ?? []) + [];
     $saved['program']['seats_left'] = (string)$neu;
     $saved['program']['sold_out']   = $neu === 0;
 
-    if (json_write('content.json', $saved)) {
+    $erfolg = json_write('content.json', $saved);
+    data_unlock($inhalt);
+    ff_content(true);
+    if ($erfolg) {
         flash($neu === 0
             ? 'Letzter Platz vergeben — die Website zeigt jetzt «ausgebucht».'
             : 'Noch ' . $neu . ' von ' . $gesamt . ' Plätzen frei.');

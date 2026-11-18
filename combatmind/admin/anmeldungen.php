@@ -55,9 +55,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id  = (string)($_POST['id'] ?? '');
     $tat = (string)($_POST['action'] ?? '');
 
+    // Frisch lesen statt den Stand vom Seitenaufbau zurückzuschreiben: Eine
+    // Anmeldung, die inzwischen eingegangen ist, ginge sonst verloren.
     if ($tat === 'delete' || $tat === 'status') {
-        // Einzeltrainings-Anmeldungen liegen in derselben Ablage.
-        $rows = $alle;
+        $sperre = data_lock('signups');
+        try {
+            $rows = signup_all();
+            if ($tat === 'delete') {
+                $neu = array_values(array_filter($rows, fn($r) => ($r['id'] ?? '') !== $id));
+                $weg = count($neu) !== count($rows);
+                if ($weg) signup_save($neu);
+                flash($weg ? 'Anmeldung gelöscht.' : 'Eintrag nicht gefunden.', $weg ? 'ok' : 'err');
+            } else {
+                $wert = in_array($_POST['status'] ?? '', ['neu', 'bestaetigt', 'bezahlt'], true)
+                    ? $_POST['status'] : 'neu';
+                foreach ($rows as &$r) if (($r['id'] ?? '') === $id) $r['status'] = $wert;
+                unset($r);
+                signup_save($rows);
+                flash('Status gespeichert.');
+            }
+        } finally { data_unlock($sperre); }
+        header('Location: anmeldungen.php'); exit;
     }
     if ($tat === 'wl_delete') {
         $neu = array_values(array_filter($warte, fn($r) => ($r['id'] ?? '') !== $id));

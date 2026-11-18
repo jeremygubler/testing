@@ -13,6 +13,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/media.php';
 
+/** Die einzigen Datendateien, die aus einem Archiv zurückkommen dürfen. */
+const FF_RESTORE_JSON = ['content', 'events', 'gallery'];
+
 const FF_RESTORE_MAX_ENTRIES = 600;
 const FF_RESTORE_MAX_BYTES   = 200 * 1024 * 1024;  // entpackt, gegen ZIP-Bomben
 
@@ -25,10 +28,12 @@ function restore_target(string $entry): ?array {
     if (str_starts_with($entry, '/') || str_contains($entry, '..')) return null;
 
     if (preg_match('#^data/([a-z0-9_-]{1,40})\.json\.php$#', $entry, $m)) {
-        // Passwort, Sperrliste und die echten Anmeldungen kommen niemals aus
-        // einer hochgeladenen Datei.
-        if (in_array($m[1], ['auth', 'throttle', 'signups', 'waitlist', 'signup_rate'], true)) return null;
-        return ['kind' => 'json', 'name' => $m[1] . '.json'];
+        // Positivliste statt Sperrliste: Eine Sperrliste erlaubt alles, woran
+        // niemand gedacht hat — ein Archiv konnte beliebige Dateien in data/
+        // anlegen. Erlaubt ist nur, was das Backup selbst erzeugt.
+        return in_array($m[1], FF_RESTORE_JSON, true)
+            ? ['kind' => 'json', 'name' => $m[1] . '.json']
+            : null;
     }
     if (preg_match('#^assets/gallery/([A-Za-z0-9][A-Za-z0-9._-]{0,59}\.jpg)$#', $entry, $m)) {
         return ['kind' => 'image', 'path' => FF_GALLERY . '/' . $m[1]];
@@ -67,8 +72,21 @@ function restore_image(string $bytes, string $path): bool {
 
     $info = @getimagesize($tmp);
     if ($info === false || $info[2] !== IMAGETYPE_JPEG) { @unlink($tmp); return false; }
+    [$w, $h] = $info;
+    if ($w < 1 || $h < 1 || $w * $h > 50_000_000) { @unlink($tmp); return false; }
 
-    if (!@rename($tmp, $path)) { @unlink($tmp); return false; }
+    // Wie beim Upload neu zeichnen, nicht die Bytes übernehmen: Ein gültiges
+    // JPEG mit angehängten Daten käme sonst unverändert zurück auf den Server.
+    $bild = @imagecreatefromjpeg($tmp);
+    @unlink($tmp);
+    if (!$bild) return false;
+
+    $neu = $dir . '/.restore-' . bin2hex(random_bytes(6)) . '.tmp';
+    $ok  = @imagejpeg($bild, $neu, 82);
+    imagedestroy($bild);
+    if (!$ok) { @unlink($neu); return false; }
+
+    if (!@rename($neu, $path)) { @unlink($neu); return false; }
     @chmod($path, 0644);
     return true;
 }

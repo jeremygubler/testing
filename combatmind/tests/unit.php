@@ -405,6 +405,71 @@ eq('fremder Host abgelehnt', $setz('https://evil.example.com/combatmind'), '');
 eq('Unsinn abgelehnt',       $setz('kein name mit leerzeichen'), '');
 eq('leer bleibt leer',       $setz(''), '');
 
+echo "\nAcht geprüfte Review-Hinweise\n";
+
+// 1 — Kursplätze: der letzte Platz darf nur einmal vergeben werden.
+json_write('content.json', ['program'=>['seats_total'=>'16','seats_left'=>'1'],
+                            'legal'=>['keep_days'=>'30']]);
+json_write('signups.json', []);
+json_write('events.json', []);
+ff_content(true);
+$kurs = fn(string $v, string $mail) => signup_store(signup_validate(['vorname'=>$v,'name'=>'Test',
+    'email'=>$mail,'telefon'=>'076 527 74 93','geburtsdatum'=>'10.03.1990',
+    'gesundheit'=>'nein','agb'=>'1'])['data']);
+eq('letzter Kursplatz geht an die erste', $kurs('Ann','a@example.ch'), 'ok');
+eq('die zweite wird abgewiesen',          $kurs('Ben','b@example.ch'), 'voll');
+eq('nur eine Anmeldung gespeichert',      count(signup_all()), 1);
+eq('Platzstand bei null',                 ff_content(true)['program']['seats_left'], '0');
+ok('und ausgebucht',                      ff_content()['program']['sold_out'] === true);
+
+// Auch wenn der Zähler schon auf null steht, darf nichts mehr durchkommen.
+eq('bei null wird abgewiesen', $kurs('Cid','c@example.ch'), 'voll');
+eq('immer noch eine Anmeldung', count(signup_all()), 1);
+
+// 6 — Aufbewahrung überlebt das Löschen eines Termins.
+json_write('events.json', [['id'=>'tjuni000001','date'=>'2027-06-01','title'=>'Juni',
+                            'signup'=>true,'seats'=>5]]);
+json_write('signups.json', []);
+json_write('content.json', ['program'=>['seats_total'=>'16','seats_left'=>'9'],
+                            'legal'=>['keep_days'=>'30']]);
+ff_content(true);
+$r = signup_validate(['vorname'=>'Früh','name'=>'Dran','email'=>'f@example.ch',
+    'telefon'=>'076 527 74 93','geburtsdatum'=>'10.03.1990','gesundheit'=>'nein',
+    'agb'=>'1','event'=>'tjuni000001'])['data'];
+eq('Termindatum wandert in den Datensatz', $r['event_date'], '2027-06-01');
+$faellig = signup_expires($r);
+json_write('events.json', []);                        // Termin wird gelöscht
+eq('Frist bleibt nach dem Löschen gleich', signup_expires($r), $faellig);
+ok('und liegt nach dem Training',
+   signup_expires($r) > strtotime('2027-06-01'), date('d.m.Y', signup_expires($r)));
+// Altbestand ohne das Feld fällt weiterhin auf den Anmeldezeitpunkt zurück.
+$alt = $r; unset($alt['event_date']);
+ok('alter Datensatz bleibt lesbar', signup_expires($alt) > 0);
+
+// 5 — Nur bekannte Datendateien dürfen aus einem Archiv zurückkommen.
+ok('unerwartete Datendatei abgelehnt', restore_target('data/unerwartet.json.php') === null);
+ok('content erlaubt',  restore_target('data/content.json.php') !== null);
+ok('events erlaubt',   restore_target('data/events.json.php') !== null);
+ok('gallery erlaubt',  restore_target('data/gallery.json.php') !== null);
+ok('auth weiterhin abgelehnt',    restore_target('data/auth.json.php') === null);
+ok('signups weiterhin abgelehnt', restore_target('data/signups.json.php') === null);
+
+// 8 — Ein Bild aus dem Archiv wird neu gezeichnet, nicht übernommen.
+$bild = imagecreatetruecolor(300, 200);
+imagefill($bild, 0, 0, imagecolorallocate($bild, 40, 40, 40));
+ob_start(); imagejpeg($bild, null, 85); $jpeg = (string)ob_get_clean();
+imagedestroy($bild);
+$mitAnhang = $jpeg . str_repeat('ANHAENGSEL', 50);
+$ziel = FF_GALLERY . '/20260101-pruef.jpg';
+ok('Bild mit Anhang wird angenommen', restore_image($mitAnhang, $ziel));
+$gespeichert = (string)file_get_contents($ziel);
+ok('der Anhang ist weg', !str_contains($gespeichert, 'ANHAENGSEL'),
+   strlen($mitAnhang) . ' Bytes hinein, ' . strlen($gespeichert) . ' heraus');
+ok('es ist weiterhin ein JPEG', (@getimagesize($ziel))[2] === IMAGETYPE_JPEG);
+ok('kein halbfertiger Rest', glob(FF_GALLERY . '/.restore-*') === []);
+ok('Nicht-Bild abgelehnt', !restore_image('<?php echo "x";', FF_GALLERY . '/20260101-kein.jpg'));
+ok('und nicht abgelegt', !is_file(FF_GALLERY . '/20260101-kein.jpg'));
+
 echo "\nBackup einspielen — was hinein darf\n";
 eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');
 ok('Galeriebild erlaubt',      restore_target('assets/gallery/20260919-ab12.jpg') !== null);

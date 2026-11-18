@@ -100,6 +100,13 @@ function signup_validate(array $p): array {
 
     if ($f !== []) return ['ok' => false, 'errors' => $f];
 
+    $evId    = trim((string)($p['event'] ?? ''));
+    $evDatum = '';
+    if ($evId !== '') {
+        $ev = event_by_id($evId);
+        if ($ev !== null) $evDatum = (string)$ev['date'];
+    }
+
     return ['ok' => true, 'errors' => [], 'data' => [
         'id'         => date('Ymd-His') . '-' . bin2hex(random_bytes(3)),
         'ts'         => time(),
@@ -116,6 +123,11 @@ function signup_validate(array $p): array {
         'fotos'      => !empty($p['fotos']),
         'nachricht'  => mb_substr($v('nachricht'), 0, 1000),
         'event'      => trim((string)($p['event'] ?? '')),
+        // Das Datum des Trainings wandert in den Datensatz. Wird der Termin
+        // später gelöscht, fiel die Aufbewahrungsfrist sonst auf den
+        // Anmeldezeitpunkt zurück — und löschte die Anmeldung unter Umständen
+        // noch vor dem Training.
+        'event_date' => $evDatum,
         'status'     => 'neu',
     ]];
 }
@@ -150,15 +162,25 @@ function signup_rate_state(): array {
 }
 
 function signup_rate_ok(): bool {
-    [, $hits, $key] = signup_rate_state();
-    return count($hits[$key] ?? []) < FF_SIGNUP_TRIES;
+    $sperre = data_lock('signup_rate');
+    try {
+        [, $hits, $key] = signup_rate_state();
+        return count($hits[$key] ?? []) < FF_SIGNUP_TRIES;
+    } finally { data_unlock($sperre); }
 }
 
-/** Erst nach einer gespeicherten Anmeldung aufrufen. */
+/**
+ * Erst nach einer gespeicherten Anmeldung aufrufen.
+ * Lesen und Schreiben unter einer Sperre: Sonst lesen zwei gleichzeitige
+ * Anfragen denselben Stand und eine der beiden Zählungen geht verloren.
+ */
 function signup_rate_hit(): void {
-    [$salt, $hits, $key] = signup_rate_state();
-    $hits[$key][] = time();
-    json_write('signup_rate.json', ['salt' => $salt, 'hits' => $hits]);
+    $sperre = data_lock('signup_rate');
+    try {
+        [$salt, $hits, $key] = signup_rate_state();
+        $hits[$key][] = time();
+        json_write('signup_rate.json', ['salt' => $salt, 'hits' => $hits]);
+    } finally { data_unlock($sperre); }
 }
 
 /**
@@ -240,21 +262,31 @@ function signup_store(array $data): string {
             return signup_save($rows) ? 'ok' : 'fehler';
         }
 
-        array_unshift($rows, $data);
-        if (!signup_save($rows)) return 'fehler';
+        // Kurs: Prüfen und Abziehen gehören in dieselbe Sperre. Vorher stand
+        // die Kapazitätsfrage allein in anmeldung.php — also gelesen, bevor
+        // diese Sperre überhaupt griff. Zwei Anmeldungen auf den letzten Platz
+        // kamen beide durch.
+        $inhalt = data_lock('content');
+        try {
+            $prog   = ff_content(true)['program'];
+            $gesamt = max(0, (int)$prog['seats_total']);
+            $frei   = $prog['seats_left'] === '' ? $gesamt : max(0, (int)$prog['seats_left']);
+            if (!empty($prog['sold_out']) || $frei < 1) return 'voll';
 
-        $saved  = json_read('content.json');
-        $prog   = ff_content(true)['program'];
-        $gesamt = max(0, (int)$prog['seats_total']);
-        $frei   = $prog['seats_left'] === '' ? $gesamt : max(0, (int)$prog['seats_left']);
-        $neu    = max(0, $frei - 1);
+            array_unshift($rows, $data);
+            if (!signup_save($rows)) return 'fehler';
 
-        $saved['program'] = ($saved['program'] ?? []) + [];
-        $saved['program']['seats_left'] = (string)$neu;
-        $saved['program']['sold_out']   = $neu === 0;
-        json_write('content.json', $saved);
-        ff_content(true);
-        return 'ok';
+            $neu   = $frei - 1;
+            $saved = json_read('content.json');
+            $saved['program'] = ($saved['program'] ?? []) + [];
+            $saved['program']['seats_left'] = (string)$neu;
+            $saved['program']['sold_out']   = $neu === 0;
+            json_write('content.json', $saved);
+            ff_content(true);
+            return 'ok';
+        } finally {
+            data_unlock($inhalt);
+        }
     } finally {
         data_unlock($sperre);
     }
@@ -344,8 +376,15 @@ function signup_keep_days(): int {
  * bleibt der Anmeldezeitpunkt.
  */
 function signup_expires(array $r): int {
-    $ev = (string)($r['event'] ?? '') !== '' ? event_by_id((string)$r['event']) : null;
-    $anker = $ev ? (int)strtotime((string)$ev['date'] . ' 23:59:59') : (int)($r['ts'] ?? 0);
+    // Reihenfolge mit Absicht: zuerst das im Datensatz festgehaltene Datum,
+    // dann der Termin, zuletzt der Anmeldezeitpunkt. Nur so überlebt die Frist
+    // das Löschen eines Termins.
+    $datum = trim((string)($r['event_date'] ?? ''));
+    if ($datum === '' && (string)($r['event'] ?? '') !== '') {
+        $ev = event_by_id((string)$r['event']);
+        if ($ev !== null) $datum = (string)$ev['date'];
+    }
+    $anker = $datum !== '' ? (int)strtotime($datum . ' 23:59:59') : (int)($r['ts'] ?? 0);
     return $anker + signup_keep_days() * 86400;
 }
 
