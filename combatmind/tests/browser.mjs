@@ -549,8 +549,12 @@ try {
   const karte = await page.textContent('body');
   ok('Admin erklärt den Zustand', karte.includes('Automatische Bereinigung'));
   ok('und nennt ihn noch nicht eingerichtet', karte.includes('Noch nicht eingerichtet'));
-  const befehl = await page.textContent('.card:has-text("Automatische Bereinigung") code');
-  ok('mit fertigem Befehl', befehl.includes('cron.php'), befehl);
+  // Gezielt den Befehl greifen: In der Karte steht inzwischen auch die
+  // Cron-Schreibweise als <code>.
+  const codes = await page.locator('.card:has-text("Automatische Bereinigung") code')
+    .evaluateAll((els) => els.map((e) => e.textContent));
+  ok('mit fertigem Befehl', codes.some((t) => t.includes('cron.php')), codes.join(' | '));
+  ok('und der empfohlenen Zeit', codes.some((t) => t.includes('0 18 * * *')), codes.join(' | '));
   const link = await page.locator('.card:has-text("Automatische Bereinigung") code').last().textContent();
   const key = link.match(/key=([0-9a-f]{32})/)?.[1];
   ok('Schlüssel steht im Admin', !!key);
