@@ -181,7 +181,9 @@ admin_tabs('index.php');
       <summary style="cursor:pointer;color:var(--gold-hi);font-size:.9rem">Einrichten bei cyon</summary>
       <p style="color:var(--mute);font-size:.9rem;margin:.8rem 0 .4rem">
         Im cyon-Panel unter <strong>Cronjobs</strong> einen neuen Auftrag anlegen,
-        täglich, mit diesem Befehl:</p>
+        <strong>täglich um 18:00</strong> — dann kommt die Erinnerung am Vorabend an,
+        wenn die Tasche noch gepackt werden kann. In Feldern mit Cron-Schreibweise:
+        <code style="font-size:.82rem">0 18 * * *</code>. Befehl:</p>
       <code style="display:block;background:var(--ink);border:1px solid var(--line);border-radius:7px;
         padding:.7rem .85rem;font-size:.82rem;overflow-x:auto;color:var(--white)">php <?= h($cronPfad) ?>/cron.php</code>
       <p style="color:var(--mute);font-size:.9rem;margin:.8rem 0 .4rem">

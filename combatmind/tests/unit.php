@@ -542,6 +542,22 @@ eq('nur morgen und heute', $vermerkt, ['c@example.ch', 'h@example.ch', 'm@exampl
 $zweiter = cron_reminders($jetzt);
 eq('zweiter Lauf schickt nichts mehr', $zweiter['gesendet'] + $zweiter['fehlgeschlagen'], 0);
 
+// Ein Training, das heute schon vorbei ist, bekommt keine Erinnerung mehr.
+json_write('events.json', [
+    ['id'=>'tfrueh000001','date'=>$heute,'title'=>'Früh','time'=>'06:00–07:00','signup'=>true,'seats'=>9],
+    ['id'=>'tspaet000001','date'=>$heute,'title'=>'Spät','time'=>'23:30–23:59','signup'=>true,'seats'=>9],
+]);
+json_write('signups.json', [
+    ['id'=>'f1','ts'=>$jetzt,'vorname'=>'F','name'=>'X','email'=>'f@example.ch','event'=>'tfrueh000001'],
+    ['id'=>'s1','ts'=>$jetzt,'vorname'=>'S','name'=>'Y','email'=>'s@example.ch','event'=>'tspaet000001'],
+]);
+// Mittags gerechnet: das 06:00-Training ist vorbei, das um 23:30 nicht.
+$mittag = strtotime(date('Y-m-d', $jetzt) . ' 12:00:00');
+cron_reminders($mittag);
+$wer = [];
+foreach (signup_all() as $r) if (!empty($r['reminded'])) $wer[] = $r['email'];
+eq('nur das noch kommende Training', $wer, ['s@example.ch']);
+
 // Abgeschaltet heisst abgeschaltet.
 json_write('signups.json', [$mach('tmorgen00001','neu@example.ch')]);
 json_write('content.json', ['signup'=>['remind'=>false], 'legal'=>['keep_days'=>'900']]);

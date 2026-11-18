@@ -74,8 +74,17 @@ function cron_reminders(?int $jetzt = null): array {
             if ($ev === null) continue;
             $datum = (string)$ev['date'];
             // Heute mitnehmen: Fällt ein Lauf aus, ist eine Erinnerung am
-            // Trainingstag immer noch besser als gar keine.
+            // Trainingstag immer noch besser als gar keine — aber nur, solange
+            // das Training noch bevorsteht. Läuft der Cronjob um 18:00, wäre
+            // die Erinnerung an ein Training um 10:00 sonst acht Stunden zu spät.
             if ($datum !== $heute && $datum !== $morgen) continue;
+            if ($datum === $heute) {
+                [$start, , $ganztags] = ics_zeitraum($ev);
+                // Ohne Uhrzeit ist kein Start bekannt — dann gilt der ganze Tag
+                // als bevorstehend, statt die Erinnerung stillschweigend zu
+                // unterschlagen.
+                if (!$ganztags && $start->getTimestamp() <= $jetzt) continue;
+            }
             $r['reminded'] = $jetzt;
             $faellig[] = [$r, $ev, $datum === $heute];
             $aenderung = true;
