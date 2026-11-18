@@ -168,6 +168,13 @@ admin_tabs('index.php');
         nicht mehr gelaufen.</strong> Prüf den Cronjob im cyon-Panel.
       <?php else: ?>
         Zuletzt gelaufen am <strong style="color:var(--white)"><?= h(date('d.m.Y, H:i', $cronLetzter)) ?></strong>.
+        <?php $lr = cron_state()['last_result'] ?? []; ?>
+        <?php if (!empty($lr['erinnerungen'])): ?>
+          <?= (int)$lr['erinnerungen'] ?> Erinnerung<?= (int)$lr['erinnerungen'] === 1 ? '' : 'en' ?> versendet.
+        <?php endif ?>
+        <?php if (!empty($lr['fehler'])): ?>
+          <span style="color:#f0b4b4"><?= h(implode(' ', array_slice((array)$lr['fehler'], 0, 2))) ?></span>
+        <?php endif ?>
       <?php endif ?>
     </p>
     <details>

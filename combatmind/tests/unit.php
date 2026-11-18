@@ -503,6 +503,53 @@ eq('zweiter Lauf löscht nichts mehr', cron_run()['anmeldungen'], 0);
 ok('Schlüssel steht nicht im Bericht',
    !str_contains(json_encode(cron_state()['last_result'] ?? []), $schl));
 
+echo "\nErinnerungen\n";
+$jetzt  = time();
+$heute  = date('Y-m-d', $jetzt);
+$morgen = date('Y-m-d', $jetzt + 86400);
+$spaet  = date('Y-m-d', $jetzt + 5 * 86400);
+
+json_write('content.json', ['signup'=>['remind'=>true,
+    'remind_text'=>"Hallo {vorname}\nkurze Erinnerung: {training} findet {wann} statt."],
+    'contact'=>['email'=>'info@combat-mind.ch'], 'legal'=>['keep_days'=>'900']]);
+ff_content(true);
+json_write('events.json', [
+    ['id'=>'tmorgen00001','date'=>$morgen,'title'=>'Morgen','time'=>'10:00–11:30','signup'=>true,'seats'=>9],
+    ['id'=>'theute000001','date'=>$heute, 'title'=>'Heute', 'signup'=>true,'seats'=>9],
+    ['id'=>'tspaeter0001','date'=>$spaet, 'title'=>'Später','signup'=>true,'seats'=>9],
+]);
+$mach = fn(string $id, string $mail) => ['id'=>'s-'.$mail,'ts'=>$jetzt,'vorname'=>'A','name'=>'B',
+    'email'=>$mail,'event'=>$id,'event_date'=>$id === '' ? '' : $morgen];
+json_write('signups.json', [
+    $mach('tmorgen00001','m@example.ch'),
+    $mach('theute000001','h@example.ch'),
+    $mach('tspaeter0001','s@example.ch'),
+    $mach('','kurs@example.ch'),
+    ['id'=>'schon','ts'=>$jetzt,'vorname'=>'C','name'=>'D','email'=>'c@example.ch',
+     'event'=>'tmorgen00001','reminded'=>$jetzt - 3600],
+]);
+
+// mail() scheitert hier mangels Mailserver — gezählt wird trotzdem, und
+// vermerkt wird in jedem Fall.
+$er = cron_reminders($jetzt);
+eq('zwei Einträge angefasst', $er['gesendet'] + $er['fehlgeschlagen'], 2);
+
+$vermerkt = [];
+foreach (signup_all() as $r) if (!empty($r['reminded'])) $vermerkt[] = $r['email'];
+sort($vermerkt);
+eq('nur morgen und heute', $vermerkt, ['c@example.ch', 'h@example.ch', 'm@example.ch']);
+
+$zweiter = cron_reminders($jetzt);
+eq('zweiter Lauf schickt nichts mehr', $zweiter['gesendet'] + $zweiter['fehlgeschlagen'], 0);
+
+// Abgeschaltet heisst abgeschaltet.
+json_write('signups.json', [$mach('tmorgen00001','neu@example.ch')]);
+json_write('content.json', ['signup'=>['remind'=>false], 'legal'=>['keep_days'=>'900']]);
+ff_content(true);
+$aus = cron_reminders($jetzt);
+eq('ohne Häkchen wird nichts gesendet', $aus['gesendet'] + $aus['fehlgeschlagen'], 0);
+ok('und nichts vermerkt', empty(signup_all()[0]['reminded']));
+
 echo "\nBackup einspielen — was hinein darf\n";
 eq('Textdatei erlaubt',        restore_target('data/content.json.php')['name'] ?? null, 'content.json');
 ok('Galeriebild erlaubt',      restore_target('assets/gallery/20260919-ab12.jpg') !== null);

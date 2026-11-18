@@ -27,6 +27,7 @@ $b = cron_run();
 printf("COMBAT MIND Cron %s\n", date('d.m.Y H:i'));
 printf("Anmeldungen gelöscht: %d\n", $b['anmeldungen'] ?? 0);
 printf("Warteliste gelöscht:  %d\n", $b['warteliste'] ?? 0);
+printf("Erinnerungen:         %d\n", $b['erinnerungen'] ?? 0);
 printf("Dauer: %s s\n", $b['dauer']);
 foreach ($b['fehler'] as $f) printf("FEHLER: %s\n", $f);
 exit($b['fehler'] === [] ? 0 : 1);
